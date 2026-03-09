@@ -14,6 +14,15 @@ class Receiver:
 
 
 @dataclass(slots=True)
+class PropagationProperties:
+    reflection_loss_db: float | None = None
+    diffraction_loss_db: float | None = None
+    absorption_coefficient: float | None = None
+    allows_reflection: bool | None = None
+    allows_diffraction: bool | None = None
+
+
+@dataclass(slots=True)
 class NoiseBarrier:
     id: str
     x1: float
@@ -23,6 +32,7 @@ class NoiseBarrier:
     height_meters: float
     attenuation_db: float
     material: str = "generic"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
 
 
 @dataclass(slots=True)
@@ -32,6 +42,7 @@ class Building:
     height_meters: float
     attenuation_db: float
     material: str = "generic"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
 
 
 @dataclass(slots=True)
@@ -120,18 +131,9 @@ class ScenarioConfig:
         control_data = dict(data["controls"])
         control_data["lane_change_target_positions"] = [tuple(item) for item in control_data.get("lane_change_target_positions", [])]
         scene_data = data.get("scene") or {}
-        legacy_barriers = [NoiseBarrier(**item) for item in scene_data.get("barriers", [])]
-        declared_noise_barriers = [NoiseBarrier(**item) for item in scene_data.get("noise_barriers", [])]
-        buildings = [
-            Building(
-                id=item["id"],
-                footprint=[tuple(point) for point in item.get("footprint", [])],
-                height_meters=item["height_meters"],
-                attenuation_db=item["attenuation_db"],
-                material=item.get("material", "generic"),
-            )
-            for item in scene_data.get("buildings", [])
-        ]
+        legacy_barriers = [cls._parse_noise_barrier(item) for item in scene_data.get("barriers", [])]
+        declared_noise_barriers = [cls._parse_noise_barrier(item) for item in scene_data.get("noise_barriers", [])]
+        buildings = [cls._parse_building(item) for item in scene_data.get("buildings", [])]
         return cls(
             scenario=ScenarioInfo(**data["scenario"]),
             traffic=TrafficConfig(**data["traffic"]),
@@ -145,6 +147,19 @@ class ScenarioConfig:
             ),
             source_path=Path(source_path) if source_path is not None else None,
         )
+
+    @staticmethod
+    def _parse_noise_barrier(data: dict) -> NoiseBarrier:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        return NoiseBarrier(propagation=propagation, **payload)
+
+    @staticmethod
+    def _parse_building(data: dict) -> Building:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        footprint = [tuple(point) for point in payload.pop("footprint", [])]
+        return Building(footprint=footprint, propagation=propagation, **payload)
 
     @classmethod
     def load(cls, path: str | Path) -> "ScenarioConfig":

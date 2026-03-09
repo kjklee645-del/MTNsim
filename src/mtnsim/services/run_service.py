@@ -10,11 +10,11 @@ from mtnsim.acoustics.propagation.correction import PropagationContext
 from mtnsim.acoustics.propagation.shielding import BarrierSegment, build_shielding_context
 from mtnsim.core.context import RunContext
 from mtnsim.io.result_store import write_receiver_histories, write_run_manifest, write_run_result_summary
-from mtnsim.scene.grid import GridDomain, read_network_bounds
+from mtnsim.scene import GridDomain, build_scene_model, read_network_bounds
 from mtnsim.schemas.project import ProjectManifest
 from mtnsim.schemas.results import ReceiverStats, RunResultSummary
 from mtnsim.schemas.run import RunSummary
-from mtnsim.schemas.scenario import Building, NoiseBarrier, ScenarioConfig
+from mtnsim.schemas.scenario import ScenarioConfig
 from mtnsim.traffic.sumo_adapter import SumoAdapter
 from mtnsim.traffic.vehicle_controls import (
     LaneChangeState,
@@ -77,7 +77,8 @@ class RunService:
             vehicle_type: (profile.a, profile.b)
             for vehicle_type, profile in context.scenario.noise.vehicle_coefficients.items()
         }
-        shielding_segments = self._build_shielding_segments(context.scenario)
+        scene_model = build_scene_model(context.scenario.scene)
+        shielding_segments = scene_model.to_shielding_segments()
         propagation_provider = self._build_propagation_provider(shielding_segments)
         effective_use_gpu = use_gpu and not shielding_segments
 
@@ -194,8 +195,9 @@ class RunService:
             propagation_features={
                 'shielding_enabled': bool(shielding_segments),
                 'shielding_segment_count': len(shielding_segments),
-                'noise_barrier_count': len(context.scenario.scene.noise_barriers),
-                'building_count': len(context.scenario.scene.buildings),
+                'noise_barrier_count': len(scene_model.noise_barriers),
+                'building_count': len(scene_model.buildings),
+                'scene_object_count': len(scene_model.objects),
                 'gpu_requested': use_gpu,
                 'gpu_used': effective_use_gpu,
             },
@@ -261,45 +263,6 @@ class RunService:
                 sample_count=len(values),
             )
         return stats
-
-    def _build_shielding_segments(self, scenario: ScenarioConfig) -> list[BarrierSegment]:
-        segments: list[BarrierSegment] = []
-        for barrier in scenario.scene.noise_barriers:
-            segments.append(self._segment_from_noise_barrier(barrier))
-        for building in scenario.scene.buildings:
-            segments.extend(self._segments_from_building(building))
-        return segments
-
-    def _segment_from_noise_barrier(self, barrier: NoiseBarrier) -> BarrierSegment:
-        return BarrierSegment(
-            id=barrier.id,
-            x1=barrier.x1,
-            y1=barrier.y1,
-            x2=barrier.x2,
-            y2=barrier.y2,
-            height_meters=barrier.height_meters,
-            attenuation_db=barrier.attenuation_db,
-        )
-
-    def _segments_from_building(self, building: Building) -> list[BarrierSegment]:
-        points = building.footprint
-        if len(points) < 3:
-            return []
-        segments: list[BarrierSegment] = []
-        for index, start_point in enumerate(points):
-            end_point = points[(index + 1) % len(points)]
-            segments.append(
-                BarrierSegment(
-                    id=f"{building.id}:edge:{index}",
-                    x1=start_point[0],
-                    y1=start_point[1],
-                    x2=end_point[0],
-                    y2=end_point[1],
-                    height_meters=building.height_meters,
-                    attenuation_db=building.attenuation_db,
-                )
-            )
-        return segments
 
     def _build_propagation_provider(self, shielding_segments: list[BarrierSegment]):
         if not shielding_segments:

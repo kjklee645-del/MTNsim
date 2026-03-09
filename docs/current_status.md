@@ -14,6 +14,8 @@ The codebase now supports:
 - run/result summary artifacts
 - scenario and result comparison
 - first-pass shielding using roadside barriers and building footprints
+- a first runtime scene-object hierarchy for clearer geometry handling
+- a common propagation-property layer for scene objects
 
 ## 2. What Has Been Implemented
 
@@ -71,10 +73,29 @@ Current scene objects:
 - `noise_barriers`
 - `buildings`
 
+Runtime hierarchy:
+- `SceneModel`
+- `SceneObject`
+- `LinearSceneObject`
+- `PolygonSceneObject`
+- `NoiseBarrierObject`
+- `BuildingObject`
+- `PropagationMaterial`
+
+Common propagation properties now tracked on scene objects:
+- `shielding_attenuation_db`
+- `reflection_loss_db`
+- `diffraction_loss_db`
+- `absorption_coefficient`
+- `allows_reflection`
+- `allows_diffraction`
+
 Behavior:
 - a `noise_barrier` is represented as a single line segment with height, attenuation, and material tag
 - a `building` is represented as a footprint polygon, height, attenuation, and material tag
 - building footprints are decomposed into edge segments for first-pass shielding checks
+- object materials now resolve through per-object-type defaults plus optional per-object propagation overrides
+- `RunService` consumes the runtime `SceneModel` instead of manually expanding schema objects inline
 
 Compatibility note:
 - legacy `scene.barriers` input is still accepted and internally converted into `noise_barriers`
@@ -89,6 +110,7 @@ Current comparison outputs include:
 - changed scenario fields
 - receiver-level min/max/mean delta values
 - aggregate mean-of-mean dB delta summary
+- object-level propagation-property differences in scene definitions
 
 ## 3. Validated Scenarios
 
@@ -115,7 +137,7 @@ These values are prototype-level engineering checks, not yet validated against m
 - building shielding is approximated using footprint edges only
 - reflection is not implemented yet
 - diffraction is not implemented yet
-- material tags are stored but not yet used in propagation formulas
+- common propagation properties are stored but not yet actively used beyond shielding attenuation
 
 ### 4.2 Performance Limitations
 
@@ -142,6 +164,8 @@ The development sequence followed so far was:
 7. propagation split
 8. first shielding implementation
 9. scene-object generalization
+10. runtime scene-object hierarchy cleanup
+11. common propagation-property layer
 
 This order was correct because:
 - stable config had to come before larger refactoring
@@ -151,12 +175,10 @@ This order was correct because:
 
 ## 6. Recommended Next Order
 
-1. refine the scene-object hierarchy further
-2. add common propagation properties for each scene object type
-3. implement material-aware corrections on top of that hierarchy
-4. extend reflection and diffraction beyond placeholders
-5. add calibration workflow against measurements
-6. only then deepen higher-level product layers such as reporting, GUI, and richer agent control
+1. implement material-aware corrections on top of the common propagation-property layer
+2. extend reflection and diffraction beyond placeholders
+3. add calibration workflow against measurements
+4. only then deepen higher-level product layers such as reporting, GUI, and richer agent control
 
 ## 7. Practical Repository State
 
@@ -166,6 +188,7 @@ Repository now contains:
 - schema files under `schemas`
 - example SUMO network under `data/sumo`
 - planning and status docs under `docs` and the repository root
+- a persistent progress checklist under `docs/development_checklist.md`
 
 Repository excludes from version control through `.gitignore`:
 - `outputs/`
@@ -174,4 +197,4 @@ Repository excludes from version control through `.gitignore`:
 
 ## 8. Bottom Line
 
-MTNsim is no longer just a prototype script. It is now a structured simulation kernel with a clear product direction, reproducible scenario handling, comparison capability, and the first usable step toward scene-aware traffic-noise propagation.
+MTNsim is no longer just a prototype script. It is now a structured simulation kernel with a clear product direction, reproducible scenario handling, comparison capability, an initial runtime scene hierarchy, and the common propagation-property layer needed for the next material-aware propagation step.
