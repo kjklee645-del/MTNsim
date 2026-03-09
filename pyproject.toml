@@ -1,4 +1,4 @@
-﻿[build-system]
+[build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "mtnsim"
 version = "0.1.0"
 description = "Microscopic traffic noise simulation platform"
-readme = "MTNsim_PRD_draft.md"
+readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Codex" }]
 dependencies = []
