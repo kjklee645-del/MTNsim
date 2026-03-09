@@ -1,0 +1,18 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mtnsim.local/schemas/run.schema.json",
+  "title": "MTNsim Run Summary",
+  "type": "object",
+  "required": ["run_id", "project", "scenario", "max_steps", "max_vehicles", "receiver_count", "lane_change_mode", "lane_change_strategy"],
+  "properties": {
+    "run_id": {"type": "string"},
+    "project": {"type": "string"},
+    "scenario": {"type": "string"},
+    "max_steps": {"type": "integer", "minimum": 1},
+    "max_vehicles": {"type": "integer", "minimum": 1},
+    "receiver_count": {"type": "integer", "minimum": 0},
+    "lane_change_mode": {"type": "string"},
+    "lane_change_strategy": {"type": "string"}
+  },
+  "additionalProperties": false
+}

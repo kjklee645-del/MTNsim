@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mtnsim.local/schemas/result.schema.json",
+  "title": "MTNsim Run Result Summary",
+  "type": "object",
+  "required": ["run", "output_dir", "manifest_file", "receiver_history_files", "used_gpu", "receiver_stats"],
+  "properties": {
+    "run": {"type": "object"},
+    "output_dir": {"type": "string"},
+    "manifest_file": {"type": "string"},
+    "receiver_history_files": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "final_grid_snapshot_file": {"type": ["string", "null"]},
+    "used_gpu": {"type": "boolean"},
+    "receiver_stats": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["min_db", "max_db", "mean_db", "sample_count"],
+        "properties": {
+          "min_db": {"type": "number"},
+          "max_db": {"type": "number"},
+          "mean_db": {"type": "number"},
+          "sample_count": {"type": "integer", "minimum": 0}
+        },
+        "additionalProperties": false
+      }
+    },
+    "propagation_features": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

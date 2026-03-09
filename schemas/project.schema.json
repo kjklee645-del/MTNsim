@@ -1,0 +1,72 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mtnsim.local/schemas/project.schema.json",
+  "title": "MTNsim Project Manifest",
+  "type": "object",
+  "required": ["project", "paths", "simulation_defaults", "agent", "outputs"],
+  "properties": {
+    "project": {
+      "type": "object",
+      "required": ["name", "version", "default_scenario"],
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "description": {"type": "string"},
+        "default_scenario": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "paths": {
+      "type": "object",
+      "required": ["network", "route", "sumo_config", "outputs"],
+      "properties": {
+        "network": {"type": "string"},
+        "route": {"type": "string"},
+        "sumo_config": {"type": "string"},
+        "scene": {"type": "string"},
+        "measurements": {"type": "string"},
+        "outputs": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "simulation_defaults": {
+      "type": "object",
+      "required": ["time_step_seconds", "max_steps", "random_seed", "engine"],
+      "properties": {
+        "time_step_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "max_steps": {"type": "integer", "minimum": 1},
+        "random_seed": {"type": "integer"},
+        "engine": {"type": "string", "enum": ["sumo", "replay"]}
+      },
+      "additionalProperties": false
+    },
+    "agent": {
+      "type": "object",
+      "required": ["enabled", "mode", "requires_approval_for"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "mode": {"type": "string", "enum": ["disabled", "bounded", "advanced"]},
+        "requires_approval_for": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputs": {
+      "type": "object",
+      "required": ["store_run_manifest", "store_receiver_timeseries", "store_grid_timeseries", "format"],
+      "properties": {
+        "store_run_manifest": {"type": "boolean"},
+        "store_receiver_timeseries": {"type": "boolean"},
+        "store_grid_timeseries": {"type": "boolean"},
+        "format": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["json", "csv", "parquet", "sqlite"]}
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
