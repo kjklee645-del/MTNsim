@@ -177,6 +177,7 @@ Observed comparison examples:
 - `building_shielding_default` vs `building_shielding`: average receiver mean level changed by about `+0.45 dB`, with a strong near-field decrease and more visible far-field increases under the current reflection model
 - `baseline` calibration against example measurement CSV + sensor metadata: overall mean bias about `-0.67 dB`, overall RMSE about `0.95 dB`
 - propagation tuning benchmark: current search space found a zero-penalty candidate over 6,561 parameter combinations
+- building material override comparison after geometry-coupled material correction update: average receiver mean level changed by about `-0.28 dB`, with near-field reductions up to about `-1.47 dB` and small far-field increases from reflection redistribution
 - synthetic shifted-measurement calibration validation: auto time sync recovered `+2` steps for both sensors and rejected one injected outlier sample
 
 These values are prototype-level engineering checks, not yet validated against measured field data.
@@ -189,7 +190,7 @@ These values are prototype-level engineering checks, not yet validated against m
 - building shielding is approximated using footprint edges only
 - reflection now uses a geometry-informed specular model tied to scene-object materials
 - diffraction now uses a knife-edge-inspired path-excess model on blocked paths
-- common propagation properties now affect shielding, reflection, and diffraction through richer but still simplified models, and they are not yet fully validated physics-based implementations
+- common propagation properties now affect shielding, reflection, and diffraction through geometry-coupled material corrections, but they are still simplified and not yet fully validated physics-based implementations
 
 ### 4.2 Performance Limitations
 

@@ -78,7 +78,7 @@ Status legend:
 | Geometry | Terrain surface / edge objects | [ ] | not started |
 | Geometry | Vegetation objects | [ ] | not started |
 | Propagation model | Common propagation properties per object type | [x] | defaults + per-object overrides added |
-| Propagation model | Material-aware corrections | [~] | path-specific shielding/reflection/diffraction material corrections active |
+| Propagation model | Material-aware corrections | [~] | geometry-coupled shielding/reflection/diffraction material corrections active |
 
 ## 7. Calibration and Validation
 
