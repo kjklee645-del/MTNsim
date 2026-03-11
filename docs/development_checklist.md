@@ -85,9 +85,9 @@ Status legend:
 | Area | Item | Status | Notes |
 | --- | --- | --- | --- |
 | Calibration | Measurement import workflow | [x] | CSV measurement loader and calibration service added |
-| Calibration | Sensor alignment | [~] | sensor metadata mapping, time offset, and valid window support added |
+| Calibration | Sensor alignment | [~] | sensor metadata mapping, manual offset, auto time sync, and valid window support added |
 | Calibration | Correction factor estimation | [~] | receiver/global bias recommendation with skipped/unmatched tracking added |
-| Validation | Benchmark scenarios | [~] | propagation reference benchmark cases, runner, and tuning-space added |
+| Validation | Benchmark scenarios | [x] | propagation reference benchmark cases, runner, tuning-space, and tuned defaults added |
 | Validation | Integration tests | [~] | smoke-level validation only |
 | Validation | Field-data comparison | [ ] | not started |
 
@@ -106,9 +106,9 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Validate and tune reflection/diffraction against measured or reference cases | [ ] | geometry-informed models are active, but still need validation |
-| 2 | Strengthen material-aware corrections beyond heuristic shielding use | [ ] | current version is still first-pass only |
-| 3 | Deepen calibration workflow with richer sensor metadata and alignment | [ ] | baseline calibration loop now exists |
+| 1 | Strengthen material-aware corrections beyond heuristic shielding use | [ ] | tuned propagation defaults are in place; material physics is the next weakest link |
+| 2 | Deepen calibration workflow with richer alignment and validation | [ ] | auto time sync is in place, but field-facing calibration still needs expansion |
+| 3 | Validate tuned propagation against richer measured/reference cases | [ ] | current benchmark suite is still compact and synthetic |
 | 4 | Deepen reporting / GUI / richer agent control | [ ] | should come after core physics and validation |
 
 ## 10. Maintenance Rule

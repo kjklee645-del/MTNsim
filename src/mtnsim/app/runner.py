@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from pathlib import Path
 
@@ -50,7 +50,6 @@ class AppRunner:
             'comparison': comparison,
         }
 
-
     def calibrate_project_run(
         self,
         manifest_path: str | Path,
@@ -58,6 +57,10 @@ class AppRunner:
         measurement_path: str | Path | None = None,
         measurement_metadata_path: str | Path | None = None,
         use_gpu: bool = True,
+        auto_time_sync: bool = False,
+        max_time_offset_steps: int = 5,
+        outlier_error_threshold_db: float | None = None,
+        min_alignment_samples: int = 3,
     ) -> dict:
         project = self.project_api.load_manifest(manifest_path)
         scenario = self.project_api.load_scenario(scenario_path)
@@ -71,6 +74,10 @@ class AppRunner:
             target_measurement,
             measurement_metadata_file=target_metadata,
             time_step_seconds=project.simulation_defaults.time_step_seconds,
+            auto_time_sync=auto_time_sync,
+            max_time_offset_steps=max_time_offset_steps,
+            outlier_error_threshold_db=outlier_error_threshold_db,
+            min_alignment_samples=min_alignment_samples,
         )
         return {
             'run_id': artifacts.run_id,
@@ -84,6 +91,10 @@ class AppRunner:
         measurement_path: str | Path,
         measurement_metadata_path: str | Path | None = None,
         time_step_seconds: float = 1.0,
+        auto_time_sync: bool = False,
+        max_time_offset_steps: int = 5,
+        outlier_error_threshold_db: float | None = None,
+        min_alignment_samples: int = 3,
     ) -> dict:
         from mtnsim.schemas.results import RunResultSummary
         loaded = RunResultSummary.load(result_summary_path)
@@ -92,12 +103,14 @@ class AppRunner:
             measurement_path,
             measurement_metadata_file=measurement_metadata_path,
             time_step_seconds=time_step_seconds,
+            auto_time_sync=auto_time_sync,
+            max_time_offset_steps=max_time_offset_steps,
+            outlier_error_threshold_db=outlier_error_threshold_db,
+            min_alignment_samples=min_alignment_samples,
         )
-
 
     def run_propagation_benchmarks(self, benchmark_file: str | Path) -> dict:
         return self.benchmark_service.run_propagation_benchmarks(benchmark_file).to_dict()
-
 
     def tune_propagation(self, benchmark_file: str | Path, tuning_file: str | Path) -> dict:
         return self.tuning_service.tune_propagation(benchmark_file, tuning_file).to_dict()

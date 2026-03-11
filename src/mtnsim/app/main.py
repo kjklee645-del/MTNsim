@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
@@ -17,6 +17,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--measurement", default=None, help="Measurement CSV path for calibration")
     parser.add_argument("--measurement-meta", default=None, help="Measurement sensor metadata CSV path for calibration")
     parser.add_argument("--result-summary", default=None, help="Existing run_result_summary.json path for calibration")
+    parser.add_argument("--auto-time-sync", action="store_true", help="Automatically estimate per-sensor time offsets during calibration")
+    parser.add_argument("--max-time-offset-steps", type=int, default=5, help="Maximum absolute time-offset search window for auto sync")
+    parser.add_argument("--outlier-error-threshold-db", type=float, default=None, help="Reject calibration samples whose absolute error exceeds this dB threshold")
+    parser.add_argument("--min-alignment-samples", type=int, default=3, help="Minimum overlapping samples required to accept an auto time offset")
     parser.add_argument("--cpu", action="store_true", help="Force CPU noise calculation")
     parser.add_argument("--benchmark-propagation", action="store_true", help="Run propagation benchmark cases")
     parser.add_argument("--benchmark-file", default=None, help="Propagation benchmark JSON path")
@@ -55,6 +59,10 @@ def main() -> None:
             Path(args.result_summary),
             Path(args.measurement),
             measurement_metadata_path=Path(args.measurement_meta) if args.measurement_meta else None,
+            auto_time_sync=args.auto_time_sync,
+            max_time_offset_steps=args.max_time_offset_steps,
+            outlier_error_threshold_db=args.outlier_error_threshold_db,
+            min_alignment_samples=args.min_alignment_samples,
         )
         print(json.dumps(calibration, indent=2))
         return
@@ -66,6 +74,10 @@ def main() -> None:
             measurement_path=args.measurement,
             measurement_metadata_path=args.measurement_meta,
             use_gpu=not args.cpu,
+            auto_time_sync=args.auto_time_sync,
+            max_time_offset_steps=args.max_time_offset_steps,
+            outlier_error_threshold_db=args.outlier_error_threshold_db,
+            min_alignment_samples=args.min_alignment_samples,
         )
         print(json.dumps(calibration, indent=2))
         return

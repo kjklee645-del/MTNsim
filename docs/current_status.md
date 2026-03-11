@@ -111,9 +111,11 @@ Implemented:
 
 What it does now:
 - loads measurement CSV data in `sensor_id/receiver_id,time_index|time_seconds,value_db` format
-- applies optional sensor metadata for receiver mapping, time offset, enabled flag, and valid time window
+- applies optional sensor metadata for receiver mapping, manual time offset, enabled flag, and valid time window
+- can automatically estimate per-sensor time offsets within a bounded search window
+- can reject calibration outliers using an absolute error threshold
 - aligns measurements with simulated receiver histories
-- computes receiver-level and global bias, MAE, and RMSE while tracking skipped and unmatched samples
+- computes receiver-level and global bias, MAE, and RMSE while tracking skipped, unmatched, and rejected samples
 - writes `calibration_summary.json` per calibrated run
 
 ### 2.6 Benchmark Workflow
@@ -175,6 +177,7 @@ Observed comparison examples:
 - `building_shielding_default` vs `building_shielding`: average receiver mean level changed by about `+0.45 dB`, with a strong near-field decrease and more visible far-field increases under the current reflection model
 - `baseline` calibration against example measurement CSV + sensor metadata: overall mean bias about `-0.67 dB`, overall RMSE about `0.95 dB`
 - propagation tuning benchmark: current search space found a zero-penalty candidate over 6,561 parameter combinations
+- synthetic shifted-measurement calibration validation: auto time sync recovered `+2` steps for both sensors and rejected one injected outlier sample
 
 These values are prototype-level engineering checks, not yet validated against measured field data.
 
