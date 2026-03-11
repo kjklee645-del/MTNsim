@@ -1,6 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import defaultdict
+from math import sqrt
 from pathlib import Path
 
 from mtnsim.io.measurements import read_measurement_metadata, read_measurement_samples
@@ -10,6 +11,7 @@ from mtnsim.schemas.field_campaign import (
     FieldCampaignValidationSummary,
     FieldCampaignValidationThresholds,
     ReceiverCampaignDiagnostic,
+    ReceiverGroupDiagnostic,
 )
 from mtnsim.schemas.project import ProjectManifest
 from mtnsim.schemas.scenario import ScenarioConfig
@@ -57,6 +59,9 @@ class CampaignValidationService:
                 result_summary_file=None,
                 calibration_summary_file=None,
                 campaign_validation_report_file=str(report_file),
+                acceptance_status='rejected',
+                acceptance_reasons=['Structural inspection failed before simulation/calibration could run.'],
+                recommended_next_actions=['Fix campaign package quality issues reported by inspection before rerunning validation.'],
             )
             report_file.write_text(self._build_report(summary, campaign, inspection.summary, None, None), encoding='utf-8')
             output_path = write_field_campaign_validation_summary(inspection.output_dir, summary)
@@ -78,22 +83,39 @@ class CampaignValidationService:
         )
 
         receiver_diagnostics = self._build_receiver_diagnostics(measurement_path, metadata_path, calibration, project.simulation_defaults.time_step_seconds)
+        receiver_group_diagnostics = self._build_receiver_group_diagnostics(receiver_diagnostics, campaign.receiver_groups)
         coverage_ratio = (calibration.aligned_sample_count / inspection.summary.measurement_row_count) if inspection.summary.measurement_row_count else 0.0
         outlier_rejection_ratio = (calibration.outlier_rejected_sample_count / calibration.aligned_sample_count) if calibration.aligned_sample_count else 0.0
         max_abs_effective_time_offset_steps = max((abs(value) for value in (calibration.effective_sensor_time_offsets or {}).values()), default=0)
         low_coverage_receiver_ids = self._find_low_coverage_receivers(receiver_diagnostics, campaign.validation_thresholds)
+        low_coverage_receiver_group_ids = self._find_low_coverage_receiver_groups(receiver_group_diagnostics, campaign.validation_thresholds)
         threshold_checks = self._evaluate_thresholds(
             calibration,
             campaign.validation_thresholds,
             coverage_ratio,
             receiver_diagnostics,
+            receiver_group_diagnostics,
             outlier_rejection_ratio,
             max_abs_effective_time_offset_steps,
             low_coverage_receiver_ids,
+            low_coverage_receiver_group_ids,
         )
         validation_passed = all(item['passed'] for item in threshold_checks.values()) if threshold_checks else True
         worst_receiver_id = self._find_worst_receiver(receiver_diagnostics)
+        worst_receiver_group_id = self._find_worst_receiver_group(receiver_group_diagnostics)
         high_error_receiver_ids = self._find_high_error_receivers(receiver_diagnostics, campaign.validation_thresholds)
+        high_error_receiver_group_ids = self._find_high_error_receiver_groups(receiver_group_diagnostics, campaign.validation_thresholds)
+        acceptance_status, acceptance_reasons = self._build_acceptance_decision(inspection.summary.passed, threshold_checks)
+        comparison_insights = self._build_comparison_insights(receiver_diagnostics, receiver_group_diagnostics)
+        recommended_next_actions = self._build_recommended_next_actions(
+            acceptance_status,
+            threshold_checks,
+            calibration.recommendations,
+            high_error_receiver_ids,
+            high_error_receiver_group_ids,
+            low_coverage_receiver_ids,
+            low_coverage_receiver_group_ids,
+        )
 
         summary = FieldCampaignValidationSummary(
             campaign_id=campaign.campaign_id,
@@ -110,9 +132,22 @@ class CampaignValidationService:
             campaign_validation_report_file=str(report_file),
             threshold_checks=threshold_checks,
             receiver_diagnostics=receiver_diagnostics,
+            receiver_group_diagnostics=receiver_group_diagnostics,
             high_error_receiver_ids=high_error_receiver_ids,
+            high_error_receiver_group_ids=high_error_receiver_group_ids,
             low_coverage_receiver_ids=low_coverage_receiver_ids,
+            low_coverage_receiver_group_ids=low_coverage_receiver_group_ids,
+            calibration_recommendations=[item.to_dict() for item in calibration.recommendations],
+            calibration_high_priority_receiver_ids=calibration.high_priority_receiver_ids,
+            recommended_global_offset_db=calibration.recommended_global_offset_db,
+            suggested_sensor_time_offset_updates=calibration.suggested_sensor_time_offset_updates,
+            suggested_receiver_offset_db=calibration.suggested_receiver_offset_db,
+            acceptance_status=acceptance_status,
+            acceptance_reasons=acceptance_reasons,
+            comparison_insights=comparison_insights,
+            recommended_next_actions=recommended_next_actions,
             worst_receiver_id=worst_receiver_id,
+            worst_receiver_group_id=worst_receiver_group_id,
             overall_mean_bias_db=calibration.overall_mean_bias_db,
             overall_rmse_db=calibration.overall_rmse_db,
             aligned_sample_count=calibration.aligned_sample_count,
@@ -159,10 +194,71 @@ class CampaignValidationService:
         diagnostics.sort(key=lambda item: (-item.rmse_db, item.receiver_id))
         return diagnostics
 
+    def _build_receiver_group_diagnostics(
+        self,
+        receiver_diagnostics: list[ReceiverCampaignDiagnostic],
+        receiver_groups: dict[str, list[str]],
+    ) -> list[ReceiverGroupDiagnostic]:
+        if not receiver_groups:
+            return []
+        by_receiver = {item.receiver_id: item for item in receiver_diagnostics}
+        diagnostics: list[ReceiverGroupDiagnostic] = []
+        for group_id, receiver_ids in sorted(receiver_groups.items()):
+            members = [by_receiver[receiver_id] for receiver_id in receiver_ids if receiver_id in by_receiver]
+            if not members:
+                diagnostics.append(
+                    ReceiverGroupDiagnostic(
+                        group_id=group_id,
+                        receiver_ids=list(receiver_ids),
+                        receiver_count=0,
+                        sample_count=0,
+                        expected_sample_count=0,
+                        coverage_ratio=0.0,
+                        mean_bias_db=0.0,
+                        mae_db=0.0,
+                        rmse_db=0.0,
+                        rejected_outlier_count=0,
+                    )
+                )
+                continue
+            sample_count = sum(item.sample_count for item in members)
+            expected_count = sum(item.expected_sample_count for item in members)
+            coverage_ratio = (sample_count / expected_count) if expected_count else 0.0
+            if sample_count > 0:
+                mean_bias = sum(item.mean_bias_db * item.sample_count for item in members) / sample_count
+                mae = sum(item.mae_db * item.sample_count for item in members) / sample_count
+                rmse = sqrt(sum((item.rmse_db ** 2) * item.sample_count for item in members) / sample_count)
+            else:
+                weight_total = len(members)
+                mean_bias = sum(item.mean_bias_db for item in members) / weight_total
+                mae = sum(item.mae_db for item in members) / weight_total
+                rmse = sqrt(sum(item.rmse_db ** 2 for item in members) / weight_total)
+            diagnostics.append(
+                ReceiverGroupDiagnostic(
+                    group_id=group_id,
+                    receiver_ids=list(receiver_ids),
+                    receiver_count=len(members),
+                    sample_count=sample_count,
+                    expected_sample_count=expected_count,
+                    coverage_ratio=coverage_ratio,
+                    mean_bias_db=mean_bias,
+                    mae_db=mae,
+                    rmse_db=rmse,
+                    rejected_outlier_count=sum(item.rejected_outlier_count for item in members),
+                )
+            )
+        diagnostics.sort(key=lambda item: (-item.rmse_db, item.group_id))
+        return diagnostics
+
     def _find_worst_receiver(self, diagnostics: list[ReceiverCampaignDiagnostic]) -> str | None:
         if not diagnostics:
             return None
         return max(diagnostics, key=lambda item: (item.rmse_db, abs(item.mean_bias_db), item.receiver_id)).receiver_id
+
+    def _find_worst_receiver_group(self, diagnostics: list[ReceiverGroupDiagnostic]) -> str | None:
+        if not diagnostics:
+            return None
+        return max(diagnostics, key=lambda item: (item.rmse_db, abs(item.mean_bias_db), item.group_id)).group_id
 
     def _find_high_error_receivers(self, diagnostics: list[ReceiverCampaignDiagnostic], thresholds: FieldCampaignValidationThresholds) -> list[str]:
         flagged: list[str] = []
@@ -174,10 +270,106 @@ class CampaignValidationService:
                 flagged.append(item.receiver_id)
         return flagged
 
+    def _find_high_error_receiver_groups(self, diagnostics: list[ReceiverGroupDiagnostic], thresholds: FieldCampaignValidationThresholds) -> list[str]:
+        flagged: list[str] = []
+        for item in diagnostics:
+            if thresholds.max_receiver_group_rmse_db is not None and item.rmse_db > thresholds.max_receiver_group_rmse_db:
+                flagged.append(item.group_id)
+                continue
+            if thresholds.max_receiver_group_abs_mean_bias_db is not None and abs(item.mean_bias_db) > thresholds.max_receiver_group_abs_mean_bias_db:
+                flagged.append(item.group_id)
+        return flagged
+
     def _find_low_coverage_receivers(self, diagnostics: list[ReceiverCampaignDiagnostic], thresholds: FieldCampaignValidationThresholds) -> list[str]:
         if thresholds.min_receiver_coverage_ratio is None:
             return []
         return [item.receiver_id for item in diagnostics if item.coverage_ratio < thresholds.min_receiver_coverage_ratio]
+
+    def _find_low_coverage_receiver_groups(self, diagnostics: list[ReceiverGroupDiagnostic], thresholds: FieldCampaignValidationThresholds) -> list[str]:
+        if thresholds.min_receiver_group_coverage_ratio is None:
+            return []
+        return [item.group_id for item in diagnostics if item.coverage_ratio < thresholds.min_receiver_group_coverage_ratio]
+
+    def _build_acceptance_decision(self, inspection_passed: bool, threshold_checks: dict[str, dict]) -> tuple[str, list[str]]:
+        if not inspection_passed:
+            return 'rejected', ['Structural inspection did not pass.']
+        failed_checks = [check_id for check_id, payload in threshold_checks.items() if not payload.get('passed', True)]
+        if not failed_checks:
+            return 'accepted', ['All declared campaign validation checks passed.']
+        severe = {
+            'min_aligned_sample_count',
+            'max_unmatched_sensor_count',
+            'min_coverage_ratio',
+            'min_receiver_coverage_ratio',
+            'min_receiver_group_coverage_ratio',
+        }
+        status = 'rejected' if any(check_id in severe for check_id in failed_checks) else 'conditional'
+        reasons = [f'Failed validation check: {check_id}' for check_id in failed_checks]
+        return status, reasons
+
+    def _build_comparison_insights(
+        self,
+        receiver_diagnostics: list[ReceiverCampaignDiagnostic],
+        receiver_group_diagnostics: list[ReceiverGroupDiagnostic],
+    ) -> list[str]:
+        insights: list[str] = []
+        if receiver_diagnostics:
+            worst_receiver = max(receiver_diagnostics, key=lambda item: (item.rmse_db, abs(item.mean_bias_db), item.receiver_id))
+            insights.append(
+                f'Worst receiver is {worst_receiver.receiver_id} with RMSE {worst_receiver.rmse_db:.3f} dB and mean bias {worst_receiver.mean_bias_db:.3f} dB.'
+            )
+        if receiver_group_diagnostics:
+            worst_group = max(receiver_group_diagnostics, key=lambda item: (item.rmse_db, abs(item.mean_bias_db), item.group_id))
+            insights.append(
+                f'Worst receiver group is {worst_group.group_id} with RMSE {worst_group.rmse_db:.3f} dB and mean bias {worst_group.mean_bias_db:.3f} dB.'
+            )
+            by_group = {item.group_id: item for item in receiver_group_diagnostics}
+            if 'near_field' in by_group and 'far_field' in by_group:
+                near_item = by_group['near_field']
+                far_item = by_group['far_field']
+                insights.append(
+                    f'Near/far RMSE split: near_field {near_item.rmse_db:.3f} dB vs far_field {far_item.rmse_db:.3f} dB.'
+                )
+                insights.append(
+                    f'Near/far mean-bias split: near_field {near_item.mean_bias_db:.3f} dB vs far_field {far_item.mean_bias_db:.3f} dB.'
+                )
+            if 'shielded' in by_group and 'unshielded' in by_group:
+                shielded_item = by_group['shielded']
+                unshielded_item = by_group['unshielded']
+                insights.append(
+                    f'Shielded/unshielded RMSE split: shielded {shielded_item.rmse_db:.3f} dB vs unshielded {unshielded_item.rmse_db:.3f} dB.'
+                )
+        return insights
+
+    def _build_recommended_next_actions(
+        self,
+        acceptance_status: str,
+        threshold_checks: dict[str, dict],
+        calibration_recommendations,
+        high_error_receiver_ids: list[str],
+        high_error_receiver_group_ids: list[str],
+        low_coverage_receiver_ids: list[str],
+        low_coverage_receiver_group_ids: list[str],
+    ) -> list[str]:
+        actions: list[str] = []
+        failed_checks = [check_id for check_id, payload in threshold_checks.items() if not payload.get('passed', True)]
+        if low_coverage_receiver_ids or low_coverage_receiver_group_ids:
+            actions.append('Increase usable overlap or fix receiver/sensor time windows for low-coverage receivers before accepting the campaign.')
+        if 'max_abs_effective_time_offset_steps' in failed_checks:
+            actions.append('Review sensor clocks and time alignment settings because effective offsets are larger than the campaign limit.')
+        if 'max_outlier_rejected_sample_count' in failed_checks or 'max_outlier_rejection_ratio' in failed_checks:
+            actions.append('Inspect measurement quality and remove or annotate suspicious outlier segments.')
+        if high_error_receiver_ids or high_error_receiver_group_ids:
+            actions.append('Inspect geometry, traffic inputs, and local scene assumptions for the highest-error receivers or groups.')
+        if calibration_recommendations:
+            actions.append('Review the structured calibration recommendations before changing any physical model parameters.')
+        if acceptance_status == 'accepted' and not actions:
+            actions.append('Freeze this campaign package as a reusable validation baseline.')
+        elif acceptance_status == 'conditional' and not actions:
+            actions.append('Address the failed validation checks and rerun the campaign before accepting it as validation-grade.')
+        elif acceptance_status == 'rejected' and not actions:
+            actions.append('Resolve structural or severe validation failures before using this campaign for model decisions.')
+        return actions
 
     def _evaluate_thresholds(
         self,
@@ -185,9 +377,11 @@ class CampaignValidationService:
         thresholds: FieldCampaignValidationThresholds,
         coverage_ratio: float,
         receiver_diagnostics: list[ReceiverCampaignDiagnostic],
+        receiver_group_diagnostics: list[ReceiverGroupDiagnostic],
         outlier_rejection_ratio: float,
         max_abs_effective_time_offset_steps: int,
         low_coverage_receiver_ids: list[str],
+        low_coverage_receiver_group_ids: list[str],
     ) -> dict[str, dict]:
         checks: dict[str, dict] = {}
         if thresholds.min_aligned_sample_count is not None:
@@ -226,6 +420,18 @@ class CampaignValidationService:
             checks['max_outlier_rejection_ratio'] = {'passed': outlier_rejection_ratio <= thresholds.max_outlier_rejection_ratio, 'actual': outlier_rejection_ratio, 'expected_max': thresholds.max_outlier_rejection_ratio}
         if thresholds.max_abs_effective_time_offset_steps is not None:
             checks['max_abs_effective_time_offset_steps'] = {'passed': max_abs_effective_time_offset_steps <= thresholds.max_abs_effective_time_offset_steps, 'actual': max_abs_effective_time_offset_steps, 'expected_max': thresholds.max_abs_effective_time_offset_steps}
+        if thresholds.min_receiver_group_coverage_ratio is not None:
+            checks['min_receiver_group_coverage_ratio'] = {
+                'passed': not low_coverage_receiver_group_ids,
+                'actual_failed_groups': low_coverage_receiver_group_ids,
+                'expected_min': thresholds.min_receiver_group_coverage_ratio,
+            }
+        if thresholds.max_receiver_group_rmse_db is not None:
+            failed = [item.group_id for item in receiver_group_diagnostics if item.rmse_db > thresholds.max_receiver_group_rmse_db]
+            checks['max_receiver_group_rmse_db'] = {'passed': not failed, 'actual_failed_groups': failed, 'expected_max': thresholds.max_receiver_group_rmse_db}
+        if thresholds.max_receiver_group_abs_mean_bias_db is not None:
+            failed = [item.group_id for item in receiver_group_diagnostics if abs(item.mean_bias_db) > thresholds.max_receiver_group_abs_mean_bias_db]
+            checks['max_receiver_group_abs_mean_bias_db'] = {'passed': not failed, 'actual_failed_groups': failed, 'expected_max': thresholds.max_receiver_group_abs_mean_bias_db}
         return checks
 
     def _resolve(self, root: Path, raw_path: str | Path) -> Path:
@@ -246,6 +452,11 @@ class CampaignValidationService:
             f'- Inspection report: `{summary.inspection_report_file}`',
             f'- Result summary: `{result_summary_file}`' if result_summary_file else '- Result summary: not generated',
             f'- Calibration summary: `{calibration_summary_file}`' if calibration_summary_file else '- Calibration summary: not generated',
+            '',
+            '## Acceptance Decision',
+            '',
+            f'- Acceptance status: `{summary.acceptance_status}`',
+            f'- Acceptance reasons: `{summary.acceptance_reasons}`',
             '',
             '## Campaign Description',
             '',
@@ -271,9 +482,15 @@ class CampaignValidationService:
                 f'- Outlier rejected sample count: `{summary.outlier_rejected_sample_count}`',
                 f'- Outlier rejection ratio: `{summary.outlier_rejection_ratio}`',
                 f'- Max abs effective time offset (steps): `{summary.max_abs_effective_time_offset_steps}`',
+                f'- Recommended global offset (dB): `{summary.recommended_global_offset_db}`',
                 f'- Worst receiver: `{summary.worst_receiver_id}`',
+                f'- Worst receiver group: `{summary.worst_receiver_group_id}`',
                 f'- High-error receivers: `{summary.high_error_receiver_ids}`',
+                f'- High-error receiver groups: `{summary.high_error_receiver_group_ids}`',
                 f'- Low-coverage receivers: `{summary.low_coverage_receiver_ids}`',
+                f'- Low-coverage receiver groups: `{summary.low_coverage_receiver_group_ids}`',
+                f'- Calibration high-priority receivers: `{summary.calibration_high_priority_receiver_ids}`',
+                f'- Suggested sensor time-offset updates: `{summary.suggested_sensor_time_offset_updates}`',
                 '',
                 '## Threshold Checks',
                 '',
@@ -293,6 +510,36 @@ class CampaignValidationService:
                     )
             else:
                 lines.append('- No receiver diagnostics were generated.')
+            lines.extend(['', '## Receiver Group Diagnostics', ''])
+            if summary.receiver_group_diagnostics:
+                lines.append('| Group | Receiver Count | Samples | Expected | Coverage | Mean Bias | MAE | RMSE | Rejected Outliers | Members |')
+                lines.append('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |')
+                for item in summary.receiver_group_diagnostics:
+                    members = ', '.join(f'`{receiver_id}`' for receiver_id in item.receiver_ids)
+                    lines.append(
+                        f'| `{item.group_id}` | {item.receiver_count} | {item.sample_count} | {item.expected_sample_count} | {item.coverage_ratio:.3f} | {item.mean_bias_db:.3f} | {item.mae_db:.3f} | {item.rmse_db:.3f} | {item.rejected_outlier_count} | {members} |'
+                    )
+            else:
+                lines.append('- No receiver groups were declared in the campaign manifest.')
+            lines.extend(['', '## Comparison Insights', ''])
+            if summary.comparison_insights:
+                for item in summary.comparison_insights:
+                    lines.append(f'- {item}')
+            else:
+                lines.append('- No comparison insights were generated.')
+            lines.extend(['', '## Calibration Recommendations', ''])
+            if summary.calibration_recommendations:
+                lines.append('| Priority | Kind | Target | Value | Unit | Rationale |')
+                lines.append('| --- | --- | --- | ---: | --- | --- |')
+                for item in summary.calibration_recommendations:
+                    value = '' if item.get('value') is None else item.get('value')
+                    unit = '' if item.get('unit') is None else item.get('unit')
+                    rationale = str(item.get('rationale', '')).replace('|', '/')
+                    lines.append(
+                        f"| `{item.get('priority', '')}` | `{item.get('kind', '')}` | `{item.get('target', '')}` | {value} | {unit} | {rationale} |"
+                    )
+            else:
+                lines.append('- No calibration recommendations were generated.')
         else:
             lines.extend([
                 '## Validation Status',
@@ -300,9 +547,12 @@ class CampaignValidationService:
                 '- Validation run was skipped because structural inspection did not pass.',
             ])
         lines.extend(['', '## Next Action', ''])
-        if summary.validation_passed:
+        if summary.recommended_next_actions:
+            for item in summary.recommended_next_actions:
+                lines.append(f'- {item}')
+        elif summary.validation_passed:
             lines.append('- Campaign passed the current validation gate and can be used as a baseline comparison package.')
         else:
-            lines.append('- Review threshold failures, low-coverage receivers, and time-sync/outlier diagnostics before accepting this campaign as validation-grade.')
+            lines.append('- Review threshold failures, group-level diagnostics, low-coverage receivers, and time-sync/outlier diagnostics before accepting this campaign as validation-grade.')
         lines.append('')
         return '\n'.join(lines)

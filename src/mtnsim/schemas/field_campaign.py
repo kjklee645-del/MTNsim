@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -20,6 +20,9 @@ class FieldCampaignValidationThresholds:
     max_outlier_rejected_sample_count: int | None = None
     max_outlier_rejection_ratio: float | None = None
     max_abs_effective_time_offset_steps: int | None = None
+    max_receiver_group_rmse_db: float | None = None
+    max_receiver_group_abs_mean_bias_db: float | None = None
+    min_receiver_group_coverage_ratio: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -47,6 +50,7 @@ class FieldCampaignManifest:
     outlier_error_threshold_db: float | None = None
     min_alignment_samples: int = 3
     validation_thresholds: FieldCampaignValidationThresholds = field(default_factory=FieldCampaignValidationThresholds)
+    receiver_groups: dict[str, list[str]] = field(default_factory=dict)
     source_path: Path | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -77,6 +81,7 @@ class FieldCampaignManifest:
             outlier_error_threshold_db=data.get('outlier_error_threshold_db'),
             min_alignment_samples=int(data.get('min_alignment_samples', 3)),
             validation_thresholds=FieldCampaignValidationThresholds(**(data.get('validation_thresholds') or {})),
+            receiver_groups={str(key): [str(item) for item in value] for key, value in (data.get('receiver_groups') or {}).items()},
             source_path=Path(source_path) if source_path is not None else None,
         )
 
@@ -138,6 +143,23 @@ class ReceiverCampaignDiagnostic:
 
 
 @dataclass(slots=True)
+class ReceiverGroupDiagnostic:
+    group_id: str
+    receiver_ids: list[str]
+    receiver_count: int
+    sample_count: int
+    expected_sample_count: int
+    coverage_ratio: float
+    mean_bias_db: float
+    mae_db: float
+    rmse_db: float
+    rejected_outlier_count: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
 class FieldCampaignValidationSummary:
     campaign_id: str
     name: str
@@ -153,9 +175,22 @@ class FieldCampaignValidationSummary:
     campaign_validation_report_file: str
     threshold_checks: dict[str, dict[str, Any]] = field(default_factory=dict)
     receiver_diagnostics: list[ReceiverCampaignDiagnostic] = field(default_factory=list)
+    receiver_group_diagnostics: list[ReceiverGroupDiagnostic] = field(default_factory=list)
     high_error_receiver_ids: list[str] = field(default_factory=list)
+    high_error_receiver_group_ids: list[str] = field(default_factory=list)
     low_coverage_receiver_ids: list[str] = field(default_factory=list)
+    low_coverage_receiver_group_ids: list[str] = field(default_factory=list)
+    calibration_recommendations: list[dict[str, Any]] = field(default_factory=list)
+    calibration_high_priority_receiver_ids: list[str] = field(default_factory=list)
+    recommended_global_offset_db: float | None = None
+    suggested_sensor_time_offset_updates: dict[str, int] = field(default_factory=dict)
+    suggested_receiver_offset_db: dict[str, float] = field(default_factory=dict)
+    acceptance_status: str | None = None
+    acceptance_reasons: list[str] = field(default_factory=list)
+    comparison_insights: list[str] = field(default_factory=list)
+    recommended_next_actions: list[str] = field(default_factory=list)
     worst_receiver_id: str | None = None
+    worst_receiver_group_id: str | None = None
     overall_mean_bias_db: float | None = None
     overall_rmse_db: float | None = None
     aligned_sample_count: int | None = None
@@ -181,9 +216,22 @@ class FieldCampaignValidationSummary:
             'campaign_validation_report_file': self.campaign_validation_report_file,
             'threshold_checks': self.threshold_checks,
             'receiver_diagnostics': [item.to_dict() for item in self.receiver_diagnostics],
+            'receiver_group_diagnostics': [item.to_dict() for item in self.receiver_group_diagnostics],
             'high_error_receiver_ids': self.high_error_receiver_ids,
+            'high_error_receiver_group_ids': self.high_error_receiver_group_ids,
             'low_coverage_receiver_ids': self.low_coverage_receiver_ids,
+            'low_coverage_receiver_group_ids': self.low_coverage_receiver_group_ids,
+            'calibration_recommendations': self.calibration_recommendations,
+            'calibration_high_priority_receiver_ids': self.calibration_high_priority_receiver_ids,
+            'recommended_global_offset_db': self.recommended_global_offset_db,
+            'suggested_sensor_time_offset_updates': self.suggested_sensor_time_offset_updates,
+            'suggested_receiver_offset_db': self.suggested_receiver_offset_db,
+            'acceptance_status': self.acceptance_status,
+            'acceptance_reasons': self.acceptance_reasons,
+            'comparison_insights': self.comparison_insights,
+            'recommended_next_actions': self.recommended_next_actions,
             'worst_receiver_id': self.worst_receiver_id,
+            'worst_receiver_group_id': self.worst_receiver_group_id,
             'overall_mean_bias_db': self.overall_mean_bias_db,
             'overall_rmse_db': self.overall_rmse_db,
             'aligned_sample_count': self.aligned_sample_count,

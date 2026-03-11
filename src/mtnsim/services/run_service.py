@@ -7,11 +7,10 @@ from pathlib import Path
 from uuid import uuid4
 
 from mtnsim.acoustics.field.noise_grid import update_noise_grid_cpu, update_noise_grid_gpu
-from mtnsim.acoustics.propagation.correction import PropagationContext
-from mtnsim.acoustics.propagation.diffraction import DEFAULT_DIFFRACTION_SETTINGS, DiffractionModelSettings, build_diffraction_context
-from mtnsim.acoustics.propagation.materials import MaterialContext
-from mtnsim.acoustics.propagation.reflection import DEFAULT_REFLECTION_SETTINGS, ReflectionModelSettings, build_reflection_context
-from mtnsim.acoustics.propagation.shielding import BarrierSegment, build_shielding_context
+from mtnsim.acoustics.propagation.diffraction import DEFAULT_DIFFRACTION_SETTINGS, DiffractionModelSettings
+from mtnsim.acoustics.propagation.provider import SceneAwarePropagationProvider
+from mtnsim.acoustics.propagation.reflection import DEFAULT_REFLECTION_SETTINGS, ReflectionModelSettings
+from mtnsim.acoustics.propagation.shielding import BarrierSegment
 from mtnsim.core.context import RunContext
 from mtnsim.io.result_store import write_receiver_histories, write_run_manifest, write_run_result_summary
 from mtnsim.scene import GridDomain, build_scene_model, read_network_bounds
@@ -91,7 +90,7 @@ class RunService:
             reflection_settings=reflection_settings,
             diffraction_settings=diffraction_settings,
         )
-        effective_use_gpu = use_gpu and not shielding_segments
+        effective_use_gpu = use_gpu
 
         lane_state = LaneChangeState()
         deployment_config = VehicleDeploymentConfig(
@@ -307,48 +306,8 @@ class RunService:
         if not shielding_segments:
             return None
 
-        def provider(
-            poi_id: str,
-            poi_position: tuple[float, float, float],
-            vehicle_id: str,
-            vehicle_position: tuple[float, float],
-        ) -> PropagationContext | None:
-            receiver_xy = (poi_position[0], poi_position[1])
-            if not scene_model.has_path_scene_effects(receiver_xy, vehicle_position):
-                return None
-            candidate_segments = scene_model.candidate_shielding_segments(receiver_xy, vehicle_position)
-            shielding = build_shielding_context(
-                receiver_pos=poi_position,
-                source_pos=vehicle_position,
-                barriers=candidate_segments,
-            )
-            reflection = build_reflection_context(
-                receiver_pos=poi_position,
-                source_pos=vehicle_position,
-                barriers=candidate_segments,
-                settings=reflection_settings,
-            )
-            diffraction = build_diffraction_context(shielding, settings=diffraction_settings)
-            material = None
-            if shielding is not None:
-                material = MaterialContext(
-                    reflection_loss_db=shielding.reflection_loss_db,
-                    diffraction_loss_db=shielding.diffraction_loss_db,
-                    absorption_coefficient=shielding.absorption_coefficient,
-                    allows_reflection=shielding.allows_reflection,
-                    allows_diffraction=shielding.allows_diffraction,
-                )
-            ground_correction_db = scene_model.ground_correction_db((poi_position[0], poi_position[1]), vehicle_position)
-            vegetation_correction_db = scene_model.vegetation_correction_db((poi_position[0], poi_position[1]), vehicle_position)
-            if shielding is None and reflection is None and diffraction is None and material is None and ground_correction_db == 0.0 and vegetation_correction_db == 0.0:
-                return None
-            return PropagationContext(
-                shielding=shielding,
-                reflection=reflection,
-                diffraction=diffraction,
-                material=material,
-                ground_correction_db=ground_correction_db,
-                vegetation_correction_db=vegetation_correction_db,
-            )
-
-        return provider
+        return SceneAwarePropagationProvider(
+            scene_model=scene_model,
+            reflection_settings=reflection_settings,
+            diffraction_settings=diffraction_settings,
+        )

@@ -28,6 +28,9 @@ def _resolve_correction_db(
     if callable(propagation_contexts):
         context = propagation_contexts(poi_id, poi_position, vehicle_id, vehicle_position)
         return total_propagation_correction_db(context)
+    if hasattr(propagation_contexts, 'correction_for_pair'):
+        context = propagation_contexts.correction_for_pair(poi_id, poi_position, vehicle_id, vehicle_position)
+        return total_propagation_correction_db(context)
     return total_propagation_correction_db(propagation_contexts.get(poi_id))
 
 
@@ -41,6 +44,18 @@ def update_noise_grid_cpu(
     max_area_meters: float,
     propagation_contexts: dict[str, object] | PropagationProvider | None = None,
 ) -> dict[str, float]:
+    if propagation_contexts is not None and hasattr(propagation_contexts, 'corrections_for_vehicle'):
+        return _update_noise_grid_cpu_batched(
+            grid_positions,
+            vehicle_positions,
+            vehicle_types,
+            vehicle_speeds,
+            coefficients,
+            background_noise_db,
+            max_area_meters,
+            propagation_contexts,
+        )
+
     values: dict[str, float] = {}
     background_power = 10 ** (background_noise_db / 10)
     for poi_id, poi_position in grid_positions.items():
@@ -62,6 +77,41 @@ def update_noise_grid_cpu(
     return values
 
 
+def _update_noise_grid_cpu_batched(
+    grid_positions: dict[str, tuple[float, float, float]],
+    vehicle_positions: dict[str, tuple[float, float]],
+    vehicle_types: dict[str, str],
+    vehicle_speeds: dict[str, float],
+    coefficients: dict[str, tuple[float, float]],
+    background_noise_db: float,
+    max_area_meters: float,
+    propagation_provider,
+) -> dict[str, float]:
+    background_power = 10 ** (background_noise_db / 10)
+    total_powers = {poi_id: 0.0 for poi_id in grid_positions}
+    vehicle_inside = {poi_id: False for poi_id in grid_positions}
+
+    for vehicle_id, vehicle_position in vehicle_positions.items():
+        a, b = coefficients[vehicle_types[vehicle_id]]
+        speed = max(vehicle_speeds[vehicle_id], 0.1)
+        pwl = a + (b * math.log10(3.6 * speed))
+        samples = propagation_provider.corrections_for_vehicle(
+            grid_positions,
+            vehicle_id,
+            vehicle_position,
+            max_area_meters,
+        )
+        for poi_id, sample in samples.items():
+            vehicle_inside[poi_id] = True
+            attenuation_db = free_field_attenuation_db(sample.distance_meters)
+            total_powers[poi_id] += (10 ** ((pwl - attenuation_db + sample.correction_db) / 10)) + background_power
+
+    return {
+        poi_id: (10 * math.log10(total_powers[poi_id]) if vehicle_inside[poi_id] else background_noise_db)
+        for poi_id in grid_positions
+    }
+
+
 def update_noise_grid_gpu(
     grid_positions: dict[str, tuple[float, float, float]],
     vehicle_positions: dict[str, tuple[float, float]],
@@ -74,6 +124,18 @@ def update_noise_grid_gpu(
 ) -> dict[str, float]:
     if torch is None:
         raise RuntimeError("torch is required for GPU noise updates")
+
+    if propagation_contexts is not None and hasattr(propagation_contexts, 'corrections_for_vehicle'):
+        return _update_noise_grid_gpu_hybrid(
+            grid_positions,
+            vehicle_positions,
+            vehicle_types,
+            vehicle_speeds,
+            coefficients,
+            background_noise_db,
+            max_area_meters,
+            propagation_contexts,
+        )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     poi_ids = list(grid_positions.keys())
@@ -94,4 +156,46 @@ def update_noise_grid_gpu(
             total_powers[mask] += (10 ** ((pwl - attenuation_db) / 10)) + (10 ** (background_noise_db / 10))
 
     result = 10 * torch.log10(total_powers + 1e-6)
+    return {poi_id: float(value) for poi_id, value in zip(poi_ids, result.cpu().tolist())}
+
+
+def _update_noise_grid_gpu_hybrid(
+    grid_positions: dict[str, tuple[float, float, float]],
+    vehicle_positions: dict[str, tuple[float, float]],
+    vehicle_types: dict[str, str],
+    vehicle_speeds: dict[str, float],
+    coefficients: dict[str, tuple[float, float]],
+    background_noise_db: float,
+    max_area_meters: float,
+    propagation_provider,
+) -> dict[str, float]:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    poi_ids = list(grid_positions.keys())
+    poi_index = {poi_id: index for index, poi_id in enumerate(poi_ids)}
+    total_powers = torch.zeros((len(poi_ids),), dtype=torch.float32, device=device)
+    vehicle_inside = torch.zeros((len(poi_ids),), dtype=torch.bool, device=device)
+    background_power = float(10 ** (background_noise_db / 10))
+
+    for vehicle_id, vehicle_position in vehicle_positions.items():
+        a, b = coefficients[vehicle_types[vehicle_id]]
+        speed = max(vehicle_speeds[vehicle_id], 0.1)
+        pwl = a + (b * math.log10(3.6 * speed))
+        samples = propagation_provider.corrections_for_vehicle(
+            grid_positions,
+            vehicle_id,
+            vehicle_position,
+            max_area_meters,
+        )
+        if not samples:
+            continue
+        indices = torch.tensor([poi_index[poi_id] for poi_id in samples.keys()], dtype=torch.long, device=device)
+        distances = torch.tensor([sample.distance_meters for sample in samples.values()], dtype=torch.float32, device=device)
+        corrections = torch.tensor([sample.correction_db for sample in samples.values()], dtype=torch.float32, device=device)
+        attenuation_db = free_field_attenuation_torch_db(distances)
+        powers = torch.pow(10.0, (pwl - attenuation_db + corrections) / 10.0) + background_power
+        total_powers.index_add_(0, indices, powers)
+        vehicle_inside[indices] = True
+
+    background_fill = torch.full_like(total_powers, float(background_noise_db))
+    result = torch.where(vehicle_inside, 10 * torch.log10(total_powers + 1e-6), background_fill)
     return {poi_id: float(value) for poi_id, value in zip(poi_ids, result.cpu().tolist())}

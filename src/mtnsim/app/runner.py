@@ -9,6 +9,7 @@ from mtnsim.services.tuning_service import TuningService
 from mtnsim.services.validation_service import ValidationService
 from mtnsim.services.field_campaign_service import FieldCampaignService
 from mtnsim.services.campaign_validation_service import CampaignValidationService
+from mtnsim.services.field_campaign_comparison_service import FieldCampaignComparisonService
 
 
 class AppRunner:
@@ -20,6 +21,7 @@ class AppRunner:
         self.validation_service = ValidationService()
         self.field_campaign_service = FieldCampaignService()
         self.campaign_validation_service = CampaignValidationService(self.field_campaign_service, self.simulation_api.run_service, self.simulation_api.calibration_service)
+        self.field_campaign_comparison_service = FieldCampaignComparisonService(self.campaign_validation_service)
 
     def summarize_project(self, manifest_path: str | Path, scenario_path: str | Path) -> dict:
         project = self.project_api.load_manifest(manifest_path)
@@ -150,4 +152,18 @@ class AppRunner:
         return {
             'campaign_validation_summary': summary.to_dict(),
             'campaign_validation_summary_file': str(output_path),
+        }
+
+    def compare_field_campaigns(self, manifest_path: str | Path, campaign_file_a: str | Path, campaign_file_b: str | Path, use_gpu: bool = False) -> dict:
+        project = self.project_api.load_manifest(manifest_path)
+        summary, summary_file, report_file = self.field_campaign_comparison_service.compare_campaigns(
+            project,
+            campaign_file_a,
+            campaign_file_b,
+            use_gpu=use_gpu,
+        )
+        return {
+            'campaign_comparison_summary': summary,
+            'campaign_comparison_summary_file': str(summary_file),
+            'campaign_comparison_report_file': str(report_file),
         }

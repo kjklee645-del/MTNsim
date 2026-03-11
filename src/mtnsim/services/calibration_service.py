@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
@@ -7,7 +7,13 @@ import math
 
 from mtnsim.io.measurements import read_measurement_metadata, read_measurement_samples
 from mtnsim.io.result_store import write_calibration_summary
-from mtnsim.schemas.calibration import CalibrationSummary, MeasurementSample, MeasurementSensorMetadata, ReceiverCalibrationStats
+from mtnsim.schemas.calibration import (
+    CalibrationRecommendation,
+    CalibrationSummary,
+    MeasurementSample,
+    MeasurementSensorMetadata,
+    ReceiverCalibrationStats,
+)
 from mtnsim.schemas.project import ProjectManifest
 from mtnsim.schemas.results import RunResultSummary
 
@@ -39,6 +45,8 @@ class CalibrationService:
         skipped_sample_count = read_result.skipped_row_count
         unmatched_sensor_ids: set[str] = set()
         effective_sensor_time_offsets: dict[str, int] = {}
+        base_sensor_time_offsets: dict[str, int] = {}
+        receiver_from_sensor: dict[str, str] = {}
 
         for sensor_id, samples in grouped_samples.items():
             mapping = metadata.get(sensor_id) or metadata.get(samples[0].receiver_id)
@@ -47,12 +55,14 @@ class CalibrationService:
                 continue
 
             simulation_receiver_id = mapping.simulation_receiver_id if mapping else samples[0].receiver_id
+            receiver_from_sensor[sensor_id] = simulation_receiver_id
             receiver_history = simulations.get(simulation_receiver_id)
             if receiver_history is None:
                 unmatched_sensor_ids.add(sensor_id)
                 continue
 
             base_offset = mapping.time_offset_steps if mapping else 0
+            base_sensor_time_offsets[sensor_id] = base_offset
             effective_offset = base_offset
             if auto_time_sync:
                 estimated = self._estimate_best_offset(
@@ -130,6 +140,27 @@ class CalibrationService:
             overall_mae = 0.0
             overall_rmse = 0.0
 
+        suggested_sensor_time_offset_updates = {
+            sensor_id: effective_offset
+            for sensor_id, effective_offset in effective_sensor_time_offsets.items()
+            if effective_offset != base_sensor_time_offsets.get(sensor_id, 0)
+        }
+        suggested_receiver_offset_db = {
+            receiver_id: stats.recommended_offset_db
+            for receiver_id, stats in receiver_stats.items()
+            if stats.sample_count > 0
+        }
+        high_priority_receiver_ids = self._select_high_priority_receivers(receiver_stats, overall_rmse)
+        recommendations = self._build_recommendations(
+            overall_mean_bias=overall_mean_bias,
+            overall_rmse=overall_rmse,
+            unmatched_sensor_ids=sorted(unmatched_sensor_ids),
+            outlier_rejected_sample_count=outlier_rejected_sample_count,
+            suggested_sensor_time_offset_updates=suggested_sensor_time_offset_updates,
+            receiver_stats=receiver_stats,
+            high_priority_receiver_ids=high_priority_receiver_ids,
+        )
+
         return CalibrationSummary(
             project=result_summary.run.project,
             scenario=result_summary.run.scenario,
@@ -150,6 +181,10 @@ class CalibrationService:
             effective_sensor_time_offsets=effective_sensor_time_offsets,
             outlier_error_threshold_db=threshold,
             outlier_rejected_sample_count=outlier_rejected_sample_count,
+            suggested_sensor_time_offset_updates=suggested_sensor_time_offset_updates,
+            suggested_receiver_offset_db=suggested_receiver_offset_db,
+            high_priority_receiver_ids=high_priority_receiver_ids,
+            recommendations=recommendations,
         )
 
     def calibrate_and_store(
@@ -218,6 +253,94 @@ class CalibrationService:
                 best_offset = candidate_offset
                 best_overlap = len(errors)
         return best_offset
+
+    def _select_high_priority_receivers(self, receiver_stats: dict[str, ReceiverCalibrationStats], overall_rmse: float) -> list[str]:
+        ranked = sorted(receiver_stats.values(), key=lambda item: (-item.rmse_db, -abs(item.mean_bias_db), item.receiver_id))
+        meaningful = [
+            item for item in ranked
+            if item.sample_count > 0 and (item.rmse_db >= max(1.0, overall_rmse * 1.25) or abs(item.mean_bias_db) >= 0.25)
+        ]
+        return [item.receiver_id for item in meaningful[:5]]
+
+    def _build_recommendations(
+        self,
+        overall_mean_bias: float,
+        overall_rmse: float,
+        unmatched_sensor_ids: list[str],
+        outlier_rejected_sample_count: int,
+        suggested_sensor_time_offset_updates: dict[str, int],
+        receiver_stats: dict[str, ReceiverCalibrationStats],
+        high_priority_receiver_ids: list[str],
+    ) -> list[CalibrationRecommendation]:
+        recommendations: list[CalibrationRecommendation] = []
+        if abs(overall_mean_bias) >= 0.25:
+            recommendations.append(
+                CalibrationRecommendation(
+                    kind='global_level_offset',
+                    target='global',
+                    priority='high' if abs(overall_mean_bias) >= 1.0 else 'medium',
+                    rationale=f'Overall mean bias is {overall_mean_bias:.3f} dB, suggesting a stable global level correction candidate.',
+                    value=-overall_mean_bias,
+                    unit='dB',
+                )
+            )
+        if overall_rmse >= 1.0:
+            recommendations.append(
+                CalibrationRecommendation(
+                    kind='fit_quality_review',
+                    target='global',
+                    priority='medium',
+                    rationale=f'Overall RMSE is {overall_rmse:.3f} dB, so scene geometry, traffic inputs, and material settings should be reviewed before locking calibration values.',
+                )
+            )
+        for sensor_id, offset in sorted(suggested_sensor_time_offset_updates.items()):
+            recommendations.append(
+                CalibrationRecommendation(
+                    kind='sensor_time_offset_update',
+                    target=sensor_id,
+                    priority='high' if abs(offset) >= 2 else 'medium',
+                    rationale=f'Calibration alignment suggests sensor `{sensor_id}` should use time offset {offset} step(s).',
+                    value=offset,
+                    unit='steps',
+                )
+            )
+        if unmatched_sensor_ids:
+            recommendations.append(
+                CalibrationRecommendation(
+                    kind='sensor_mapping_review',
+                    target='metadata',
+                    priority='high',
+                    rationale=f'Unmatched sensors were found: {unmatched_sensor_ids}. Receiver mapping or scenario receiver definitions need review.',
+                    value=len(unmatched_sensor_ids),
+                    unit='count',
+                )
+            )
+        if outlier_rejected_sample_count > 0:
+            recommendations.append(
+                CalibrationRecommendation(
+                    kind='outlier_review',
+                    target='measurements',
+                    priority='medium',
+                    rationale=f'{outlier_rejected_sample_count} calibration sample(s) were rejected as outliers. Inspect measurement quality and sensor clocks.',
+                    value=outlier_rejected_sample_count,
+                    unit='count',
+                )
+            )
+        for receiver_id in high_priority_receiver_ids:
+            stats = receiver_stats.get(receiver_id)
+            if stats is None:
+                continue
+            recommendations.append(
+                CalibrationRecommendation(
+                    kind='receiver_level_offset_candidate',
+                    target=receiver_id,
+                    priority='high' if stats.rmse_db >= max(1.5, overall_rmse * 1.5) else 'medium',
+                    rationale=f'Receiver `{receiver_id}` has mean bias {stats.mean_bias_db:.3f} dB and RMSE {stats.rmse_db:.3f} dB, so it is a priority review point for local calibration or scene mismatch analysis.',
+                    value=stats.recommended_offset_db,
+                    unit='dB',
+                )
+            )
+        return recommendations
 
     def _load_simulation_histories(self, result_summary: RunResultSummary) -> dict[str, list[float]]:
         histories: dict[str, list[float]] = {}

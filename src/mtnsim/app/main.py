@@ -30,7 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--validation-file", default=None, help="Validation suite JSON path")
     parser.add_argument("--inspect-field-campaign", action="store_true", help="Inspect a field campaign package and generate a quality report")
     parser.add_argument("--validate-field-campaign", action="store_true", help="Run simulation, calibration, and reporting for a field campaign package")
+    parser.add_argument("--compare-field-campaigns", action="store_true", help="Validate and compare two field campaign packages")
     parser.add_argument("--campaign-file", default=None, help="Field campaign JSON manifest path")
+    parser.add_argument("--compare-campaign-file", default=None, help="Second field campaign JSON manifest path for comparison")
+    parser.add_argument("--gui", action="store_true", help="Launch the MTNsim desktop GUI")
     return parser
 
 
@@ -41,6 +44,11 @@ def main() -> None:
 
     manifest_path = Path(args.manifest) if args.manifest else root / "examples" / "project.toml"
     scenario_path = Path(args.scenario) if args.scenario else root / "examples" / "scenarios" / "baseline.toml"
+
+    if args.gui:
+        from mtnsim.gui import launch_gui
+
+        raise SystemExit(launch_gui(manifest_path))
 
     runner = AppRunner()
 
@@ -66,6 +74,14 @@ def main() -> None:
     if args.inspect_field_campaign:
         campaign_file = Path(args.campaign_file) if args.campaign_file else root / 'data' / 'field' / 'demo_seeded_campaign' / 'campaign.json'
         result = runner.inspect_field_campaign(campaign_file)
+        print(json.dumps(result, indent=2))
+        return
+
+
+    if args.compare_field_campaigns:
+        campaign_file = Path(args.campaign_file) if args.campaign_file else root / 'data' / 'field' / 'demo_seeded_campaign' / 'campaign.json'
+        compare_campaign_file = Path(args.compare_campaign_file) if args.compare_campaign_file else root / 'data' / 'field' / 'demo_speed_drop_campaign' / 'campaign.json'
+        result = runner.compare_field_campaigns(manifest_path, campaign_file, compare_campaign_file, use_gpu=not args.cpu)
         print(json.dumps(result, indent=2))
         return
 

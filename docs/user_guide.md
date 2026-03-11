@@ -27,7 +27,22 @@ cd D:\Codex\MTNsim
 $env:PYTHONPATH='D:\Codex\MTNsim\src'
 ```
 
-## 3. Important Input Files
+## 3. GUI Prototype
+
+Launch the current GUI shell:
+
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --gui
+```
+
+Current GUI scope in Phase 1:
+- open a project manifest
+- browse discovered scenarios
+- inspect read-only scenario details
+- view navigation and status/log panels
+
+
+## 4. Important Input Files
 
 Default project manifest:
 - `examples/project.toml`
@@ -58,9 +73,9 @@ Measurement examples:
 - `data/field/demo_seeded_campaign/campaign.json`
 - `data/field/template_campaign/campaign.json`
 
-## 4. Basic Commands
+## 5. Basic Commands
 
-### 4.1 Print Default Summary
+### 5.1 Print Default Summary
 
 ```powershell
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main
@@ -71,21 +86,21 @@ What it does:
 - loads `examples/scenarios/baseline.toml`
 - prints run summary only
 
-### 4.2 Print Summary For A Specific Scenario
+### 5.2 Print Summary For A Specific Scenario
 
 ```powershell
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --scenario 'D:\Codex\MTNsim\examples\scenarios\building_shielding.toml'
 ```
 
-### 4.3 Run A Simulation
+### 5.3 Run A Simulation
 
 ```powershell
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --run --cpu
 ```
 
 Notes:
-- `--cpu` is recommended when shielding/buildings are present.
-- shielding-aware GPU path is not implemented yet.
+- `--cpu` is still useful for explicit reference runs.
+- a scene-aware hybrid GPU path now exists, but full tensorized scene-aware GPU correction is not implemented yet.
 
 Typical outputs:
 - `outputs/<run_id>/run_manifest.json`
@@ -97,9 +112,9 @@ Performance note:
 - the default project stores a final grid snapshot, not a full grid time series, so the grid is only computed on the last step by default.
 - if you explicitly turn `store_grid_timeseries` back on, scene-aware CPU runs will become heavier again.
 
-## 5. Scenario Comparison
+## 6. Scenario Comparison
 
-### 5.1 Compare Configuration Only
+### 6.1 Compare Configuration Only
 
 ```powershell
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --scenario 'D:\Codex\MTNsim\examples\scenarios\baseline.toml' --compare-scenario 'D:\Codex\MTNsim\examples\scenarios\speed_drop_80.toml'
@@ -109,7 +124,7 @@ What it returns:
 - changed fields between the two scenario files
 - no simulation is executed
 
-### 5.2 Compare Actual Run Results
+### 6.2 Compare Actual Run Results
 
 ```powershell
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --scenario 'D:\Codex\MTNsim\examples\scenarios\building_shielding_default.toml' --compare-scenario 'D:\Codex\MTNsim\examples\scenarios\building_shielding.toml' --run --cpu
@@ -321,3 +336,34 @@ For first-time use, this order is recommended:
 4. Run propagation benchmark
 5. Run calibration on an existing result
 6. Try a scenario with `propagation_model` overrides
+
+
+## Calibration Recommendations
+
+Calibration summaries now include structured recommendation fields:
+- `recommended_global_offset_db`
+- `suggested_sensor_time_offset_updates`
+- `suggested_receiver_offset_db`
+- `high_priority_receiver_ids`
+- `recommendations`
+
+These are intended as review candidates, not automatic truth. Use them to decide whether to apply a global level offset, adjust sensor clock alignment, or inspect geometry/traffic assumptions at specific receivers.
+Campaign validation reports now surface the same recommendation set directly, so campaign review can be done without opening `calibration_summary.json` separately. Campaign reports also include an acceptance decision, comparison insights, and recommended next actions.
+
+## Field Campaign Comparison
+
+You can compare two field campaign packages end-to-end. This runs validation for both campaigns and writes a comparison summary plus a markdown report.
+
+Example:
+```powershell
+$env:PYTHONPATH='D:\Codex\MTNsim\src'
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --compare-field-campaigns --campaign-file 'D:\Codex\MTNsim\data\field\demo_seeded_campaign\campaign.json' --compare-campaign-file 'D:\Codex\MTNsim\data\field\demo_speed_drop_campaign\campaign.json' --cpu
+```
+
+## Receiver Group Diagnostics
+
+Field campaign manifests may declare `receiver_groups` such as `near_field`, `far_field`, `shielded`, or `unshielded`.
+Campaign validation will then report group-level coverage, bias, MAE, and RMSE, and can enforce group-level acceptance thresholds through:
+- `validation_thresholds.max_receiver_group_rmse_db`
+- `validation_thresholds.max_receiver_group_abs_mean_bias_db`
+- `validation_thresholds.min_receiver_group_coverage_ratio`

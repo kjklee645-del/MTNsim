@@ -71,6 +71,12 @@ Run the default scenario:
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --run --cpu
 ```
 
+Launch the GUI prototype:
+
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --gui
+```
+
 Run the propagation benchmark:
 
 ```powershell
@@ -102,7 +108,9 @@ Run campaign-aware validation:
 - The current scene model supports `noise_barriers`, `terrain_edges`, `buildings`, `ground_surfaces`, and `vegetation_zones`. Building footprints are converted to edge segments for first-pass shielding evaluation, while ground and vegetation zones add path-based corrections.
 - Validation now covers baseline reference measurements, shifted/outlier calibration recovery, speed control, barrier shielding, and building shielding default cases.
 - A field-campaign inspection flow now checks campaign package completeness before real data is used for validation.
-- The next major gap is not basic reproducibility anymore, but broader validation against richer field datasets and richer scene classes such as terrain and vegetation.
+- A desktop GUI Phase 1 skeleton now exists with project loading, scenario browsing, scenario-detail preview, and status/log panels.
+- The next active product step is to extend that GUI from shell-level browsing into run, result, and comparison flows.
+- Deeper validation, calibration, physics, and GPU work remain important, but are now tracked as deferred backlog rather than the immediate mainline focus.
 
 ## Key Documents
 
@@ -113,11 +121,12 @@ Run campaign-aware validation:
 - `docs/development_checklist.md`
 - `docs/user_guide.md`
 - `docs/campaign_import_standard.md`
+- `docs/deferred_enhancement_backlog.md`
+- `docs/gui_mvp_plan.md`
 - `paper/manuscript_draft.md`
 
 ## Recommended Next Steps
 
-1. Expand validation from seeded reference cases toward true field datasets and stronger acceptance rules.
-2. Deepen calibration for field-facing alignment and correction workflows.
-3. Continue scene/physics expansion for terrain, vegetation, and richer object classes.
-4. Add reporting, GUI, and richer bounded agent control after the core engine is better validated.
+1. Build the desktop GUI MVP so non-developer users can run, compare, and inspect MTNsim flows.
+2. Keep deferred validation, calibration, physics, and GPU work tracked in `docs/deferred_enhancement_backlog.md`.
+3. Return to deeper engine and field-validation work after the GUI prototype is usable.

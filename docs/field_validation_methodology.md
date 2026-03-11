@@ -127,6 +127,7 @@ Recommended additional diagnostics:
 - peak-event timing mismatch
 - near/far receiver error split
 - shielded/unshielded receiver error split
+- declared receiver-group diagnostics (for example `near_field`, `far_field`, `shielded`, `unshielded`)
 
 ## 5. Acceptance Logic For Early Campaigns
 
@@ -138,6 +139,7 @@ Suggested first-pass acceptance rules:
 - stable estimated time offsets
 - no large systematic sign error across all receivers
 - error reduction after calibration should be consistent, not isolated to one receiver only
+- an explicit acceptance status should be recorded as `accepted`, `conditional`, or `rejected`
 
 Exact numeric thresholds should be decided after the first real dataset is inspected.
 

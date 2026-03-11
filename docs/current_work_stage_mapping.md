@@ -1,54 +1,63 @@
-﻿# Current Work Stage Mapping
+# Current Work Stage Mapping
 
 ## Purpose
 
-This document maps the recently implemented propagation tuning and override workflow to the original 13-stage MTNsim development process.
-It is intended to be updated continuously whenever a new major implementation milestone is completed.
+This document maps the currently implemented scene-aware propagation, validation, and hybrid GPU work to the original 13-stage MTNsim development process.
+It should be updated whenever a major implementation milestone changes the effective development priority.
 
 ## Mapping Summary
 
 | Original Stage | Relation to Current Work | Current Status |
-|---|---|---|
-| 1. Product direction / PRD / architecture | Serves as the governing reference for the current work | Completed |
-| 2. Manifest / schema definition | Expanded to include `propagation_model.reflection` and `propagation_model.diffraction` override structures | Completed, extended |
-| 3. Package decomposition | Propagation settings now flow through `schema -> service -> runtime` | Completed |
-| 4. SUMO integration + scenario execution kernel | Effective propagation settings are now applied during actual simulation execution | Completed |
-| 5. Run/result schema + comparison service | Effective propagation settings are recorded in run results and detected in scenario comparisons | Completed, extended |
-| 6. Propagation module separation | Reflection and diffraction now have their own model settings and runtime interfaces | Completed |
-| 7. Shielding v1 | Shielding remains the geometric input used by reflection/diffraction logic | Completed |
-| 8. Scene hierarchy clarification | Barrier/building objects now serve as explicit propagation context providers | Partially completed |
-| 9. Material-based computation | Material-aware behavior is now managed alongside tunable model parameters | Partially completed, in progress |
-| 10. Reflection / diffraction | Main target of this work: tuned defaults applied and scenario-level override path added | Partially completed, advanced |
-| 11. Calibration | Override path prepares the system for future measured-value-based parameter updates | Partially completed, preparation strengthened |
-| 12. GUI | Not started, but the typed override structure is ready for future UI controls | Not started |
-| 13. AI agent control layer | Not started, but the typed parameter model is now suitable for natural-language agent control later | Not started, groundwork improved |
+| --- | --- | --- |
+| 1. Product direction / PRD / architecture | Still the governing reference for current implementation choices | Completed |
+| 2. Manifest / schema definition | Expanded over time to cover propagation overrides, richer scene objects, calibration, and field-campaign manifests | Completed, extended |
+| 3. Package decomposition | Execution, propagation, scene, calibration, validation, and campaign workflows now live in separated packages | Completed |
+| 4. SUMO integration + scenario execution kernel | Stable manifest/scenario-driven execution path remains the base for all new work | Completed |
+| 5. Run/result schema + comparison service | Run summaries, scenario diffs, result diffs, and campaign validation summaries now support reproducible evaluation | Completed, extended |
+| 6. Propagation module separation | Distance, shielding, reflection, diffraction, correction, and provider layers are now separated | Completed |
+| 7. Shielding v1 | Active and still used as a first-pass scene-aware geometric core | Completed |
+| 8. Scene hierarchy clarification | Runtime scene hierarchy now includes barriers, buildings, terrain edges, ground surfaces, and vegetation zones | Partially completed, advanced |
+| 9. Material-based computation | Material-aware corrections are active across multiple path types, but still first-pass and not fully field-validated | Partially completed, advanced |
+| 10. Reflection / diffraction | Active models plus benchmark/tuning workflow exist, but more physics and validation depth are still needed | Partially completed, advanced |
+| 11. Calibration | Calibration, validation suite, field-campaign inspection, and campaign-aware validation all exist, but real field data is still limited | Partially completed, advanced |
+| 12. GUI | GUI MVP planning is complete and Phase 1 desktop shell is implemented | Partially completed, active |
+| 13. AI agent control layer | Typed configuration and bounded architecture groundwork exist, but real user-facing agent control is not implemented | Not started, groundwork improved |
 
-## Interpretation
+## Current Interpretation
 
-The current work belongs primarily to Stage 10.
-It also directly supports Stage 9 and Stage 11.
-From a product-engineering perspective, it strengthens Stage 2, Stage 5, and Stage 13 because propagation parameters are now:
+The current codebase is no longer centered on Stage 10 alone.
+It now spans three active implementation fronts:
 
-- represented as structured scenario data,
-- reproducible in run outputs,
-- overrideable without editing engine source code,
-- compatible with future GUI and AI-agent control layers.
+- Stage 10: propagation and scene-aware execution
+- Stage 11: calibration, validation, and field-campaign workflows
+- Stage 8/9: richer scene objects and material-aware scene behavior
 
-## Operational Rule For Ongoing Maintenance
+From a product-engineering perspective, the current state also strengthens Stage 2 and Stage 5 because the system now has:
 
-This document should be updated whenever one of the following happens:
+- broader typed input contracts,
+- reproducible run outputs,
+- standardized campaign import rules,
+- campaign-level validation summaries,
+- a usable hybrid scene-aware GPU execution path.
 
-- a stage moves from `not started` to `partial`,
-- a stage moves from `partial` to `completed`,
-- a new implementation affects more than one original stage,
-- a new runtime/configuration mechanism changes how progress should be interpreted.
+## Priority Interpretation
 
-## Current Milestone Covered By This Document
+The current recommended order is:
 
-The current mapping reflects the following recent additions:
+1. extend the GUI Phase 1 shell into real run/result/compare workflows
+2. deferred backlog tracking for deeper validation, calibration, scene physics, and GPU work
+3. return to field-facing validation and scene hardening after GUI feedback arrives
+4. selective GPU follow-up only where the hybrid path is not enough
+5. richer reporting and agent-control layers after GUI flows stabilize
 
-- benchmark-based propagation tuning workflow,
-- tuned defaults applied to reflection/diffraction models,
-- scenario-level override path for propagation parameters,
-- run-result persistence of effective propagation settings,
-- scenario comparison support for propagation-model differences.
+This means the mainline focus has shifted from deeper engine refinement to product usability.
+The hybrid scene-aware GPU path is considered sufficient for the current stage unless scale or workflow requirements prove otherwise.
+
+## Maintenance Rule
+
+Update this document whenever one of the following happens:
+
+- a stage moves from `not started` to `partial`
+- a stage moves from `partial` to `completed`
+- the recommended execution priority changes
+- a new subsystem shifts the center of gravity across multiple original stages
