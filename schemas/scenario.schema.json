@@ -115,7 +115,8 @@
               },
               "height_meters": {"type": "number", "exclusiveMinimum": 0},
               "attenuation_db": {"type": "number", "minimum": 0},
-              "material": {"type": "string"}
+              "material": {"type": "string"},
+              "propagation": {"$ref": "#/$defs/propagationProperties"}
             },
             "additionalProperties": false
           }
@@ -140,6 +141,17 @@
     }
   },
   "$defs": {
+    "propagationProperties": {
+      "type": "object",
+      "properties": {
+        "reflection_loss_db": {"type": "number", "minimum": 0},
+        "diffraction_loss_db": {"type": "number", "minimum": 0},
+        "absorption_coefficient": {"type": "number", "minimum": 0, "maximum": 1},
+        "allows_reflection": {"type": "boolean"},
+        "allows_diffraction": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
     "noiseBarrierArray": {
       "type": "array",
       "items": {
@@ -153,7 +165,8 @@
           "y2": {"type": "number"},
           "height_meters": {"type": "number", "exclusiveMinimum": 0},
           "attenuation_db": {"type": "number", "minimum": 0},
-          "material": {"type": "string"}
+          "material": {"type": "string"},
+          "propagation": {"$ref": "#/$defs/propagationProperties"}
         },
         "additionalProperties": false
       }

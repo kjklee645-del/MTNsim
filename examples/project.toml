@@ -10,6 +10,7 @@ route = "data/sumo/4lane.rou.xml"
 sumo_config = "data/sumo/4lane.sumocfg"
 scene = "data/scene/scene.geojson"
 measurements = "data/measurements/sensors.csv"
+measurement_metadata = "data/measurements/sensor_metadata.csv"
 outputs = "outputs"
 
 [simulation_defaults]

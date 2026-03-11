@@ -4,6 +4,7 @@ from pathlib import Path
 import csv
 import json
 
+from mtnsim.schemas.calibration import CalibrationSummary
 from mtnsim.schemas.results import RunResultSummary
 from mtnsim.schemas.run import RunSummary
 
@@ -40,6 +41,15 @@ def write_run_result_summary(output_dir: str | Path, payload: RunResultSummary |
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     target = output_path / 'run_result_summary.json'
+    content = payload.to_dict() if hasattr(payload, 'to_dict') else payload
+    target.write_text(json.dumps(content, indent=2), encoding='utf-8')
+    return target
+
+
+def write_calibration_summary(output_dir: str | Path, payload: CalibrationSummary | dict) -> Path:
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    target = output_path / 'calibration_summary.json'
     content = payload.to_dict() if hasattr(payload, 'to_dict') else payload
     target.write_text(json.dumps(content, indent=2), encoding='utf-8')
     return target

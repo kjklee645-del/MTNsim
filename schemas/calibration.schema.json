@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mtnsim.local/schemas/calibration.schema.json",
+  "title": "MTNsim Calibration Summary",
+  "type": "object",
+  "required": [
+    "project",
+    "scenario",
+    "run_id",
+    "measurement_file",
+    "aligned_sample_count",
+    "skipped_sample_count",
+    "unmatched_sensor_count",
+    "unmatched_sensor_ids",
+    "overall_mean_bias_db",
+    "overall_mae_db",
+    "overall_rmse_db",
+    "recommended_global_offset_db",
+    "receiver_stats"
+  ],
+  "properties": {
+    "project": {
+      "type": "string"
+    },
+    "scenario": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "measurement_file": {
+      "type": "string"
+    },
+    "measurement_metadata_file": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "aligned_sample_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "skipped_sample_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unmatched_sensor_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unmatched_sensor_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "overall_mean_bias_db": {
+      "type": "number"
+    },
+    "overall_mae_db": {
+      "type": "number",
+      "minimum": 0
+    },
+    "overall_rmse_db": {
+      "type": "number",
+      "minimum": 0
+    },
+    "recommended_global_offset_db": {
+      "type": "number"
+    },
+    "receiver_stats": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "receiver_id",
+          "sample_count",
+          "mean_bias_db",
+          "mae_db",
+          "rmse_db",
+          "recommended_offset_db"
+        ],
+        "properties": {
+          "receiver_id": {
+            "type": "string"
+          },
+          "sample_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mean_bias_db": {
+            "type": "number"
+          },
+          "mae_db": {
+            "type": "number",
+            "minimum": 0
+          },
+          "rmse_db": {
+            "type": "number",
+            "minimum": 0
+          },
+          "recommended_offset_db": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

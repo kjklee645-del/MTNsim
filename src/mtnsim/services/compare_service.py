@@ -90,6 +90,11 @@ class CompareService:
                 barrier.height_meters,
                 barrier.attenuation_db,
                 barrier.material,
+                barrier.propagation.reflection_loss_db,
+                barrier.propagation.diffraction_loss_db,
+                barrier.propagation.absorption_coefficient,
+                barrier.propagation.allows_reflection,
+                barrier.propagation.allows_diffraction,
             )
             for barrier in scenario.scene.noise_barriers
         )
@@ -100,6 +105,11 @@ class CompareService:
                 building.height_meters,
                 building.attenuation_db,
                 building.material,
+                building.propagation.reflection_loss_db,
+                building.propagation.diffraction_loss_db,
+                building.propagation.absorption_coefficient,
+                building.propagation.allows_reflection,
+                building.propagation.allows_diffraction,
             )
             for building in scenario.scene.buildings
         )
