@@ -108,8 +108,8 @@ Run campaign-aware validation:
 - The current scene model supports `noise_barriers`, `terrain_edges`, `buildings`, `ground_surfaces`, and `vegetation_zones`. Building footprints are converted to edge segments for first-pass shielding evaluation, while ground and vegetation zones add path-based corrections.
 - Validation now covers baseline reference measurements, shifted/outlier calibration recovery, speed control, barrier shielding, and building shielding default cases.
 - A field-campaign inspection flow now checks campaign package completeness before real data is used for validation.
-- A desktop GUI Phase 1 skeleton now exists with project loading, scenario browsing, scenario-detail preview, and status/log panels.
-- The next active product step is to extend that GUI from shell-level browsing into run, result, and comparison flows.
+- A desktop GUI prototype now exists with project loading, 2D scene viewing, background run execution, run-monitor output display, recent-result browsing, and receiver-series viewing.
+- The next active product step is to extend that GUI into scenario comparison flow and then vehicle playback.
 - Deeper validation, calibration, physics, and GPU work remain important, but are now tracked as deferred backlog rather than the immediate mainline focus.
 
 ## Key Documents

@@ -17,6 +17,22 @@ class GuiProjectState:
 
 
 @dataclass(slots=True)
+class GuiRunState:
+    is_running: bool = False
+    progress_percent: int = 0
+    progress_label: str = 'Idle'
+    run_id: str | None = None
+    output_dir: Path | None = None
+    result_summary_file: Path | None = None
+    manifest_file: Path | None = None
+    final_grid_snapshot_file: Path | None = None
+    receiver_history_files: dict[str, Path] = field(default_factory=dict)
+    error_message: str | None = None
+
+
+@dataclass(slots=True)
 class GuiSessionState:
     project_state: GuiProjectState = field(default_factory=GuiProjectState)
+    run_state: GuiRunState = field(default_factory=GuiRunState)
+    recent_result_summaries: list[Path] = field(default_factory=list)
     recent_log_lines: list[str] = field(default_factory=list)

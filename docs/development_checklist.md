@@ -104,7 +104,10 @@ Status legend:
 | Reporting | Report generation | [ ] | not started |
 | Visualization | GUI MVP planning | [x] | `docs/gui_mvp_plan.md` |
 | Visualization | GUI Phase 1 skeleton | [x] | project loading, scenario browsing, scenario-detail preview, and status/log shell implemented in `src/mtnsim/gui` |
-| Visualization | GUI implementation | [~] | active track; next is run/result/compare flow wiring |
+| Visualization | GUI Phase 2 run flow | [x] | background run worker, progress monitor, and output-path display implemented |
+| Visualization | GUI Phase 3 result viewer | [x] | recent results list, receiver stats table, and built-in receiver-series chart implemented |
+| Visualization | GUI Scene View | [x] | SUMO road polylines, receivers, and scenario geometry layers rendered in a 2D scene view |
+| Visualization | GUI implementation | [~] | active track; next is scenario comparison wiring |
 | API | Local API layer | [~] | thin local layer exists |
 | Agent | Bounded command architecture baseline | [~] | early structure only |
 | Agent | Real natural-language scenario control | [ ] | not started |
@@ -114,7 +117,7 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Extend GUI Phase 1 into runnable flows around the current run/compare/validation engine | [~] | the shell exists; the next value comes from wiring real operator tasks into it |
+| 1 | Extend GUI Phase 3 into scenario comparison flow | [~] | run execution and result inspection are wired; comparison is the next operator-facing workflow gap |
 | 2 | Keep deeper validation, calibration, physics, and GPU work on the deferred backlog while GUI MVP is under construction | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the mainline focus stays clear |
 | 3 | Resume field-data validation hardening after the GUI prototype is usable | [~] | real user feedback and real datasets should shape the next round of engine refinement |
 | 4 | Add scene-aware performance benchmarking and selective GPU follow-up only where hybrid GPU becomes the bottleneck | [~] | hybrid GPU path is already usable, so more GPU work is not the immediate product priority |

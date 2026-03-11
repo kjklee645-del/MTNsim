@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
+from typing import Callable
 import random
 import json
 from pathlib import Path
@@ -58,7 +59,12 @@ class RunService:
             lane_change_strategy=context.scenario.controls.lane_change_strategy,
         )
 
-    def run_simulation(self, context: RunContext, use_gpu: bool = True) -> SimulationArtifacts:
+    def run_simulation(
+        self,
+        context: RunContext,
+        use_gpu: bool = True,
+        progress_callback: Callable[[dict], None] | None = None,
+    ) -> SimulationArtifacts:
         project_root = self._project_root(context.project)
         network_path = self._resolve_path(project_root, context.project.paths.network)
         sumo_config_path = self._resolve_path(project_root, context.project.paths.sumo_config)
@@ -71,6 +77,8 @@ class RunService:
 
         output_dir = output_root / context.run_id
         output_dir.mkdir(parents=True, exist_ok=True)
+
+        self._emit_progress(progress_callback, 1, "Preparing simulation context", run_id=context.run_id, output_dir=str(output_dir))
 
         min_x, min_y, max_x, max_y = read_network_bounds(network_path)
         grid_domain = self._build_grid_domain(context, min_x, min_y, max_x, max_y)
@@ -113,6 +121,8 @@ class RunService:
 
         try:
             sim.start(sumo_config_path, seed=context.project.simulation_defaults.random_seed)
+            self._emit_progress(progress_callback, 3, "SUMO started")
+            progress_interval = max(1, context.project.simulation_defaults.max_steps // 20)
             for time_step in range(context.project.simulation_defaults.max_steps):
                 if deployed_vehicles < context.scenario.traffic.max_vehicles:
                     add_vehicle(sim, lane_state, deployed_vehicles, time_step, deployment_config, constant_speed=start_speed_mps)
@@ -186,6 +196,14 @@ class RunService:
                 )
                 for receiver_id, value in receiver_snapshot.items():
                     receiver_histories[receiver_id].append(value)
+
+                if (time_step + 1) == context.project.simulation_defaults.max_steps or ((time_step + 1) % progress_interval == 0):
+                    percent = int(((time_step + 1) / context.project.simulation_defaults.max_steps) * 100)
+                    self._emit_progress(
+                        progress_callback,
+                        percent,
+                        f"Running step {time_step + 1}/{context.project.simulation_defaults.max_steps}",
+                    )
         finally:
             sim.close()
 
@@ -222,6 +240,15 @@ class RunService:
         )
         result_summary_file = write_run_result_summary(output_dir, result_summary)
 
+        self._emit_progress(
+            progress_callback,
+            100,
+            "Simulation completed",
+            run_id=context.run_id,
+            output_dir=str(output_dir),
+            result_summary_file=str(result_summary_file),
+        )
+
         return SimulationArtifacts(
             run_id=context.run_id,
             output_dir=output_dir,
@@ -232,6 +259,13 @@ class RunService:
             result_summary=result_summary,
             final_grid_snapshot_file=grid_snapshot_file,
         )
+
+    def _emit_progress(self, callback: Callable[[dict], None] | None, percent: int, message: str, **extra) -> None:
+        if callback is None:
+            return
+        payload = {'percent': int(percent), 'message': message}
+        payload.update(extra)
+        callback(payload)
 
     def _project_root(self, project: ProjectManifest) -> Path:
         if project.source_path is None:
