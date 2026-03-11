@@ -40,7 +40,7 @@ def reflection_material_correction_db(context: MaterialContext | None = None) ->
         return 0.0
     if not context.allows_reflection:
         return -3.0
-    reflectivity = _surface_reflectivity(context)
+    reflectivity = surface_reflectivity(context)
     if reflectivity <= 0.0:
         return -3.0
     return 10.0 * math.log10(reflectivity)
@@ -51,10 +51,10 @@ def diffraction_material_correction_db(context: MaterialContext | None = None) -
         return 0.0
     if not context.allows_diffraction:
         return -2.5
-    edge_efficiency = _edge_efficiency(context)
-    if edge_efficiency <= 0.0:
+    efficiency = edge_efficiency(context)
+    if efficiency <= 0.0:
         return -2.5
-    return 10.0 * math.log10(edge_efficiency)
+    return 10.0 * math.log10(efficiency)
 
 
 def material_correction_db(context: MaterialContext | None = None) -> float:
@@ -63,13 +63,13 @@ def material_correction_db(context: MaterialContext | None = None) -> float:
     return shielding_material_correction_db(context)
 
 
-def _surface_reflectivity(context: MaterialContext) -> float:
+def surface_reflectivity(context: MaterialContext) -> float:
     reflection_penalty = _clamp(context.reflection_loss_db / 12.0, 0.0, 0.95)
     absorption_penalty = _clamp(context.absorption_coefficient * 0.85, 0.0, 0.85)
     return _clamp(1.0 - reflection_penalty - absorption_penalty, 0.05, 1.0)
 
 
-def _edge_efficiency(context: MaterialContext) -> float:
+def edge_efficiency(context: MaterialContext) -> float:
     diffraction_penalty = _clamp(context.diffraction_loss_db / 14.0, 0.0, 0.9)
     absorption_penalty = _clamp(context.absorption_coefficient * 0.55, 0.0, 0.55)
     return _clamp(1.0 - diffraction_penalty - absorption_penalty, 0.08, 1.0)

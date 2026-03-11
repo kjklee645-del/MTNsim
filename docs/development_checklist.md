@@ -59,8 +59,8 @@ Status legend:
 | Emission | Vehicle emission module split | [x] | `acoustics/emission` |
 | Propagation | Distance module | [x] | active |
 | Propagation | Shielding module | [x] | first-pass CPU implementation |
-| Propagation | Reflection module | [~] | first-pass specular single-bounce heuristic active |
-| Propagation | Diffraction module | [~] | first-pass path-excess edge diffraction heuristic active |
+| Propagation | Reflection module | [~] | geometry-informed specular reflection model active |
+| Propagation | Diffraction module | [~] | knife-edge-inspired path-excess diffraction model active |
 | Noise field | CPU grid/receiver updates | [x] | active |
 | Noise field | GPU free-field path | [x] | active without shielding |
 | Noise field | GPU shielding-aware path | [ ] | not implemented |
@@ -106,7 +106,7 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Strengthen reflection and diffraction beyond current heuristics | [ ] | first-pass models are active, but physics is still simplified |
+| 1 | Validate and tune reflection/diffraction against measured or reference cases | [ ] | geometry-informed models are active, but still need validation |
 | 2 | Strengthen material-aware corrections beyond heuristic shielding use | [ ] | current version is still first-pass only |
 | 3 | Deepen calibration workflow with richer sensor metadata and alignment | [ ] | baseline calibration loop now exists |
 | 4 | Deepen reporting / GUI / richer agent control | [ ] | should come after core physics and validation |

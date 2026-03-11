@@ -65,7 +65,7 @@ Implemented:
 Current state:
 - distance attenuation is active
 - shielding is active in a first-pass CPU implementation
-- reflection and diffraction now have first-pass specular/path-excess heuristic models wired into active propagation
+- reflection and diffraction now use geometry-informed specular and knife-edge-inspired path-excess models in the active propagation path
 
 ### 2.4 Scene Generalization Work
 
@@ -143,7 +143,7 @@ Observed comparison examples:
 - `baseline` vs `lane_change_enforce`: small average decrease around `-0.10 dB`
 - `baseline` vs `barrier_shielding`: average receiver mean level decreased by about `-4.74 dB`
 - `baseline` vs `building_shielding`: average receiver mean level decreased by about `-5.56 dB`
-- `building_shielding_default` vs `building_shielding`: average receiver mean level changed by about `-0.07 dB`, with a strong near-field decrease and some far-field increases due to current reflection effects
+- `building_shielding_default` vs `building_shielding`: average receiver mean level changed by about `+0.45 dB`, with a strong near-field decrease and more visible far-field increases under the current reflection model
 - `baseline` calibration against example measurement CSV + sensor metadata: overall mean bias about `-0.67 dB`, overall RMSE about `0.95 dB`
 
 These values are prototype-level engineering checks, not yet validated against measured field data.
@@ -154,9 +154,9 @@ These values are prototype-level engineering checks, not yet validated against m
 
 - shielding is simplified to line-of-sight crossing plus fixed attenuation
 - building shielding is approximated using footprint edges only
-- reflection now uses a first-pass specular single-bounce heuristic tied to scene-object materials
-- diffraction now uses a first-pass path-excess edge-diffraction heuristic on blocked paths
-- common propagation properties now affect shielding, reflection, and diffraction through early heuristic models, but they are not yet full physics-based implementations
+- reflection now uses a geometry-informed specular model tied to scene-object materials
+- diffraction now uses a knife-edge-inspired path-excess model on blocked paths
+- common propagation properties now affect shielding, reflection, and diffraction through richer but still simplified models, and they are not yet fully validated physics-based implementations
 
 ### 4.2 Performance Limitations
 
@@ -195,7 +195,7 @@ This order was correct because:
 
 ## 6. Recommended Next Order
 
-1. strengthen reflection and diffraction beyond the current heuristics
+1. validate and tune reflection/diffraction against measured or reference cases
 2. strengthen material-aware corrections beyond the current heuristic use
 3. deepen calibration workflow against measurements
 4. only then deepen higher-level product layers such as reporting, GUI, and richer agent control
