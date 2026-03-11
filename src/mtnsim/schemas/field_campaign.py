@@ -13,8 +13,13 @@ class FieldCampaignValidationThresholds:
     max_abs_overall_mean_bias_db: float | None = None
     max_unmatched_sensor_count: int | None = None
     min_coverage_ratio: float | None = None
+    min_receiver_coverage_ratio: float | None = None
     max_receiver_rmse_db: float | None = None
     max_receiver_abs_mean_bias_db: float | None = None
+    max_worst_receiver_rmse_db: float | None = None
+    max_outlier_rejected_sample_count: int | None = None
+    max_outlier_rejection_ratio: float | None = None
+    max_abs_effective_time_offset_steps: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -149,12 +154,16 @@ class FieldCampaignValidationSummary:
     threshold_checks: dict[str, dict[str, Any]] = field(default_factory=dict)
     receiver_diagnostics: list[ReceiverCampaignDiagnostic] = field(default_factory=list)
     high_error_receiver_ids: list[str] = field(default_factory=list)
+    low_coverage_receiver_ids: list[str] = field(default_factory=list)
     worst_receiver_id: str | None = None
     overall_mean_bias_db: float | None = None
     overall_rmse_db: float | None = None
     aligned_sample_count: int | None = None
     unmatched_sensor_count: int | None = None
     coverage_ratio: float | None = None
+    outlier_rejected_sample_count: int | None = None
+    outlier_rejection_ratio: float | None = None
+    max_abs_effective_time_offset_steps: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -173,10 +182,14 @@ class FieldCampaignValidationSummary:
             'threshold_checks': self.threshold_checks,
             'receiver_diagnostics': [item.to_dict() for item in self.receiver_diagnostics],
             'high_error_receiver_ids': self.high_error_receiver_ids,
+            'low_coverage_receiver_ids': self.low_coverage_receiver_ids,
             'worst_receiver_id': self.worst_receiver_id,
             'overall_mean_bias_db': self.overall_mean_bias_db,
             'overall_rmse_db': self.overall_rmse_db,
             'aligned_sample_count': self.aligned_sample_count,
             'unmatched_sensor_count': self.unmatched_sensor_count,
             'coverage_ratio': self.coverage_ratio,
+            'outlier_rejected_sample_count': self.outlier_rejected_sample_count,
+            'outlier_rejection_ratio': self.outlier_rejection_ratio,
+            'max_abs_effective_time_offset_steps': self.max_abs_effective_time_offset_steps,
         }

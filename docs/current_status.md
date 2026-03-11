@@ -72,7 +72,10 @@ Current state:
 
 Current scene objects:
 - `noise_barriers`
+- `terrain_edges`
 - `buildings`
+- `ground_surfaces`
+- `vegetation_zones`
 
 Runtime hierarchy:
 - `SceneModel`
@@ -80,7 +83,10 @@ Runtime hierarchy:
 - `LinearSceneObject`
 - `PolygonSceneObject`
 - `NoiseBarrierObject`
+- `TerrainEdgeObject`
 - `BuildingObject`
+- `GroundSurfaceObject`
+- `VegetationZoneObject`
 - `PropagationMaterial`
 
 Common propagation properties now tracked on scene objects:
@@ -93,7 +99,10 @@ Common propagation properties now tracked on scene objects:
 
 Behavior:
 - a `noise_barrier` is represented as a single line segment with height, attenuation, and material tag
+- a `terrain_edge` is represented as a terrain berm or cut edge using the same line-segment shielding path
 - a `building` is represented as a footprint polygon, height, attenuation, and material tag
+- a `ground_surface` is represented as a polygon that contributes path-based ground-effect correction
+- a `vegetation_zone` is represented as a polygon that contributes path-based vegetation attenuation
 - building footprints are decomposed into edge segments for first-pass shielding checks
 - object materials now resolve through per-object-type defaults plus optional per-object propagation overrides
 - `RunService` consumes the runtime `SceneModel` instead of manually expanding schema objects inline
@@ -206,6 +215,7 @@ What it does now:
 - runs the linked scenario against the current project
 - calibrates against the campaign measurement and metadata files
 - evaluates campaign-level acceptance thresholds
+- tracks receiver-level coverage failures, outlier rejection, and effective time-offset diagnostics
 - writes JSON and Markdown campaign validation reports into the campaign `reports/` folder
 
 ## 3. Validated Scenarios
@@ -235,6 +245,8 @@ Observed comparison examples:
 - campaign import standard document now defines the contract for `traffic_metadata.json` and `scene/scene_manifest.json`
 - standardized demo/template campaigns now pass traffic-metadata and scene-manifest inspection checks
 - demo campaign-aware validation run passed with zero bias and zero RMSE against the seeded baseline reference package
+- campaign validation now supports stronger gates for receiver coverage, worst-receiver RMSE, outlier rejection, and effective time-offset magnitude
+- reduced-size terrain/ground/vegetation validation run showed an average receiver mean-level change of about `-1.60 dB`, with the strongest reduction near `poi_500_115` under the current first-pass scene-effect model
 
 These values are prototype-level engineering checks, not yet validated against measured field data.
 

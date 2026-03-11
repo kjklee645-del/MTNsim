@@ -86,7 +86,8 @@ class RunService:
         reflection_settings = self._resolve_reflection_settings(context.scenario)
         diffraction_settings = self._resolve_diffraction_settings(context.scenario)
         propagation_provider = self._build_propagation_provider(
-            shielding_segments,
+            scene_model=scene_model,
+            shielding_segments=shielding_segments,
             reflection_settings=reflection_settings,
             diffraction_settings=diffraction_settings,
         )
@@ -209,7 +210,10 @@ class RunService:
                 'diffraction_enabled': bool(shielding_segments),
                 'shielding_segment_count': len(shielding_segments),
                 'noise_barrier_count': len(scene_model.noise_barriers),
+                'terrain_edge_count': len(scene_model.terrain_edges),
                 'building_count': len(scene_model.buildings),
+                'ground_surface_count': len(scene_model.ground_surfaces),
+                'vegetation_zone_count': len(scene_model.vegetation_zones),
                 'scene_object_count': len(scene_model.objects),
                 'gpu_requested': use_gpu,
                 'gpu_used': effective_use_gpu,
@@ -295,6 +299,7 @@ class RunService:
 
     def _build_propagation_provider(
         self,
+        scene_model,
         shielding_segments: list[BarrierSegment],
         reflection_settings: ReflectionModelSettings,
         diffraction_settings: DiffractionModelSettings,
@@ -329,13 +334,17 @@ class RunService:
                     allows_reflection=shielding.allows_reflection,
                     allows_diffraction=shielding.allows_diffraction,
                 )
-            if shielding is None and reflection is None and diffraction is None and material is None:
+            ground_correction_db = scene_model.ground_correction_db((poi_position[0], poi_position[1]), vehicle_position)
+            vegetation_correction_db = scene_model.vegetation_correction_db((poi_position[0], poi_position[1]), vehicle_position)
+            if shielding is None and reflection is None and diffraction is None and material is None and ground_correction_db == 0.0 and vegetation_correction_db == 0.0:
                 return None
             return PropagationContext(
                 shielding=shielding,
                 reflection=reflection,
                 diffraction=diffraction,
                 material=material,
+                ground_correction_db=ground_correction_db,
+                vegetation_correction_db=vegetation_correction_db,
             )
 
         return provider

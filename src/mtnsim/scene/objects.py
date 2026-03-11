@@ -4,7 +4,15 @@ from dataclasses import dataclass, field
 
 from mtnsim.acoustics.propagation.shielding import BarrierSegment
 from mtnsim.scene.materials import resolve_propagation_properties
-from mtnsim.schemas.scenario import Building, NoiseBarrier, PropagationProperties, SceneConfig
+from mtnsim.schemas.scenario import (
+    Building,
+    GroundSurface,
+    NoiseBarrier,
+    PropagationProperties,
+    SceneConfig,
+    TerrainEdge,
+    VegetationZone,
+)
 
 
 @dataclass(slots=True)
@@ -24,6 +32,9 @@ class SceneObject:
     object_type: str
     material: PropagationMaterial
     height_meters: float
+
+    def to_shielding_segments(self) -> list[BarrierSegment]:
+        return []
 
 
 @dataclass(slots=True)
@@ -85,8 +96,47 @@ class NoiseBarrierObject(LinearSceneObject):
 
 
 @dataclass(slots=True)
+class TerrainEdgeObject(LinearSceneObject):
+    pass
+
+
+@dataclass(slots=True)
 class BuildingObject(PolygonSceneObject):
     pass
+
+
+@dataclass(slots=True)
+class GroundSurfaceObject(PolygonSceneObject):
+    def to_shielding_segments(self) -> list[BarrierSegment]:
+        return []
+
+    def ground_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
+        if not _path_bbox_intersects_polygon(source_xy, receiver_xy, self.footprint):
+            return 0.0
+        coverage = _polygon_coverage_fraction(source_xy, receiver_xy, self.footprint)
+        if coverage <= 0.0:
+            return 0.0
+        absorption = self.material.absorption_coefficient
+        correction = ((0.28 - absorption) * 3.2) * coverage
+        return _clamp(correction, -2.3, 0.9)
+
+
+@dataclass(slots=True)
+class VegetationZoneObject(PolygonSceneObject):
+    attenuation_db: float = 0.0
+
+    def to_shielding_segments(self) -> list[BarrierSegment]:
+        return []
+
+    def vegetation_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
+        if not _path_bbox_intersects_polygon(source_xy, receiver_xy, self.footprint):
+            return 0.0
+        coverage = _polygon_coverage_fraction(source_xy, receiver_xy, self.footprint)
+        if coverage <= 0.0:
+            return 0.0
+        density_factor = 0.35 + (self.material.absorption_coefficient * 0.9) + min(self.height_meters / 10.0, 0.4)
+        attenuation = self.attenuation_db * coverage * density_factor
+        return -min(attenuation, 4.5)
 
 
 @dataclass(slots=True)
@@ -98,8 +148,20 @@ class SceneModel:
         return [item for item in self.objects if isinstance(item, NoiseBarrierObject)]
 
     @property
+    def terrain_edges(self) -> list[TerrainEdgeObject]:
+        return [item for item in self.objects if isinstance(item, TerrainEdgeObject)]
+
+    @property
     def buildings(self) -> list[BuildingObject]:
         return [item for item in self.objects if isinstance(item, BuildingObject)]
+
+    @property
+    def ground_surfaces(self) -> list[GroundSurfaceObject]:
+        return [item for item in self.objects if isinstance(item, GroundSurfaceObject)]
+
+    @property
+    def vegetation_zones(self) -> list[VegetationZoneObject]:
+        return [item for item in self.objects if isinstance(item, VegetationZoneObject)]
 
     def to_shielding_segments(self) -> list[BarrierSegment]:
         segments: list[BarrierSegment] = []
@@ -107,13 +169,27 @@ class SceneModel:
             segments.extend(item.to_shielding_segments())
         return segments
 
+    def ground_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
+        total = sum(item.ground_correction_db(receiver_xy, source_xy) for item in self.ground_surfaces)
+        return _clamp(total, -3.0, 1.2)
+
+    def vegetation_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
+        total = sum(item.vegetation_correction_db(receiver_xy, source_xy) for item in self.vegetation_zones)
+        return _clamp(total, -5.5, 0.0)
+
 
 def build_scene_model(scene_config: SceneConfig) -> SceneModel:
     objects: list[SceneObject] = []
     for barrier in scene_config.noise_barriers:
         objects.append(_noise_barrier_to_object(barrier))
+    for terrain_edge in scene_config.terrain_edges:
+        objects.append(_terrain_edge_to_object(terrain_edge))
     for building in scene_config.buildings:
         objects.append(_building_to_object(building))
+    for ground_surface in scene_config.ground_surfaces:
+        objects.append(_ground_surface_to_object(ground_surface))
+    for vegetation_zone in scene_config.vegetation_zones:
+        objects.append(_vegetation_zone_to_object(vegetation_zone))
     return SceneModel(objects=objects)
 
 
@@ -133,6 +209,22 @@ def _noise_barrier_to_object(barrier: NoiseBarrier) -> NoiseBarrierObject:
     )
 
 
+def _terrain_edge_to_object(terrain_edge: TerrainEdge) -> TerrainEdgeObject:
+    return TerrainEdgeObject(
+        id=terrain_edge.id,
+        object_type='terrain_edge',
+        material=_build_material(
+            object_type='terrain_edge',
+            material_name=terrain_edge.material,
+            shielding_attenuation_db=terrain_edge.attenuation_db,
+            propagation=terrain_edge.propagation,
+        ),
+        height_meters=terrain_edge.height_meters,
+        start_xy=(terrain_edge.x1, terrain_edge.y1),
+        end_xy=(terrain_edge.x2, terrain_edge.y2),
+    )
+
+
 def _building_to_object(building: Building) -> BuildingObject:
     return BuildingObject(
         id=building.id,
@@ -145,6 +237,37 @@ def _building_to_object(building: Building) -> BuildingObject:
         ),
         height_meters=building.height_meters,
         footprint=list(building.footprint),
+    )
+
+
+def _ground_surface_to_object(ground_surface: GroundSurface) -> GroundSurfaceObject:
+    return GroundSurfaceObject(
+        id=ground_surface.id,
+        object_type='ground_surface',
+        material=_build_material(
+            object_type='ground_surface',
+            material_name=ground_surface.material,
+            shielding_attenuation_db=0.0,
+            propagation=ground_surface.propagation,
+        ),
+        height_meters=0.0,
+        footprint=list(ground_surface.footprint),
+    )
+
+
+def _vegetation_zone_to_object(vegetation_zone: VegetationZone) -> VegetationZoneObject:
+    return VegetationZoneObject(
+        id=vegetation_zone.id,
+        object_type='vegetation_zone',
+        material=_build_material(
+            object_type='vegetation_zone',
+            material_name=vegetation_zone.material,
+            shielding_attenuation_db=vegetation_zone.attenuation_db,
+            propagation=vegetation_zone.propagation,
+        ),
+        height_meters=vegetation_zone.height_meters,
+        footprint=list(vegetation_zone.footprint),
+        attenuation_db=vegetation_zone.attenuation_db,
     )
 
 
@@ -168,3 +291,51 @@ def _build_material(
         allows_reflection=bool(resolved.allows_reflection),
         allows_diffraction=bool(resolved.allows_diffraction),
     )
+
+
+def _path_bbox_intersects_polygon(source_xy: tuple[float, float], receiver_xy: tuple[float, float], footprint: list[tuple[float, float]]) -> bool:
+    if len(footprint) < 3:
+        return False
+    min_px = min(point[0] for point in footprint)
+    max_px = max(point[0] for point in footprint)
+    min_py = min(point[1] for point in footprint)
+    max_py = max(point[1] for point in footprint)
+    min_x = min(source_xy[0], receiver_xy[0])
+    max_x = max(source_xy[0], receiver_xy[0])
+    min_y = min(source_xy[1], receiver_xy[1])
+    max_y = max(source_xy[1], receiver_xy[1])
+    return not (max_x < min_px or max_px < min_x or max_y < min_py or max_py < min_y)
+
+
+def _polygon_coverage_fraction(source_xy: tuple[float, float], receiver_xy: tuple[float, float], footprint: list[tuple[float, float]], samples: int = 7) -> float:
+    if len(footprint) < 3:
+        return 0.0
+    inside = 0
+    total = max(samples, 2)
+    for index in range(total):
+        t = index / (total - 1)
+        point = (
+            source_xy[0] + ((receiver_xy[0] - source_xy[0]) * t),
+            source_xy[1] + ((receiver_xy[1] - source_xy[1]) * t),
+        )
+        if _point_in_polygon(point, footprint):
+            inside += 1
+    return inside / total
+
+
+def _point_in_polygon(point: tuple[float, float], polygon: list[tuple[float, float]]) -> bool:
+    x, y = point
+    inside = False
+    n = len(polygon)
+    for i in range(n):
+        x1, y1 = polygon[i]
+        x2, y2 = polygon[(i + 1) % n]
+        if (y1 > y) != (y2 > y):
+            slope_x = x1 + ((y - y1) * (x2 - x1) / ((y2 - y1) or 1e-9))
+            if x < slope_x:
+                inside = not inside
+    return inside
+
+
+def _clamp(value: float, minimum: float, maximum: float) -> float:
+    return max(minimum, min(value, maximum))

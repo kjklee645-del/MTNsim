@@ -26,6 +26,7 @@ Supported example scenarios:
 - `barrier_shielding`
 - `building_shielding_default`
 - `building_shielding`
+- `terrain_ground_vegetation`
 - `propagation_override_example`
 
 ## Repository Layout
@@ -98,7 +99,7 @@ Run campaign-aware validation:
 
 - When no shielding object is present, the engine can use the existing GPU path for free-field distance attenuation.
 - When shielding objects are present, the current implementation falls back to CPU so shielding, reflection, diffraction, and material-aware corrections can be applied together.
-- The current scene model supports `noise_barriers` and `buildings`. Building footprints are converted to edge segments for first-pass shielding evaluation.
+- The current scene model supports `noise_barriers`, `terrain_edges`, `buildings`, `ground_surfaces`, and `vegetation_zones`. Building footprints are converted to edge segments for first-pass shielding evaluation, while ground and vegetation zones add path-based corrections.
 - Validation now covers baseline reference measurements, shifted/outlier calibration recovery, speed control, barrier shielding, and building shielding default cases.
 - A field-campaign inspection flow now checks campaign package completeness before real data is used for validation.
 - The next major gap is not basic reproducibility anymore, but broader validation against richer field datasets and richer scene classes such as terrain and vegetation.

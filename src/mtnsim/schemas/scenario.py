@@ -64,7 +64,38 @@ class NoiseBarrier:
 
 
 @dataclass(slots=True)
+class TerrainEdge:
+    id: str
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+    height_meters: float
+    attenuation_db: float
+    material: str = "soil"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
+
+
+@dataclass(slots=True)
 class Building:
+    id: str
+    footprint: list[tuple[float, float]]
+    height_meters: float
+    attenuation_db: float
+    material: str = "generic"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
+
+
+@dataclass(slots=True)
+class GroundSurface:
+    id: str
+    footprint: list[tuple[float, float]]
+    material: str = "grass"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
+
+
+@dataclass(slots=True)
+class VegetationZone:
     id: str
     footprint: list[tuple[float, float]]
     height_meters: float
@@ -76,7 +107,10 @@ class Building:
 @dataclass(slots=True)
 class SceneConfig:
     noise_barriers: list[NoiseBarrier] = field(default_factory=list)
+    terrain_edges: list[TerrainEdge] = field(default_factory=list)
     buildings: list[Building] = field(default_factory=list)
+    ground_surfaces: list[GroundSurface] = field(default_factory=list)
+    vegetation_zones: list[VegetationZone] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -165,7 +199,10 @@ class ScenarioConfig:
         diffraction_data = propagation_model_data.get("diffraction") or {}
         legacy_barriers = [cls._parse_noise_barrier(item) for item in scene_data.get("barriers", [])]
         declared_noise_barriers = [cls._parse_noise_barrier(item) for item in scene_data.get("noise_barriers", [])]
+        terrain_edges = [cls._parse_terrain_edge(item) for item in scene_data.get("terrain_edges", [])]
         buildings = [cls._parse_building(item) for item in scene_data.get("buildings", [])]
+        ground_surfaces = [cls._parse_ground_surface(item) for item in scene_data.get("ground_surfaces", [])]
+        vegetation_zones = [cls._parse_vegetation_zone(item) for item in scene_data.get("vegetation_zones", [])]
         return cls(
             scenario=ScenarioInfo(**data["scenario"]),
             traffic=TrafficConfig(**data["traffic"]),
@@ -175,7 +212,10 @@ class ScenarioConfig:
             receivers=[Receiver(**item) for item in data["receivers"]],
             scene=SceneConfig(
                 noise_barriers=[*legacy_barriers, *declared_noise_barriers],
+                terrain_edges=terrain_edges,
                 buildings=buildings,
+                ground_surfaces=ground_surfaces,
+                vegetation_zones=vegetation_zones,
             ),
             propagation_model=PropagationModelConfig(
                 reflection=ReflectionModelConfig(**reflection_data),
@@ -191,11 +231,31 @@ class ScenarioConfig:
         return NoiseBarrier(propagation=propagation, **payload)
 
     @staticmethod
+    def _parse_terrain_edge(data: dict) -> TerrainEdge:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        return TerrainEdge(propagation=propagation, **payload)
+
+    @staticmethod
     def _parse_building(data: dict) -> Building:
         payload = dict(data)
         propagation = PropagationProperties(**payload.pop("propagation", {}))
         footprint = [tuple(point) for point in payload.pop("footprint", [])]
         return Building(footprint=footprint, propagation=propagation, **payload)
+
+    @staticmethod
+    def _parse_ground_surface(data: dict) -> GroundSurface:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        footprint = [tuple(point) for point in payload.pop("footprint", [])]
+        return GroundSurface(footprint=footprint, propagation=propagation, **payload)
+
+    @staticmethod
+    def _parse_vegetation_zone(data: dict) -> VegetationZone:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        footprint = [tuple(point) for point in payload.pop("footprint", [])]
+        return VegetationZone(footprint=footprint, propagation=propagation, **payload)
 
     @classmethod
     def load(cls, path: str | Path) -> "ScenarioConfig":

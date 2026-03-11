@@ -8,8 +8,8 @@
 - Simulation executed: `True`
 - Inspection summary: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\reports\campaign_inspection_summary.json`
 - Inspection report: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\reports\campaign_inspection_report.md`
-- Result summary: `D:\Codex\MTNsim\outputs\cd2062d4e14d4cd69089f4be2b6002f4\run_result_summary.json`
-- Calibration summary: `D:\Codex\MTNsim\outputs\cd2062d4e14d4cd69089f4be2b6002f4\calibration_summary.json`
+- Result summary: `D:\Codex\MTNsim\outputs\721c1fbcc72d4a5ba9d430956bc7f028\run_result_summary.json`
+- Calibration summary: `D:\Codex\MTNsim\outputs\721c1fbcc72d4a5ba9d430956bc7f028\calibration_summary.json`
 
 ## Campaign Description
 
@@ -29,8 +29,12 @@ Synthetic campaign package that reuses seeded MTNsim reference data for workflow
 - Overall mean bias (dB): `0.0`
 - Overall RMSE (dB): `0.0`
 - Unmatched sensor count: `0`
+- Outlier rejected sample count: `0`
+- Outlier rejection ratio: `0.0`
+- Max abs effective time offset (steps): `0`
 - Worst receiver: `poi_500_65`
 - High-error receivers: `[]`
+- Low-coverage receivers: `[]`
 
 ## Threshold Checks
 
@@ -39,8 +43,13 @@ Synthetic campaign package that reuses seeded MTNsim reference data for workflow
 - [x] `max_abs_overall_mean_bias_db`: `{'passed': True, 'actual': 0.0, 'expected_max': 1e-06}`
 - [x] `max_unmatched_sensor_count`: `{'passed': True, 'actual': 0, 'expected_max': 0}`
 - [x] `min_coverage_ratio`: `{'passed': True, 'actual': 1.0, 'expected_min': 1.0}`
+- [x] `min_receiver_coverage_ratio`: `{'passed': True, 'actual_failed_receivers': [], 'expected_min': 1.0}`
 - [x] `max_receiver_rmse_db`: `{'passed': True, 'actual_failed_receivers': [], 'expected_max': 1e-06}`
 - [x] `max_receiver_abs_mean_bias_db`: `{'passed': True, 'actual_failed_receivers': [], 'expected_max': 1e-06}`
+- [x] `max_worst_receiver_rmse_db`: `{'passed': True, 'actual': 0.0, 'expected_max': 1e-06}`
+- [x] `max_outlier_rejected_sample_count`: `{'passed': True, 'actual': 0, 'expected_max': 0}`
+- [x] `max_outlier_rejection_ratio`: `{'passed': True, 'actual': 0.0, 'expected_max': 0.0}`
+- [x] `max_abs_effective_time_offset_steps`: `{'passed': True, 'actual': 0, 'expected_max': 0}`
 
 ## Receiver Diagnostics
 

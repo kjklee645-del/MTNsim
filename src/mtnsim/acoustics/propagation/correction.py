@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -19,6 +19,8 @@ class PropagationContext:
     reflection: ReflectionContext | None = None
     diffraction: DiffractionContext | None = None
     material: MaterialContext | None = None
+    ground_correction_db: float = 0.0
+    vegetation_correction_db: float = 0.0
 
 
 def total_propagation_correction_db(context: PropagationContext | None = None) -> float:
@@ -29,6 +31,8 @@ def total_propagation_correction_db(context: PropagationContext | None = None) -
     total += shielding_correction_db(context.shielding)
     total += reflection_correction_db(context.reflection)
     total += diffraction_correction_db(context.diffraction)
+    total += context.ground_correction_db
+    total += context.vegetation_correction_db
 
     if context.material is not None:
         if context.shielding is not None:
