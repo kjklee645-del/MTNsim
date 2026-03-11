@@ -38,6 +38,7 @@ class ReceiverCalibrationStats:
     mae_db: float
     rmse_db: float
     recommended_offset_db: float
+    rejected_outlier_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -63,6 +64,11 @@ class CalibrationSummary:
     overall_rmse_db: float
     recommended_global_offset_db: float
     receiver_stats: dict[str, ReceiverCalibrationStats]
+    auto_time_sync_enabled: bool = False
+    max_time_offset_steps: int = 0
+    effective_sensor_time_offsets: dict[str, int] | None = None
+    outlier_error_threshold_db: float | None = None
+    outlier_rejected_sample_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -80,6 +86,11 @@ class CalibrationSummary:
             'overall_rmse_db': self.overall_rmse_db,
             'recommended_global_offset_db': self.recommended_global_offset_db,
             'receiver_stats': {key: value.to_dict() for key, value in self.receiver_stats.items()},
+            'auto_time_sync_enabled': self.auto_time_sync_enabled,
+            'max_time_offset_steps': self.max_time_offset_steps,
+            'effective_sensor_time_offsets': self.effective_sensor_time_offsets,
+            'outlier_error_threshold_db': self.outlier_error_threshold_db,
+            'outlier_rejected_sample_count': self.outlier_rejected_sample_count,
         }
 
     @classmethod
@@ -99,6 +110,11 @@ class CalibrationSummary:
             overall_rmse_db=data['overall_rmse_db'],
             recommended_global_offset_db=data['recommended_global_offset_db'],
             receiver_stats={key: ReceiverCalibrationStats.from_dict(value) for key, value in data['receiver_stats'].items()},
+            auto_time_sync_enabled=data.get('auto_time_sync_enabled', False),
+            max_time_offset_steps=data.get('max_time_offset_steps', 0),
+            effective_sensor_time_offsets=data.get('effective_sensor_time_offsets'),
+            outlier_error_threshold_db=data.get('outlier_error_threshold_db'),
+            outlier_rejected_sample_count=data.get('outlier_rejected_sample_count', 0),
         )
 
     @classmethod

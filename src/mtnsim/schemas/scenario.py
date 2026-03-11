@@ -23,6 +23,34 @@ class PropagationProperties:
 
 
 @dataclass(slots=True)
+class ReflectionModelConfig:
+    max_extra_path_meters: float | None = None
+    max_nearest_offset_meters: float | None = None
+    min_normal_alignment: float | None = None
+    centrality_floor: float | None = None
+    centrality_weight: float | None = None
+    extra_path_scale_meters: float | None = None
+    source_distance_scale_meters: float | None = None
+    receiver_distance_scale_meters: float | None = None
+    energy_scale: float | None = None
+    max_gain_db: float | None = None
+
+
+@dataclass(slots=True)
+class DiffractionModelConfig:
+    wavelength_meters: float | None = None
+    height_penalty_scale: float | None = None
+    height_penalty_cap_db: float | None = None
+    min_remaining_attenuation_db: float | None = None
+
+
+@dataclass(slots=True)
+class PropagationModelConfig:
+    reflection: ReflectionModelConfig = field(default_factory=ReflectionModelConfig)
+    diffraction: DiffractionModelConfig = field(default_factory=DiffractionModelConfig)
+
+
+@dataclass(slots=True)
 class NoiseBarrier:
     id: str
     x1: float
@@ -118,6 +146,7 @@ class ScenarioConfig:
     grid: GridConfig
     receivers: list[Receiver]
     scene: SceneConfig = field(default_factory=SceneConfig)
+    propagation_model: PropagationModelConfig = field(default_factory=PropagationModelConfig)
     source_path: Path | None = None
 
     @classmethod
@@ -131,6 +160,9 @@ class ScenarioConfig:
         control_data = dict(data["controls"])
         control_data["lane_change_target_positions"] = [tuple(item) for item in control_data.get("lane_change_target_positions", [])]
         scene_data = data.get("scene") or {}
+        propagation_model_data = data.get("propagation_model") or {}
+        reflection_data = propagation_model_data.get("reflection") or {}
+        diffraction_data = propagation_model_data.get("diffraction") or {}
         legacy_barriers = [cls._parse_noise_barrier(item) for item in scene_data.get("barriers", [])]
         declared_noise_barriers = [cls._parse_noise_barrier(item) for item in scene_data.get("noise_barriers", [])]
         buildings = [cls._parse_building(item) for item in scene_data.get("buildings", [])]
@@ -144,6 +176,10 @@ class ScenarioConfig:
             scene=SceneConfig(
                 noise_barriers=[*legacy_barriers, *declared_noise_barriers],
                 buildings=buildings,
+            ),
+            propagation_model=PropagationModelConfig(
+                reflection=ReflectionModelConfig(**reflection_data),
+                diffraction=DiffractionModelConfig(**diffraction_data),
             ),
             source_path=Path(source_path) if source_path is not None else None,
         )

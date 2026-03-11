@@ -37,6 +37,8 @@ class ShieldingContext:
     source_receiver_distance_meters: float = 0.0
     intersection_ratio: float = 0.0
     path_excess_meters: float = 0.0
+    source_to_edge_distance_meters: float = 0.0
+    edge_to_receiver_distance_meters: float = 0.0
 
 
 def _cross(ax: float, ay: float, bx: float, by: float) -> float:
@@ -100,13 +102,9 @@ def build_shielding_context(
         intersection_y = source_pos[1] + (t * (receiver_xy[1] - source_pos[1]))
         height_excess = max(0.0, barrier.height_meters - line_height)
         top_point = (intersection_x, intersection_y, barrier.height_meters)
-        path_excess = _path_excess(
-            source_pos=source_pos,
-            source_height_meters=source_height_meters,
-            receiver_pos=receiver_pos,
-            top_point=top_point,
-            direct_distance=source_receiver_distance,
-        )
+        source_to_edge_distance = _point_distance_3d((source_pos[0], source_pos[1], source_height_meters), top_point)
+        edge_to_receiver_distance = _point_distance_3d(top_point, receiver_pos)
+        path_excess = max(0.0, (source_to_edge_distance + edge_to_receiver_distance) - source_receiver_distance)
         score = barrier.attenuation_db + material_bonus_db(
             reflection_loss_db=barrier.reflection_loss_db,
             diffraction_loss_db=barrier.diffraction_loss_db,
@@ -130,6 +128,8 @@ def build_shielding_context(
                 source_receiver_distance_meters=source_receiver_distance,
                 intersection_ratio=t,
                 path_excess_meters=path_excess,
+                source_to_edge_distance_meters=source_to_edge_distance,
+                edge_to_receiver_distance_meters=edge_to_receiver_distance,
             )
 
     return best_context
@@ -152,21 +152,12 @@ def _distance_3d(
     return math.sqrt((dx * dx) + (dy * dy) + (dz * dz))
 
 
-def _path_excess(
-    source_pos: tuple[float, float],
-    source_height_meters: float,
-    receiver_pos: tuple[float, float, float],
-    top_point: tuple[float, float, float],
-    direct_distance: float,
+def _point_distance_3d(
+    point_a: tuple[float, float, float],
+    point_b: tuple[float, float, float],
 ) -> float:
-    first = math.sqrt(
-        ((top_point[0] - source_pos[0]) ** 2)
-        + ((top_point[1] - source_pos[1]) ** 2)
-        + ((top_point[2] - source_height_meters) ** 2)
+    return math.sqrt(
+        ((point_a[0] - point_b[0]) ** 2)
+        + ((point_a[1] - point_b[1]) ** 2)
+        + ((point_a[2] - point_b[2]) ** 2)
     )
-    second = math.sqrt(
-        ((receiver_pos[0] - top_point[0]) ** 2)
-        + ((receiver_pos[1] - top_point[1]) ** 2)
-        + ((receiver_pos[2] - top_point[2]) ** 2)
-    )
-    return max(0.0, (first + second) - direct_distance)

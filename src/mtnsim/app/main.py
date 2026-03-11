@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
@@ -17,7 +17,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--measurement", default=None, help="Measurement CSV path for calibration")
     parser.add_argument("--measurement-meta", default=None, help="Measurement sensor metadata CSV path for calibration")
     parser.add_argument("--result-summary", default=None, help="Existing run_result_summary.json path for calibration")
+    parser.add_argument("--auto-time-sync", action="store_true", help="Automatically estimate per-sensor time offsets during calibration")
+    parser.add_argument("--max-time-offset-steps", type=int, default=5, help="Maximum absolute time-offset search window for auto sync")
+    parser.add_argument("--outlier-error-threshold-db", type=float, default=None, help="Reject calibration samples whose absolute error exceeds this dB threshold")
+    parser.add_argument("--min-alignment-samples", type=int, default=3, help="Minimum overlapping samples required to accept an auto time offset")
     parser.add_argument("--cpu", action="store_true", help="Force CPU noise calculation")
+    parser.add_argument("--benchmark-propagation", action="store_true", help="Run propagation benchmark cases")
+    parser.add_argument("--benchmark-file", default=None, help="Propagation benchmark JSON path")
+    parser.add_argument("--tune-propagation", action="store_true", help="Tune propagation parameters against benchmark cases")
+    parser.add_argument("--tuning-file", default=None, help="Propagation tuning-space JSON path")
+    parser.add_argument("--validate-suite", action="store_true", help="Run a validation suite of scenario + measurement cases")
+    parser.add_argument("--validation-file", default=None, help="Validation suite JSON path")
+    parser.add_argument("--inspect-field-campaign", action="store_true", help="Inspect a field campaign package and generate a quality report")
+    parser.add_argument("--validate-field-campaign", action="store_true", help="Run simulation, calibration, and reporting for a field campaign package")
+    parser.add_argument("--campaign-file", default=None, help="Field campaign JSON manifest path")
     return parser
 
 
@@ -31,6 +44,37 @@ def main() -> None:
 
     runner = AppRunner()
 
+    if args.benchmark_propagation:
+        benchmark_file = Path(args.benchmark_file) if args.benchmark_file else root / 'benchmarks' / 'propagation_reference_cases.json'
+        result = runner.run_propagation_benchmarks(benchmark_file)
+        print(json.dumps(result, indent=2))
+        return
+
+    if args.tune_propagation:
+        benchmark_file = Path(args.benchmark_file) if args.benchmark_file else root / 'benchmarks' / 'propagation_reference_cases.json'
+        tuning_file = Path(args.tuning_file) if args.tuning_file else root / 'benchmarks' / 'propagation_tuning_space.json'
+        result = runner.tune_propagation(benchmark_file, tuning_file)
+        print(json.dumps(result, indent=2))
+        return
+
+    if args.validate_suite:
+        validation_file = Path(args.validation_file) if args.validation_file else root / 'benchmarks' / 'validation_suite.json'
+        result = runner.run_validation_suite(manifest_path, validation_file, use_gpu=not args.cpu)
+        print(json.dumps(result, indent=2))
+        return
+
+    if args.inspect_field_campaign:
+        campaign_file = Path(args.campaign_file) if args.campaign_file else root / 'data' / 'field' / 'demo_seeded_campaign' / 'campaign.json'
+        result = runner.inspect_field_campaign(campaign_file)
+        print(json.dumps(result, indent=2))
+        return
+
+    if args.validate_field_campaign:
+        campaign_file = Path(args.campaign_file) if args.campaign_file else root / 'data' / 'field' / 'demo_seeded_campaign' / 'campaign.json'
+        result = runner.validate_field_campaign(manifest_path, Path(args.scenario) if args.scenario else None, campaign_file, use_gpu=not args.cpu)
+        print(json.dumps(result, indent=2))
+        return
+
     if args.calibrate and args.result_summary:
         if not args.measurement:
             raise SystemExit('--measurement is required when using --calibrate with --result-summary')
@@ -38,6 +82,10 @@ def main() -> None:
             Path(args.result_summary),
             Path(args.measurement),
             measurement_metadata_path=Path(args.measurement_meta) if args.measurement_meta else None,
+            auto_time_sync=args.auto_time_sync,
+            max_time_offset_steps=args.max_time_offset_steps,
+            outlier_error_threshold_db=args.outlier_error_threshold_db,
+            min_alignment_samples=args.min_alignment_samples,
         )
         print(json.dumps(calibration, indent=2))
         return
@@ -49,6 +97,10 @@ def main() -> None:
             measurement_path=args.measurement,
             measurement_metadata_path=args.measurement_meta,
             use_gpu=not args.cpu,
+            auto_time_sync=args.auto_time_sync,
+            max_time_offset_steps=args.max_time_offset_steps,
+            outlier_error_threshold_db=args.outlier_error_threshold_db,
+            min_alignment_samples=args.min_alignment_samples,
         )
         print(json.dumps(calibration, indent=2))
         return

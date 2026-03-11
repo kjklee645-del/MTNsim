@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
+import random
 import json
 from pathlib import Path
 from uuid import uuid4
 
 from mtnsim.acoustics.field.noise_grid import update_noise_grid_cpu, update_noise_grid_gpu
 from mtnsim.acoustics.propagation.correction import PropagationContext
-from mtnsim.acoustics.propagation.diffraction import build_diffraction_context
+from mtnsim.acoustics.propagation.diffraction import DEFAULT_DIFFRACTION_SETTINGS, DiffractionModelSettings, build_diffraction_context
 from mtnsim.acoustics.propagation.materials import MaterialContext
-from mtnsim.acoustics.propagation.reflection import build_reflection_context
+from mtnsim.acoustics.propagation.reflection import DEFAULT_REFLECTION_SETTINGS, ReflectionModelSettings, build_reflection_context
 from mtnsim.acoustics.propagation.shielding import BarrierSegment, build_shielding_context
 from mtnsim.core.context import RunContext
 from mtnsim.io.result_store import write_receiver_histories, write_run_manifest, write_run_result_summary
@@ -82,7 +83,13 @@ class RunService:
         }
         scene_model = build_scene_model(context.scenario.scene)
         shielding_segments = scene_model.to_shielding_segments()
-        propagation_provider = self._build_propagation_provider(shielding_segments)
+        reflection_settings = self._resolve_reflection_settings(context.scenario)
+        diffraction_settings = self._resolve_diffraction_settings(context.scenario)
+        propagation_provider = self._build_propagation_provider(
+            shielding_segments,
+            reflection_settings=reflection_settings,
+            diffraction_settings=diffraction_settings,
+        )
         effective_use_gpu = use_gpu and not shielding_segments
 
         lane_state = LaneChangeState()
@@ -102,9 +109,10 @@ class RunService:
         sim = SumoAdapter()
         deployed_vehicles = 0
         final_grid_snapshot: dict[str, float] = {}
+        random.seed(context.project.simulation_defaults.random_seed)
 
         try:
-            sim.start(sumo_config_path)
+            sim.start(sumo_config_path, seed=context.project.simulation_defaults.random_seed)
             for time_step in range(context.project.simulation_defaults.max_steps):
                 if deployed_vehicles < context.scenario.traffic.max_vehicles:
                     add_vehicle(sim, lane_state, deployed_vehicles, time_step, deployment_config, constant_speed=start_speed_mps)
@@ -205,6 +213,8 @@ class RunService:
                 'scene_object_count': len(scene_model.objects),
                 'gpu_requested': use_gpu,
                 'gpu_used': effective_use_gpu,
+                'reflection_model_settings': asdict(reflection_settings),
+                'diffraction_model_settings': asdict(diffraction_settings),
             },
         )
         result_summary_file = write_run_result_summary(output_dir, result_summary)
@@ -269,7 +279,26 @@ class RunService:
             )
         return stats
 
-    def _build_propagation_provider(self, shielding_segments: list[BarrierSegment]):
+    def _resolve_reflection_settings(self, scenario: ScenarioConfig) -> ReflectionModelSettings:
+        config = scenario.propagation_model.reflection
+        overrides = {key: value for key, value in asdict(config).items() if value is not None}
+        if not overrides:
+            return DEFAULT_REFLECTION_SETTINGS
+        return replace(DEFAULT_REFLECTION_SETTINGS, **overrides)
+
+    def _resolve_diffraction_settings(self, scenario: ScenarioConfig) -> DiffractionModelSettings:
+        config = scenario.propagation_model.diffraction
+        overrides = {key: value for key, value in asdict(config).items() if value is not None}
+        if not overrides:
+            return DEFAULT_DIFFRACTION_SETTINGS
+        return replace(DEFAULT_DIFFRACTION_SETTINGS, **overrides)
+
+    def _build_propagation_provider(
+        self,
+        shielding_segments: list[BarrierSegment],
+        reflection_settings: ReflectionModelSettings,
+        diffraction_settings: DiffractionModelSettings,
+    ):
         if not shielding_segments:
             return None
 
@@ -288,8 +317,9 @@ class RunService:
                 receiver_pos=poi_position,
                 source_pos=vehicle_position,
                 barriers=shielding_segments,
+                settings=reflection_settings,
             )
-            diffraction = build_diffraction_context(shielding)
+            diffraction = build_diffraction_context(shielding, settings=diffraction_settings)
             material = None
             if shielding is not None:
                 material = MaterialContext(

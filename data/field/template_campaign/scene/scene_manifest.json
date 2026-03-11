@@ -1,0 +1,11 @@
+{
+  "coordinate_system": "EPSG:5186",
+  "layers": {
+    "buildings": "buildings.geojson",
+    "barriers": "barriers.geojson",
+    "terrain": "terrain.tif",
+    "ground_surfaces": "ground_surfaces.geojson",
+    "vegetation": "vegetation.geojson"
+  },
+  "notes": "Replace placeholder files with real GIS or survey outputs."
+}

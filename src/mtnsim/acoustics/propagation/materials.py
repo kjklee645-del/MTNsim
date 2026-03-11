@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 import math
@@ -20,60 +20,136 @@ def material_bonus_db(
     allows_reflection: bool,
     allows_diffraction: bool,
 ) -> float:
-    absorption = _clamp(absorption_coefficient, 0.0, 1.0)
-    shielding_bonus = absorption * 3.0
-    edge_bonus = min(max(diffraction_loss_db, 0.0) * 0.12, 1.0) if allows_diffraction else 0.4
-    reflection_bonus = min(max(reflection_loss_db, 0.0) * 0.08, 0.6) if allows_reflection else 0.25
-    return shielding_bonus + edge_bonus + reflection_bonus
+    context = MaterialContext(
+        reflection_loss_db=reflection_loss_db,
+        diffraction_loss_db=diffraction_loss_db,
+        absorption_coefficient=absorption_coefficient,
+        allows_reflection=allows_reflection,
+        allows_diffraction=allows_diffraction,
+    )
+    transmission = transmission_loss_db(context)
+    edge_blocking = 1.0 - edge_efficiency(context)
+    absorption = _clamp(context.absorption_coefficient, 0.0, 1.0)
+    return min((transmission * 0.11) + (edge_blocking * 0.9) + (absorption * 1.2), 3.0)
 
 
-def shielding_material_correction_db(context: MaterialContext | None = None) -> float:
+def shielding_material_correction_db(context: MaterialContext | None = None, shielding_context=None) -> float:
     if context is None:
         return 0.0
+    transmission = transmission_loss_db(context)
     absorption = _clamp(context.absorption_coefficient, 0.0, 1.0)
-    attenuation = (absorption * 2.8) + min(max(context.diffraction_loss_db, 0.0) * 0.10, 0.9)
-    return -attenuation
+    edge_blocking = 1.0 - edge_efficiency(context)
+
+    geometry_factor = 1.0
+    centrality = 1.0
+    if shielding_context is not None:
+        geometry_factor += min(shielding_context.height_excess_meters * 0.05, 0.55)
+        geometry_factor += min(shielding_context.path_excess_meters / 24.0, 0.65)
+        centrality = max(0.65, 1.0 - abs(shielding_context.intersection_ratio - 0.5) * 1.1)
+
+    attenuation = ((transmission * 0.16) + (absorption * 0.9) + (edge_blocking * 0.7)) * geometry_factor * centrality
+    return -min(attenuation, 5.0)
 
 
-def reflection_material_correction_db(context: MaterialContext | None = None) -> float:
+def reflection_material_correction_db(context: MaterialContext | None = None, reflection_context=None) -> float:
     if context is None:
         return 0.0
     if not context.allows_reflection:
-        return -3.0
-    reflectivity = _surface_reflectivity(context)
-    if reflectivity <= 0.0:
-        return -3.0
-    return 10.0 * math.log10(reflectivity)
+        return -3.5
+
+    reflectivity = surface_reflectivity(context)
+    hardness = surface_hardness(context)
+    scattering = scattering_factor(context)
+
+    alignment = reflection_context.normal_alignment if reflection_context is not None else 0.6
+    segment_fraction = reflection_context.segment_fraction if reflection_context is not None else 0.5
+    extra_path = reflection_context.extra_path_meters if reflection_context is not None else 0.0
+
+    centrality = max(0.55, 1.0 - abs(segment_fraction - 0.5) * 1.0)
+    extra_path_penalty = min(extra_path / 90.0, 0.9)
+
+    correction = (
+        ((reflectivity - 0.45) * 1.7)
+        + ((hardness - 0.5) * 0.6)
+        + ((alignment - 0.5) * 0.8)
+        + ((centrality - 0.7) * 0.4)
+        - (scattering * 0.8)
+        - extra_path_penalty
+    )
+    return _clamp(correction, -2.5, 0.8)
 
 
-def diffraction_material_correction_db(context: MaterialContext | None = None) -> float:
+def diffraction_material_correction_db(context: MaterialContext | None = None, diffraction_context=None, shielding_context=None) -> float:
     if context is None:
         return 0.0
     if not context.allows_diffraction:
-        return -2.5
-    edge_efficiency = _edge_efficiency(context)
-    if edge_efficiency <= 0.0:
-        return -2.5
-    return 10.0 * math.log10(edge_efficiency)
+        return -2.8
+
+    efficiency = edge_efficiency(context)
+    absorption = _clamp(context.absorption_coefficient, 0.0, 1.0)
+    transmission = transmission_loss_db(context)
+
+    fresnel = diffraction_context.fresnel_number if diffraction_context is not None else 0.0
+    path_excess = diffraction_context.path_excess_meters if diffraction_context is not None else 0.0
+    if path_excess <= 0.0 and shielding_context is not None:
+        path_excess = shielding_context.path_excess_meters
+
+    correction = (
+        ((efficiency - 0.45) * 1.6)
+        + (min(fresnel / 4.0, 1.0) * 0.35)
+        - min(path_excess / 25.0, 0.7)
+        - (absorption * 0.7)
+        - (min(transmission / 14.0, 1.0) * 0.3)
+    )
+    return _clamp(correction, -2.2, 0.7)
 
 
-def material_correction_db(context: MaterialContext | None = None) -> float:
+def material_correction_db(context: MaterialContext | None = None, shielding_context=None) -> float:
     if context is None:
         return 0.0
-    return shielding_material_correction_db(context)
+    return shielding_material_correction_db(context, shielding_context=shielding_context)
 
 
-def _surface_reflectivity(context: MaterialContext) -> float:
-    reflection_penalty = _clamp(context.reflection_loss_db / 12.0, 0.0, 0.95)
-    absorption_penalty = _clamp(context.absorption_coefficient * 0.85, 0.0, 0.85)
-    return _clamp(1.0 - reflection_penalty - absorption_penalty, 0.05, 1.0)
+def transmission_loss_db(context: MaterialContext) -> float:
+    absorption = _clamp(context.absorption_coefficient, 0.0, 1.0)
+    reflection_term = _clamp(context.reflection_loss_db, 0.0, 12.0) * 0.55
+    diffraction_term = _clamp(context.diffraction_loss_db, 0.0, 12.0) * 0.35
+    absorption_term = absorption * 6.5
+    non_diffracting_term = 0.8 if not context.allows_diffraction else 0.0
+    return _clamp(1.5 + reflection_term + diffraction_term + absorption_term + non_diffracting_term, 1.0, 14.0)
 
 
-def _edge_efficiency(context: MaterialContext) -> float:
-    diffraction_penalty = _clamp(context.diffraction_loss_db / 14.0, 0.0, 0.9)
-    absorption_penalty = _clamp(context.absorption_coefficient * 0.55, 0.0, 0.55)
-    return _clamp(1.0 - diffraction_penalty - absorption_penalty, 0.08, 1.0)
+def surface_hardness(context: MaterialContext) -> float:
+    absorption = _clamp(context.absorption_coefficient, 0.0, 1.0)
+    return _clamp(1.0 - (absorption * 0.82), 0.10, 1.0)
+
+
+def surface_reflectivity(context: MaterialContext) -> float:
+    if not context.allows_reflection:
+        return 0.0
+    hardness = surface_hardness(context)
+    reflection_penalty = _clamp(context.reflection_loss_db / 13.0, 0.0, 0.8)
+    absorption_penalty = _clamp(context.absorption_coefficient * 0.75, 0.0, 0.75)
+    reflectivity = (hardness ** 1.1) * (1.0 - reflection_penalty) * (1.0 - absorption_penalty)
+    reflectivity += max(hardness - 0.75, 0.0) * 0.20
+    return _clamp(reflectivity, 0.03, 0.98)
+
+
+def edge_efficiency(context: MaterialContext) -> float:
+    if not context.allows_diffraction:
+        return 0.0
+    absorption = _clamp(context.absorption_coefficient, 0.0, 1.0)
+    rigidity = 1.0 - (absorption * 0.40)
+    diffraction_penalty = _clamp(context.diffraction_loss_db / 18.0, 0.0, 0.75)
+    return _clamp(rigidity * (1.0 - diffraction_penalty), 0.04, 1.0)
+
+
+def scattering_factor(context: MaterialContext) -> float:
+    absorption = _clamp(context.absorption_coefficient, 0.0, 1.0)
+    roughness = _clamp(context.diffraction_loss_db / 20.0, 0.0, 0.3)
+    return _clamp(0.15 + (absorption * 0.55) + roughness, 0.15, 0.95)
 
 
 def _clamp(value: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(value, maximum))
+

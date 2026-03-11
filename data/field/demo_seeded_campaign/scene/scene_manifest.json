@@ -1,0 +1,9 @@
+{
+  "coordinate_system": "LOCAL_METERS",
+  "layers": {
+    "buildings": "buildings.geojson",
+    "barriers": "barriers.geojson",
+    "terrain": "terrain_notes.json"
+  },
+  "notes": "Synthetic scene bundle for workflow validation only."
+}

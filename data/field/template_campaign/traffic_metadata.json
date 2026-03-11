@@ -1,0 +1,8 @@
+{
+  "time_zone": "Asia/Seoul",
+  "time_column": "timestamp",
+  "speed_unit": "km/h",
+  "flow_unit": "vehicles_per_interval",
+  "sampling_interval_seconds": 60,
+  "data_type": "aggregated_lane_or_segment_traffic"
+}

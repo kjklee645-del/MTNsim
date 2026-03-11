@@ -1,0 +1,4 @@
+time_index,traffic_volume,average_speed_kmh,heavy_vehicle_share
+0,12,98,0.15
+60,12,96,0.15
+120,12,95,0.15

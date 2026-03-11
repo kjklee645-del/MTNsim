@@ -1,4 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
+
+from dataclasses import asdict
 
 from mtnsim.schemas.results import ReceiverDelta, RunResultComparison, RunResultSummary, ScenarioComparison
 from mtnsim.schemas.scenario import ScenarioConfig
@@ -142,6 +144,8 @@ class CompareService:
             'grid.margin_x_start': scenario.grid.margin_x_start,
             'grid.margin_x_end': scenario.grid.margin_x_end,
             'grid.extra_y_extent': scenario.grid.extra_y_extent,
+            'propagation_model.reflection': tuple(asdict(scenario.propagation_model.reflection).items()),
+            'propagation_model.diffraction': tuple(asdict(scenario.propagation_model.diffraction).items()),
             'scene.noise_barriers.count': len(scenario.scene.noise_barriers),
             'scene.noise_barriers.ids': tuple(barrier.id for barrier in scenario.scene.noise_barriers),
             'scene.noise_barriers.definitions': noise_barrier_definitions,

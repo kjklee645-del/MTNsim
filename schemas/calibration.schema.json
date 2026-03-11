@@ -16,7 +16,10 @@
     "overall_mae_db",
     "overall_rmse_db",
     "recommended_global_offset_db",
-    "receiver_stats"
+    "receiver_stats",
+    "auto_time_sync_enabled",
+    "max_time_offset_steps",
+    "outlier_rejected_sample_count"
   ],
   "properties": {
     "project": {
@@ -79,7 +82,8 @@
           "mean_bias_db",
           "mae_db",
           "rmse_db",
-          "recommended_offset_db"
+          "recommended_offset_db",
+          "rejected_outlier_count"
         ],
         "properties": {
           "receiver_id": {
@@ -102,10 +106,41 @@
           },
           "recommended_offset_db": {
             "type": "number"
+          },
+          "rejected_outlier_count": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": false
       }
+    },
+    "auto_time_sync_enabled": {
+      "type": "boolean"
+    },
+    "max_time_offset_steps": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "effective_sensor_time_offsets": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "integer"
+      }
+    },
+    "outlier_error_threshold_db": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "outlier_rejected_sample_count": {
+      "type": "integer",
+      "minimum": 0
     }
   },
   "additionalProperties": false
