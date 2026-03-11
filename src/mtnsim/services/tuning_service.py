@@ -127,6 +127,10 @@ class TuningService:
     def _score(self, result: BenchmarkRunResult) -> float:
         score = 0.0
         for case in result.case_results:
+            if case.expected_context is False:
+                if case.value_db is not None:
+                    score += 100.0 + abs(case.value_db)
+                continue
             if case.value_db is None:
                 score += 100.0
                 continue

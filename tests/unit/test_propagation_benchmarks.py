@@ -8,8 +8,8 @@ def test_propagation_reference_benchmarks_pass() -> None:
     root = Path(__file__).resolve().parents[2]
     result = BenchmarkService().run_propagation_benchmarks(root / 'benchmarks' / 'propagation_reference_cases.json')
     assert result.passed
-    assert len(result.case_results) >= 4
-    assert len(result.comparison_results) >= 2
+    assert len(result.case_results) >= 9
+    assert len(result.comparison_results) >= 5
 
 
 def test_propagation_tuning_finds_zero_penalty_candidate() -> None:

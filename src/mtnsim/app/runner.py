@@ -6,6 +6,8 @@ from mtnsim.api.project_api import ProjectAPI
 from mtnsim.api.simulation_api import SimulationAPI
 from mtnsim.services.benchmark_service import BenchmarkService
 from mtnsim.services.tuning_service import TuningService
+from mtnsim.services.validation_service import ValidationService
+from mtnsim.services.field_campaign_service import FieldCampaignService
 
 
 class AppRunner:
@@ -14,6 +16,8 @@ class AppRunner:
         self.simulation_api = SimulationAPI()
         self.benchmark_service = BenchmarkService()
         self.tuning_service = TuningService(self.benchmark_service)
+        self.validation_service = ValidationService()
+        self.field_campaign_service = FieldCampaignService()
 
     def summarize_project(self, manifest_path: str | Path, scenario_path: str | Path) -> dict:
         project = self.project_api.load_manifest(manifest_path)
@@ -114,3 +118,20 @@ class AppRunner:
 
     def tune_propagation(self, benchmark_file: str | Path, tuning_file: str | Path) -> dict:
         return self.tuning_service.tune_propagation(benchmark_file, tuning_file).to_dict()
+
+    def run_validation_suite(self, manifest_path: str | Path, validation_file: str | Path, use_gpu: bool = False) -> dict:
+        project = self.project_api.load_manifest(manifest_path)
+        summary, output_path = self.validation_service.run_validation_suite(project, validation_file, use_gpu=use_gpu)
+        return {
+            'validation_summary': summary.to_dict(),
+            'validation_summary_file': str(output_path),
+        }
+
+    def inspect_field_campaign(self, campaign_file: str | Path) -> dict:
+        artifacts = self.field_campaign_service.inspect_campaign(campaign_file)
+        return {
+            'inspection_summary': artifacts.summary.to_dict(),
+            'output_dir': str(artifacts.output_dir),
+            'summary_file': str(artifacts.summary_file),
+            'report_file': str(artifacts.report_file),
+        }

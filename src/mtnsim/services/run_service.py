@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
+import random
 import json
 from pathlib import Path
 from uuid import uuid4
@@ -108,9 +109,10 @@ class RunService:
         sim = SumoAdapter()
         deployed_vehicles = 0
         final_grid_snapshot: dict[str, float] = {}
+        random.seed(context.project.simulation_defaults.random_seed)
 
         try:
-            sim.start(sumo_config_path)
+            sim.start(sumo_config_path, seed=context.project.simulation_defaults.random_seed)
             for time_step in range(context.project.simulation_defaults.max_steps):
                 if deployed_vehicles < context.scenario.traffic.max_vehicles:
                     add_vehicle(sim, lane_state, deployed_vehicles, time_step, deployment_config, constant_speed=start_speed_mps)

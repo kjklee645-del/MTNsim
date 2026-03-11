@@ -1,6 +1,6 @@
 # MTNsim Development Checklist
 
-Last updated: 2026-03-10
+Last updated: 2026-03-11
 Owner: Codex + User
 Purpose: keep a single progress checklist that reflects product direction, implementation order, and current technical status.
 
@@ -50,6 +50,7 @@ Status legend:
 | Scenario diff | Scenario comparison service | [x] | `services/compare_service.py` |
 | Result diff | Run-result comparison service | [x] | receiver deltas and summary |
 | Repeatability | Fixed manifest/scenario inputs | [x] | reproducible run entry points |
+| Reproducibility | Deterministic seeded execution | [x] | Python vehicle deployment and SUMO runs both use the project seed |
 | Storage | Structured run records | [~] | JSON/CSV only, not Parquet/DB yet |
 
 ## 5. Acoustic Engine
@@ -87,9 +88,11 @@ Status legend:
 | Calibration | Measurement import workflow | [x] | CSV measurement loader and calibration service added |
 | Calibration | Sensor alignment | [~] | sensor metadata mapping, manual offset, auto time sync, and valid window support added |
 | Calibration | Correction factor estimation | [~] | receiver/global bias recommendation with skipped/unmatched tracking added |
-| Validation | Benchmark scenarios | [x] | propagation reference benchmark cases, runner, tuning-space, and tuned defaults added |
+| Validation | Benchmark scenarios | [x] | expanded propagation benchmark suite, total-correction cases, runner, tuning-space, and tuned defaults added |
 | Validation | Integration tests | [~] | smoke-level validation only |
-| Validation | Field-data comparison | [ ] | not started |
+| Validation | Field-data comparison | [~] | validation suite now covers baseline reference, shifted/outlier recovery, speed-drop, barrier, and building-default seeded reference cases; true field datasets still needed |
+| Validation prep | Field-data checklist and methodology docs | [x] | `docs/field_validation_data_checklist.md`, `docs/field_validation_methodology.md` |
+| Validation prep | Field-campaign import convention and quality report flow | [x] | demo/template campaigns plus `--inspect-field-campaign` added |
 
 ## 8. Product Layers
 
@@ -106,9 +109,9 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Strengthen material-aware corrections beyond heuristic shielding use | [ ] | tuned propagation defaults are in place; material physics is the next weakest link |
-| 2 | Deepen calibration workflow with richer alignment and validation | [ ] | auto time sync is in place, but field-facing calibration still needs expansion |
-| 3 | Validate tuned propagation against richer measured/reference cases | [ ] | current benchmark suite is still compact and synthetic |
+| 1 | Expand validation from seeded reference cases toward true field datasets and stronger acceptance rules | [~] | reusable validation suite now covers multiple scenarios, but it still relies mostly on seeded references rather than field measurements |
+| 2 | Deepen calibration workflow with richer alignment and validation | [~] | field-campaign inspection is ready, but campaign-aware calibration/reporting still needs expansion |
+| 3 | Continue scene/physics expansion for terrain and richer object classes | [ ] | propagation structure is stronger, but scene fidelity is still limited |
 | 4 | Deepen reporting / GUI / richer agent control | [ ] | should come after core physics and validation |
 
 ## 10. Maintenance Rule

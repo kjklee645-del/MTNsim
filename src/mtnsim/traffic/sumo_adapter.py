@@ -56,9 +56,12 @@ class SumoAdapter:
         if traci is None:
             raise RuntimeError("traci is required for SUMO integration")
 
-    def start(self, sumo_config: str | Path, binary: str = "sumo") -> None:
+    def start(self, sumo_config: str | Path, binary: str = "sumo", seed: int | None = None) -> None:
         self._require_traci()
-        traci.start([binary, "-c", str(sumo_config)])
+        command = [binary, "-c", str(sumo_config)]
+        if seed is not None:
+            command.extend(["--seed", str(seed)])
+        traci.start(command)
         self._started = True
 
     def close(self) -> None:

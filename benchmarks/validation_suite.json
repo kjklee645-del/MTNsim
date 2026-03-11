@@ -1,0 +1,74 @@
+{
+  "cases": [
+    {
+      "case_id": "baseline_reference_measurements",
+      "scenario": "examples/scenarios/baseline.toml",
+      "measurement": "data/measurements/sensors.csv",
+      "measurement_metadata": "data/measurements/sensor_metadata.csv",
+      "force_cpu": true,
+      "thresholds": {
+        "min_aligned_sample_count": 40,
+        "max_overall_rmse_db": 1.1,
+        "max_abs_overall_mean_bias_db": 0.8,
+        "max_unmatched_sensor_count": 0
+      }
+    },
+    {
+      "case_id": "baseline_shifted_outlier_measurements",
+      "scenario": "examples/scenarios/baseline.toml",
+      "measurement": "data/measurements/synthetic_shifted_outlier.csv",
+      "measurement_metadata": "data/measurements/synthetic_shifted_outlier_meta.csv",
+      "auto_time_sync": true,
+      "max_time_offset_steps": 3,
+      "outlier_error_threshold_db": 10.0,
+      "force_cpu": true,
+      "thresholds": {
+        "min_aligned_sample_count": 20,
+        "max_overall_rmse_db": 0.001,
+        "max_abs_overall_mean_bias_db": 0.001,
+        "max_unmatched_sensor_count": 0,
+        "expected_outlier_rejected_sample_count": 1,
+        "expected_sensor_time_offsets": {
+          "sensor_500_25": 2,
+          "sensor_500_35": 2
+        }
+      }
+    },
+    {
+      "case_id": "speed_drop_reference_measurements",
+      "scenario": "examples/scenarios/speed_drop_80.toml",
+      "measurement": "data/measurements/speed_drop_80_reference_measurements.csv",
+      "force_cpu": true,
+      "thresholds": {
+        "min_aligned_sample_count": 4800,
+        "max_overall_rmse_db": 1e-06,
+        "max_abs_overall_mean_bias_db": 1e-06,
+        "max_unmatched_sensor_count": 0
+      }
+    },
+    {
+      "case_id": "barrier_reference_measurements",
+      "scenario": "examples/scenarios/barrier_shielding.toml",
+      "measurement": "data/measurements/barrier_shielding_reference_measurements.csv",
+      "force_cpu": true,
+      "thresholds": {
+        "min_aligned_sample_count": 4800,
+        "max_overall_rmse_db": 1e-06,
+        "max_abs_overall_mean_bias_db": 1e-06,
+        "max_unmatched_sensor_count": 0
+      }
+    },
+    {
+      "case_id": "building_default_reference_measurements",
+      "scenario": "examples/scenarios/building_shielding_default.toml",
+      "measurement": "data/measurements/building_shielding_default_reference_measurements.csv",
+      "force_cpu": true,
+      "thresholds": {
+        "min_aligned_sample_count": 4800,
+        "max_overall_rmse_db": 1e-06,
+        "max_abs_overall_mean_bias_db": 1e-06,
+        "max_unmatched_sensor_count": 0
+      }
+    }
+  ]
+}

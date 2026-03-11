@@ -1,6 +1,6 @@
 # MTNsim Current Status
 
-Date: 2026-03-10
+Date: 2026-03-11
 
 ## 1. Summary
 
@@ -46,6 +46,7 @@ Implemented:
 What it does now:
 - loads a project manifest and scenario
 - starts a SUMO run from `data/sumo/4lane.sumocfg`
+- uses a fixed project random seed for repeatable Python-side vehicle deployment and SUMO execution
 - deploys vehicles according to scenario controls
 - applies lane-change and post-distance speed logic
 - computes receiver and grid noise outputs
@@ -126,9 +127,9 @@ Implemented:
 - CLI benchmark entry in `app/main.py`
 
 What it does now:
-- runs synthetic propagation reference cases for reflection and diffraction
-- checks each case against expected numeric ranges
-- verifies comparison relations such as absorptive < concrete reflection and taller barrier < moderate barrier diffraction
+- runs synthetic propagation reference cases for reflection, diffraction, and total propagation correction
+- checks supported cases against expected numeric ranges or expected no-context behavior
+- verifies comparison relations such as absorptive < concrete reflection, glass > concrete reflection, oblique < mid-angle reflection, taller barrier < moderate barrier diffraction, and absorptive total barrier correction < moderate total barrier correction
 
 ### 2.7 Tuned Defaults and Scenario Overrides
 - Reflection and diffraction now use tuned defaults from the benchmark search.
@@ -148,6 +149,40 @@ What it does now:
 - returns the best-performing parameter combination under the current benchmark suite
 
 ### 2.8 Comparison Workflow
+
+### 2.9 Validation Suite Workflow
+
+### 2.10 Field Campaign Inspection Workflow
+
+Implemented:
+- `schemas/field_campaign.py`
+- `services/field_campaign_service.py`
+- `data/field/demo_seeded_campaign/campaign.json`
+- `data/field/template_campaign/campaign.json`
+- CLI field-campaign inspection entry in `app/main.py`
+
+What it does now:
+- loads a field-campaign manifest
+- checks measurement CSV, sensor metadata CSV, optional traffic file, scene path, and notes file
+- verifies required columns, row counts, duplicate sensor/time keys, plausible dB ranges, and metadata mapping coverage
+- writes JSON and Markdown inspection reports into the campaign `reports/` folder
+
+
+Implemented:
+- `benchmarks/validation_suite.json`
+- `schemas/validation.py`
+- `services/validation_service.py`
+- `scripts/generate_reference_measurements.py`
+- CLI validation entry in `app/main.py`
+
+What it does now:
+- runs repeatable scenario + measurement validation cases from one suite file
+- executes simulation, calibration, and threshold checks together
+- records pass/fail for aligned samples, RMSE, bias, unmatched sensors, outlier rejection, and expected auto time offsets
+- now covers baseline reference data, shifted/outlier calibration recovery, speed-drop reference data, barrier reference data, and building-default reference data
+- uses seeded execution so reference cases are stable across reruns
+- writes `outputs/validation_suite_summary.json`
+
 
 Implemented:
 - configuration comparison between two scenarios
@@ -177,8 +212,12 @@ Observed comparison examples:
 - `building_shielding_default` vs `building_shielding`: average receiver mean level changed by about `+0.45 dB`, with a strong near-field decrease and more visible far-field increases under the current reflection model
 - `baseline` calibration against example measurement CSV + sensor metadata: overall mean bias about `-0.67 dB`, overall RMSE about `0.95 dB`
 - propagation tuning benchmark: current search space found a zero-penalty candidate over 6,561 parameter combinations
+- expanded propagation benchmark suite: reflection, diffraction, disabled-context, and total-correction material cases all pass under the current tuned defaults
 - building material override comparison after geometry-coupled material correction update: average receiver mean level changed by about `-0.28 dB`, with near-field reductions up to about `-1.47 dB` and small far-field increases from reflection redistribution
 - synthetic shifted-measurement calibration validation: auto time sync recovered `+2` steps for both sensors and rejected one injected outlier sample
+- validation suite run: baseline reference measurement, shifted/outlier calibration recovery, speed-drop reference, barrier reference, and building-default reference cases all passed from one repeatable suite run
+- field-validation preparation docs now define required datasets and methodology before real campaign data arrives
+- demo field-campaign inspection run passed and produced both JSON and Markdown campaign-quality reports
 
 These values are prototype-level engineering checks, not yet validated against measured field data.
 
@@ -229,9 +268,9 @@ This order was correct because:
 
 ## 6. Recommended Next Order
 
-1. validate and tune reflection/diffraction against measured or reference cases
-2. strengthen material-aware corrections beyond the current heuristic use
-3. deepen calibration workflow against measurements
+1. expand validation from seeded reference cases toward true field datasets and stronger acceptance rules
+2. deepen calibration workflow against measurements and field-facing correction tasks
+3. continue scene expansion for terrain, vegetation, and richer object classes
 4. only then deepen higher-level product layers such as reporting, GUI, and richer agent control
 
 ## 7. Practical Repository State

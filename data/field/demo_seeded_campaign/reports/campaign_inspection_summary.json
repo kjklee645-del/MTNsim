@@ -1,0 +1,169 @@
+{
+  "campaign_id": "demo_seeded_campaign",
+  "name": "Demo Seeded Campaign",
+  "passed": true,
+  "measurement_row_count": 4800,
+  "measurement_sensor_count": 8,
+  "metadata_sensor_count": 8,
+  "traffic_row_count": 3,
+  "checks": [
+    {
+      "check_id": "measurement_required_columns",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurements need sensor, time, and value columns.",
+      "details": {
+        "columns": [
+          "receiver_id",
+          "sensor_id",
+          "time_index",
+          "value_db"
+        ]
+      }
+    },
+    {
+      "check_id": "measurement_rows_present",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurement file should contain at least one row.",
+      "details": {
+        "row_count": 4800
+      }
+    },
+    {
+      "check_id": "measurement_duplicate_sensor_time_keys",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurement file should not contain duplicate sensor/time pairs.",
+      "details": {
+        "duplicate_key_count": 0
+      }
+    },
+    {
+      "check_id": "measurement_missing_sensor_ids",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurement rows should include sensor identifiers.",
+      "details": {
+        "missing_sensor_count": 0
+      }
+    },
+    {
+      "check_id": "measurement_missing_time_values",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurement rows should include time values.",
+      "details": {
+        "missing_time_count": 0
+      }
+    },
+    {
+      "check_id": "measurement_missing_value_db",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurement rows should include dB values.",
+      "details": {
+        "missing_value_count": 0
+      }
+    },
+    {
+      "check_id": "measurement_plausible_db_range",
+      "passed": true,
+      "severity": "warning",
+      "message": "Measurement dB values should stay in a plausible range.",
+      "details": {
+        "impossible_db_count": 0
+      }
+    },
+    {
+      "check_id": "metadata_required_columns",
+      "passed": true,
+      "severity": "error",
+      "message": "Metadata should include sensor_id and either simulation_receiver_id or x/y/z coordinates.",
+      "details": {
+        "columns": [
+          "enabled",
+          "sensor_id",
+          "simulation_receiver_id"
+        ]
+      }
+    },
+    {
+      "check_id": "metadata_rows_present",
+      "passed": true,
+      "severity": "error",
+      "message": "Sensor metadata should contain at least one row.",
+      "details": {
+        "row_count": 8
+      }
+    },
+    {
+      "check_id": "metadata_duplicate_sensor_ids",
+      "passed": true,
+      "severity": "error",
+      "message": "Sensor metadata should not contain duplicate sensor IDs.",
+      "details": {
+        "duplicate_sensor_id_count": 0
+      }
+    },
+    {
+      "check_id": "metadata_mapping_available",
+      "passed": true,
+      "severity": "error",
+      "message": "Each metadata row should map to a receiver or coordinates.",
+      "details": {
+        "missing_mapping_count": 0
+      }
+    },
+    {
+      "check_id": "traffic_rows_present",
+      "passed": true,
+      "severity": "warning",
+      "message": "Traffic file should contain at least one row.",
+      "details": {
+        "row_count": 3
+      }
+    },
+    {
+      "check_id": "traffic_minimum_columns",
+      "passed": true,
+      "severity": "warning",
+      "message": "Traffic file should include time, flow, and speed information.",
+      "details": {
+        "columns": [
+          "average_speed_kmh",
+          "heavy_vehicle_share",
+          "time_index",
+          "traffic_volume"
+        ]
+      }
+    },
+    {
+      "check_id": "scene_path_exists",
+      "passed": true,
+      "severity": "warning",
+      "message": "scene_path_exists should point to an existing dir.",
+      "details": {
+        "path": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\scene"
+      }
+    },
+    {
+      "check_id": "notes_file_exists",
+      "passed": true,
+      "severity": "warning",
+      "message": "notes_file_exists should point to an existing file.",
+      "details": {
+        "path": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\notes.md"
+      }
+    },
+    {
+      "check_id": "measurement_sensors_mapped_in_metadata",
+      "passed": true,
+      "severity": "error",
+      "message": "All measurement sensor IDs should exist in sensor metadata.",
+      "details": {
+        "missing_sensor_ids": []
+      }
+    }
+  ]
+}

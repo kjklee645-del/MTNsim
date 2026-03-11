@@ -26,6 +26,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--benchmark-file", default=None, help="Propagation benchmark JSON path")
     parser.add_argument("--tune-propagation", action="store_true", help="Tune propagation parameters against benchmark cases")
     parser.add_argument("--tuning-file", default=None, help="Propagation tuning-space JSON path")
+    parser.add_argument("--validate-suite", action="store_true", help="Run a validation suite of scenario + measurement cases")
+    parser.add_argument("--validation-file", default=None, help="Validation suite JSON path")
+    parser.add_argument("--inspect-field-campaign", action="store_true", help="Inspect a field campaign package and generate a quality report")
+    parser.add_argument("--campaign-file", default=None, help="Field campaign JSON manifest path")
     return parser
 
 
@@ -49,6 +53,18 @@ def main() -> None:
         benchmark_file = Path(args.benchmark_file) if args.benchmark_file else root / 'benchmarks' / 'propagation_reference_cases.json'
         tuning_file = Path(args.tuning_file) if args.tuning_file else root / 'benchmarks' / 'propagation_tuning_space.json'
         result = runner.tune_propagation(benchmark_file, tuning_file)
+        print(json.dumps(result, indent=2))
+        return
+
+    if args.validate_suite:
+        validation_file = Path(args.validation_file) if args.validation_file else root / 'benchmarks' / 'validation_suite.json'
+        result = runner.run_validation_suite(manifest_path, validation_file, use_gpu=not args.cpu)
+        print(json.dumps(result, indent=2))
+        return
+
+    if args.inspect_field_campaign:
+        campaign_file = Path(args.campaign_file) if args.campaign_file else root / 'data' / 'field' / 'demo_seeded_campaign' / 'campaign.json'
+        result = runner.inspect_field_campaign(campaign_file)
         print(json.dumps(result, indent=2))
         return
 

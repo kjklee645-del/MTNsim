@@ -1,0 +1,12 @@
+{
+  "campaign_id": "demo_seeded_campaign",
+  "name": "Demo Seeded Campaign",
+  "description": "Synthetic campaign package that reuses seeded MTNsim reference data for workflow testing.",
+  "measurement_file": "../../measurements/baseline_reference_measurements.csv",
+  "sensor_metadata_file": "sensor_metadata.csv",
+  "traffic_file": "traffic.csv",
+  "scene_path": "scene",
+  "notes_file": "notes.md",
+  "time_column_preference": "time_index",
+  "expected_unit": "dB(A)"
+}

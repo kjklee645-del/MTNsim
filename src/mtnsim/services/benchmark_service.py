@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Any
 import json
 
+from mtnsim.acoustics.propagation.correction import PropagationContext, total_propagation_correction_db
 from mtnsim.acoustics.propagation.diffraction import DiffractionModelSettings, build_diffraction_context
+from mtnsim.acoustics.propagation.materials import MaterialContext
 from mtnsim.acoustics.propagation.reflection import ReflectionModelSettings, build_reflection_context
 from mtnsim.acoustics.propagation.shielding import BarrierSegment, build_shielding_context
 
@@ -18,6 +20,7 @@ class BenchmarkCaseResult:
     value_db: float | None
     expected_min_db: float | None = None
     expected_max_db: float | None = None
+    expected_context: bool | None = None
     message: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -97,6 +100,9 @@ class BenchmarkService:
             if mode == 'less_than':
                 passed = left < right
                 message = f'{left:.3f} < {right:.3f}' if passed else f'expected {left:.3f} < {right:.3f}'
+            elif mode == 'greater_than':
+                passed = left > right
+                message = f'{left:.3f} > {right:.3f}' if passed else f'expected {left:.3f} > {right:.3f}'
             else:
                 passed = False
                 message = f'unsupported comparison mode: {mode}'
@@ -144,19 +150,54 @@ class BenchmarkService:
             shielding = build_shielding_context(receiver_pos=receiver_pos, source_pos=source_pos, barriers=[barrier])
             context = build_diffraction_context(shielding, settings=diffraction_settings)
             value_db = None if context is None else context.gain_db
+        elif mode == 'total':
+            shielding = build_shielding_context(receiver_pos=receiver_pos, source_pos=source_pos, barriers=[barrier])
+            reflection = build_reflection_context(
+                receiver_pos=receiver_pos,
+                source_pos=source_pos,
+                barriers=[barrier],
+                settings=reflection_settings,
+            )
+            diffraction = build_diffraction_context(shielding, settings=diffraction_settings)
+            material = MaterialContext(
+                reflection_loss_db=barrier.reflection_loss_db,
+                diffraction_loss_db=barrier.diffraction_loss_db,
+                absorption_coefficient=barrier.absorption_coefficient,
+                allows_reflection=barrier.allows_reflection,
+                allows_diffraction=barrier.allows_diffraction,
+            )
+            total_context = PropagationContext(
+                shielding=shielding,
+                reflection=reflection,
+                diffraction=diffraction,
+                material=material,
+            )
+            value_db = total_propagation_correction_db(total_context)
         else:
             message = f'unsupported case mode: {mode}'
 
         expected = case.get('expected', {})
         expected_min = expected.get('min_gain_db')
         expected_max = expected.get('max_gain_db')
-        passed = value_db is not None and (expected_min is None or value_db >= expected_min) and (expected_max is None or value_db <= expected_max)
-        if value_db is None and not message:
-            message = 'model returned no context'
-        elif passed:
-            message = f'value {value_db:.3f} within expected range'
-        elif not message:
-            message = f'value {value_db:.3f} outside range [{expected_min}, {expected_max}]'
+        expected_context = expected.get('context')
+
+        if expected_context is False:
+            passed = value_db is None
+            if passed:
+                message = 'model correctly returned no context'
+            elif not message:
+                message = f'expected no context, got {value_db:.3f}'
+        else:
+            passed = value_db is not None and (expected_min is None or value_db >= expected_min) and (expected_max is None or value_db <= expected_max)
+            if value_db is None and not message:
+                message = 'model returned no context'
+            elif passed:
+                if expected_min is None and expected_max is None:
+                    message = f'value {value_db:.3f} with context'
+                else:
+                    message = f'value {value_db:.3f} within expected range'
+            elif not message:
+                message = f'value {value_db:.3f} outside range [{expected_min}, {expected_max}]'
 
         return BenchmarkCaseResult(
             case_id=case['case_id'],
@@ -165,5 +206,6 @@ class BenchmarkService:
             value_db=value_db,
             expected_min_db=expected_min,
             expected_max_db=expected_max,
+            expected_context=expected_context,
             message=message,
         )

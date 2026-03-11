@@ -48,8 +48,14 @@ Reference benchmark files:
 Measurement examples:
 - `data/measurements/sensors.csv`
 - `data/measurements/sensor_metadata.csv`
+- `data/measurements/baseline_reference_measurements.csv`
+- `data/measurements/speed_drop_80_reference_measurements.csv`
+- `data/measurements/barrier_shielding_reference_measurements.csv`
+- `data/measurements/building_shielding_default_reference_measurements.csv`
 - `data/measurements/synthetic_shifted_outlier.csv`
 - `data/measurements/synthetic_shifted_outlier_meta.csv`
+- `data/field/demo_seeded_campaign/campaign.json`
+- `data/field/template_campaign/campaign.json`
 
 ## 4. Basic Commands
 
@@ -168,6 +174,56 @@ Calibration output includes:
 - `overall_rmse_db`
 - `effective_sensor_time_offsets`
 - `outlier_rejected_sample_count`
+
+## 7.4 Run Validation Suite
+
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --validate-suite --cpu
+```
+
+Optional validation file override:
+
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --validate-suite --validation-file 'D:\Codex\MTNsim\benchmarks\validation_suite.json' --cpu
+```
+
+What it does:
+- runs each case in `benchmarks/validation_suite.json`
+- executes simulation + calibration + threshold checks
+- currently covers baseline reference data, shifted/outlier recovery, speed-drop reference data, barrier reference data, and building-default reference data
+- writes a repository-level summary to `outputs/validation_suite_summary.json`
+
+## 7.5 Generate Seeded Reference Measurements
+
+Use the helper script when you want to refresh validation reference datasets after an intentional model update.
+
+```powershell
+$env:PYTHONPATH='D:\Codex\MTNsim\src'
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' scripts\generate_reference_measurements.py --manifest examples\project.toml --scenario examples\scenarios\baseline.toml --scenario examples\scenarios\speed_drop_80.toml --scenario examples\scenarios\barrier_shielding.toml --scenario examples\scenarios\building_shielding_default.toml
+```
+
+Notes:
+- generated files are written under `data/measurements`
+- seeded execution is used so reruns are reproducible
+- refresh these files only when you intentionally accept a new model baseline
+
+## 7.6 Inspect A Field Campaign Package
+
+Use this when a real or staged field campaign folder has been assembled and you want a structural quality report before running validation.
+
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --inspect-field-campaign --campaign-file 'D:\Codex\MTNsim\data\field\demo_seeded_campaign\campaign.json'
+```
+
+What it does:
+- loads the campaign manifest
+- checks measurement, metadata, traffic, scene, and notes inputs
+- reports missing files, duplicate sensor/time keys, missing mappings, and basic data-quality issues
+- writes campaign reports into the campaign `reports/` folder
+
+Useful paths:
+- demo campaign: `data/field/demo_seeded_campaign/campaign.json`
+- empty template: `data/field/template_campaign/campaign.json`
 
 ## 8. Propagation Model Overrides
 
