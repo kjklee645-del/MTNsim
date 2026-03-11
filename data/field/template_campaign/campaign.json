@@ -21,7 +21,12 @@
     "max_unmatched_sensor_count": null,
     "min_coverage_ratio": null,
     "max_receiver_rmse_db": null,
-    "max_receiver_abs_mean_bias_db": null
+    "max_receiver_abs_mean_bias_db": null,
+    "min_receiver_coverage_ratio": 1.0,
+    "max_worst_receiver_rmse_db": 1e-06,
+    "max_outlier_rejected_sample_count": 0,
+    "max_outlier_rejection_ratio": 0.0,
+    "max_abs_effective_time_offset_steps": 0
   },
   "traffic_metadata_file": "traffic_metadata.json",
   "scene_manifest_file": "scene/scene_manifest.json",

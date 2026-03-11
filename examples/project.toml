@@ -27,5 +27,5 @@ requires_approval_for = ["run_simulation", "overwrite_outputs", "export_report"]
 [outputs]
 store_run_manifest = true
 store_receiver_timeseries = true
-store_grid_timeseries = true
+store_grid_timeseries = false
 format = ["json", "csv"]

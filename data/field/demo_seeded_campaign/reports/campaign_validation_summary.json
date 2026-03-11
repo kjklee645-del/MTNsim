@@ -8,8 +8,8 @@
   "simulation_executed": true,
   "inspection_summary_file": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\reports\\campaign_inspection_summary.json",
   "inspection_report_file": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\reports\\campaign_inspection_report.md",
-  "result_summary_file": "D:\\Codex\\MTNsim\\outputs\\cd2062d4e14d4cd69089f4be2b6002f4\\run_result_summary.json",
-  "calibration_summary_file": "D:\\Codex\\MTNsim\\outputs\\cd2062d4e14d4cd69089f4be2b6002f4\\calibration_summary.json",
+  "result_summary_file": "D:\\Codex\\MTNsim\\outputs\\721c1fbcc72d4a5ba9d430956bc7f028\\run_result_summary.json",
+  "calibration_summary_file": "D:\\Codex\\MTNsim\\outputs\\721c1fbcc72d4a5ba9d430956bc7f028\\calibration_summary.json",
   "campaign_validation_report_file": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\reports\\campaign_validation_report.md",
   "threshold_checks": {
     "min_aligned_sample_count": {
@@ -37,6 +37,11 @@
       "actual": 1.0,
       "expected_min": 1.0
     },
+    "min_receiver_coverage_ratio": {
+      "passed": true,
+      "actual_failed_receivers": [],
+      "expected_min": 1.0
+    },
     "max_receiver_rmse_db": {
       "passed": true,
       "actual_failed_receivers": [],
@@ -46,6 +51,26 @@
       "passed": true,
       "actual_failed_receivers": [],
       "expected_max": 1e-06
+    },
+    "max_worst_receiver_rmse_db": {
+      "passed": true,
+      "actual": 0.0,
+      "expected_max": 1e-06
+    },
+    "max_outlier_rejected_sample_count": {
+      "passed": true,
+      "actual": 0,
+      "expected_max": 0
+    },
+    "max_outlier_rejection_ratio": {
+      "passed": true,
+      "actual": 0.0,
+      "expected_max": 0.0
+    },
+    "max_abs_effective_time_offset_steps": {
+      "passed": true,
+      "actual": 0,
+      "expected_max": 0
     }
   },
   "receiver_diagnostics": [
@@ -131,10 +156,14 @@
     }
   ],
   "high_error_receiver_ids": [],
+  "low_coverage_receiver_ids": [],
   "worst_receiver_id": "poi_500_65",
   "overall_mean_bias_db": 0.0,
   "overall_rmse_db": 0.0,
   "aligned_sample_count": 4800,
   "unmatched_sensor_count": 0,
-  "coverage_ratio": 1.0
+  "coverage_ratio": 1.0,
+  "outlier_rejected_sample_count": 0,
+  "outlier_rejection_ratio": 0.0,
+  "max_abs_effective_time_offset_steps": 0
 }

@@ -97,7 +97,24 @@ Recommended layer keys:
 
 Each layer should point to a file inside or relative to the scene bundle.
 
-## 8. Current Inspector Behavior
+## 8. Validation Threshold Hints
+
+Useful campaign-level validation thresholds now supported in `campaign.json`:
+- `min_aligned_sample_count`
+- `min_coverage_ratio`
+- `min_receiver_coverage_ratio`
+- `max_overall_rmse_db`
+- `max_abs_overall_mean_bias_db`
+- `max_receiver_rmse_db`
+- `max_receiver_abs_mean_bias_db`
+- `max_worst_receiver_rmse_db`
+- `max_outlier_rejected_sample_count`
+- `max_outlier_rejection_ratio`
+- `max_abs_effective_time_offset_steps`
+
+These are meant to express acceptance gates before a campaign is treated as validation-grade input.
+
+## 9. Current Inspector Behavior
 
 The current `--inspect-field-campaign` flow checks:
 - required measurement columns
@@ -109,7 +126,7 @@ The current `--inspect-field-campaign` flow checks:
 - referenced scene files existence
 - time-zone and coordinate-system consistency with the campaign manifest
 
-## 9. Intentional Scope
+## 10. Intentional Scope
 
 This standard does not yet force one GIS format or one coordinate system.
 It standardizes the metadata contract first, so real datasets can vary in format while still being machine-checkable.

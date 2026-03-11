@@ -79,7 +79,18 @@ class CampaignValidationService:
 
         receiver_diagnostics = self._build_receiver_diagnostics(measurement_path, metadata_path, calibration, project.simulation_defaults.time_step_seconds)
         coverage_ratio = (calibration.aligned_sample_count / inspection.summary.measurement_row_count) if inspection.summary.measurement_row_count else 0.0
-        threshold_checks = self._evaluate_thresholds(calibration.to_dict(), campaign.validation_thresholds, coverage_ratio, receiver_diagnostics)
+        outlier_rejection_ratio = (calibration.outlier_rejected_sample_count / calibration.aligned_sample_count) if calibration.aligned_sample_count else 0.0
+        max_abs_effective_time_offset_steps = max((abs(value) for value in (calibration.effective_sensor_time_offsets or {}).values()), default=0)
+        low_coverage_receiver_ids = self._find_low_coverage_receivers(receiver_diagnostics, campaign.validation_thresholds)
+        threshold_checks = self._evaluate_thresholds(
+            calibration,
+            campaign.validation_thresholds,
+            coverage_ratio,
+            receiver_diagnostics,
+            outlier_rejection_ratio,
+            max_abs_effective_time_offset_steps,
+            low_coverage_receiver_ids,
+        )
         validation_passed = all(item['passed'] for item in threshold_checks.values()) if threshold_checks else True
         worst_receiver_id = self._find_worst_receiver(receiver_diagnostics)
         high_error_receiver_ids = self._find_high_error_receivers(receiver_diagnostics, campaign.validation_thresholds)
@@ -100,12 +111,16 @@ class CampaignValidationService:
             threshold_checks=threshold_checks,
             receiver_diagnostics=receiver_diagnostics,
             high_error_receiver_ids=high_error_receiver_ids,
+            low_coverage_receiver_ids=low_coverage_receiver_ids,
             worst_receiver_id=worst_receiver_id,
             overall_mean_bias_db=calibration.overall_mean_bias_db,
             overall_rmse_db=calibration.overall_rmse_db,
             aligned_sample_count=calibration.aligned_sample_count,
             unmatched_sensor_count=calibration.unmatched_sensor_count,
             coverage_ratio=coverage_ratio,
+            outlier_rejected_sample_count=calibration.outlier_rejected_sample_count,
+            outlier_rejection_ratio=outlier_rejection_ratio,
+            max_abs_effective_time_offset_steps=max_abs_effective_time_offset_steps,
         )
         report_file.write_text(self._build_report(summary, campaign, inspection.summary, artifacts.result_summary_file, calibration_path), encoding='utf-8')
         output_path = write_field_campaign_validation_summary(inspection.output_dir, summary)
@@ -159,34 +174,58 @@ class CampaignValidationService:
                 flagged.append(item.receiver_id)
         return flagged
 
+    def _find_low_coverage_receivers(self, diagnostics: list[ReceiverCampaignDiagnostic], thresholds: FieldCampaignValidationThresholds) -> list[str]:
+        if thresholds.min_receiver_coverage_ratio is None:
+            return []
+        return [item.receiver_id for item in diagnostics if item.coverage_ratio < thresholds.min_receiver_coverage_ratio]
+
     def _evaluate_thresholds(
         self,
-        calibration_summary: dict,
+        calibration,
         thresholds: FieldCampaignValidationThresholds,
         coverage_ratio: float,
         receiver_diagnostics: list[ReceiverCampaignDiagnostic],
+        outlier_rejection_ratio: float,
+        max_abs_effective_time_offset_steps: int,
+        low_coverage_receiver_ids: list[str],
     ) -> dict[str, dict]:
         checks: dict[str, dict] = {}
         if thresholds.min_aligned_sample_count is not None:
-            actual = calibration_summary['aligned_sample_count']
+            actual = calibration.aligned_sample_count
             checks['min_aligned_sample_count'] = {'passed': actual >= thresholds.min_aligned_sample_count, 'actual': actual, 'expected_min': thresholds.min_aligned_sample_count}
         if thresholds.max_overall_rmse_db is not None:
-            actual = calibration_summary['overall_rmse_db']
+            actual = calibration.overall_rmse_db
             checks['max_overall_rmse_db'] = {'passed': actual <= thresholds.max_overall_rmse_db, 'actual': actual, 'expected_max': thresholds.max_overall_rmse_db}
         if thresholds.max_abs_overall_mean_bias_db is not None:
-            actual = abs(calibration_summary['overall_mean_bias_db'])
+            actual = abs(calibration.overall_mean_bias_db)
             checks['max_abs_overall_mean_bias_db'] = {'passed': actual <= thresholds.max_abs_overall_mean_bias_db, 'actual': actual, 'expected_max': thresholds.max_abs_overall_mean_bias_db}
         if thresholds.max_unmatched_sensor_count is not None:
-            actual = calibration_summary['unmatched_sensor_count']
+            actual = calibration.unmatched_sensor_count
             checks['max_unmatched_sensor_count'] = {'passed': actual <= thresholds.max_unmatched_sensor_count, 'actual': actual, 'expected_max': thresholds.max_unmatched_sensor_count}
         if thresholds.min_coverage_ratio is not None:
             checks['min_coverage_ratio'] = {'passed': coverage_ratio >= thresholds.min_coverage_ratio, 'actual': coverage_ratio, 'expected_min': thresholds.min_coverage_ratio}
+        if thresholds.min_receiver_coverage_ratio is not None:
+            checks['min_receiver_coverage_ratio'] = {
+                'passed': not low_coverage_receiver_ids,
+                'actual_failed_receivers': low_coverage_receiver_ids,
+                'expected_min': thresholds.min_receiver_coverage_ratio,
+            }
         if thresholds.max_receiver_rmse_db is not None:
             failed = [item.receiver_id for item in receiver_diagnostics if item.rmse_db > thresholds.max_receiver_rmse_db]
             checks['max_receiver_rmse_db'] = {'passed': not failed, 'actual_failed_receivers': failed, 'expected_max': thresholds.max_receiver_rmse_db}
         if thresholds.max_receiver_abs_mean_bias_db is not None:
             failed = [item.receiver_id for item in receiver_diagnostics if abs(item.mean_bias_db) > thresholds.max_receiver_abs_mean_bias_db]
             checks['max_receiver_abs_mean_bias_db'] = {'passed': not failed, 'actual_failed_receivers': failed, 'expected_max': thresholds.max_receiver_abs_mean_bias_db}
+        if thresholds.max_worst_receiver_rmse_db is not None:
+            worst_rmse = max((item.rmse_db for item in receiver_diagnostics), default=0.0)
+            checks['max_worst_receiver_rmse_db'] = {'passed': worst_rmse <= thresholds.max_worst_receiver_rmse_db, 'actual': worst_rmse, 'expected_max': thresholds.max_worst_receiver_rmse_db}
+        if thresholds.max_outlier_rejected_sample_count is not None:
+            actual = calibration.outlier_rejected_sample_count
+            checks['max_outlier_rejected_sample_count'] = {'passed': actual <= thresholds.max_outlier_rejected_sample_count, 'actual': actual, 'expected_max': thresholds.max_outlier_rejected_sample_count}
+        if thresholds.max_outlier_rejection_ratio is not None:
+            checks['max_outlier_rejection_ratio'] = {'passed': outlier_rejection_ratio <= thresholds.max_outlier_rejection_ratio, 'actual': outlier_rejection_ratio, 'expected_max': thresholds.max_outlier_rejection_ratio}
+        if thresholds.max_abs_effective_time_offset_steps is not None:
+            checks['max_abs_effective_time_offset_steps'] = {'passed': max_abs_effective_time_offset_steps <= thresholds.max_abs_effective_time_offset_steps, 'actual': max_abs_effective_time_offset_steps, 'expected_max': thresholds.max_abs_effective_time_offset_steps}
         return checks
 
     def _resolve(self, root: Path, raw_path: str | Path) -> Path:
@@ -229,8 +268,12 @@ class CampaignValidationService:
                 f'- Overall mean bias (dB): `{summary.overall_mean_bias_db}`',
                 f'- Overall RMSE (dB): `{summary.overall_rmse_db}`',
                 f'- Unmatched sensor count: `{summary.unmatched_sensor_count}`',
+                f'- Outlier rejected sample count: `{summary.outlier_rejected_sample_count}`',
+                f'- Outlier rejection ratio: `{summary.outlier_rejection_ratio}`',
+                f'- Max abs effective time offset (steps): `{summary.max_abs_effective_time_offset_steps}`',
                 f'- Worst receiver: `{summary.worst_receiver_id}`',
                 f'- High-error receivers: `{summary.high_error_receiver_ids}`',
+                f'- Low-coverage receivers: `{summary.low_coverage_receiver_ids}`',
                 '',
                 '## Threshold Checks',
                 '',
@@ -260,6 +303,6 @@ class CampaignValidationService:
         if summary.validation_passed:
             lines.append('- Campaign passed the current validation gate and can be used as a baseline comparison package.')
         else:
-            lines.append('- Review threshold failures and receiver-level diagnostics before accepting this campaign as validation-grade.')
+            lines.append('- Review threshold failures, low-coverage receivers, and time-sync/outlier diagnostics before accepting this campaign as validation-grade.')
         lines.append('')
         return '\n'.join(lines)

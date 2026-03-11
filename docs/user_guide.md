@@ -39,6 +39,7 @@ Main example scenarios:
 - `examples/scenarios/barrier_shielding.toml`
 - `examples/scenarios/building_shielding_default.toml`
 - `examples/scenarios/building_shielding.toml`
+- `examples/scenarios/terrain_ground_vegetation.toml`
 - `examples/scenarios/propagation_override_example.toml`
 
 Reference benchmark files:
@@ -91,6 +92,10 @@ Typical outputs:
 - `outputs/<run_id>/run_result_summary.json`
 - `outputs/<run_id>/poi_*.csv`
 - `outputs/<run_id>/grid_final_snapshot.json`
+
+Performance note:
+- the default project stores a final grid snapshot, not a full grid time series, so the grid is only computed on the last step by default.
+- if you explicitly turn `store_grid_timeseries` back on, scene-aware CPU runs will become heavier again.
 
 ## 5. Scenario Comparison
 
@@ -239,8 +244,17 @@ What it does:
 - inspects the campaign package first
 - runs the scenario referenced by the campaign manifest
 - calibrates against campaign measurements
-- checks campaign-level thresholds
+- checks campaign-level thresholds including coverage, outlier rejection, and effective time-offset limits
 - writes `campaign_validation_summary.json` and `campaign_validation_report.md` into the campaign `reports/` folder
+
+Recommended campaign validation thresholds:
+- `min_coverage_ratio`
+- `min_receiver_coverage_ratio`
+- `max_overall_rmse_db`
+- `max_receiver_rmse_db`
+- `max_worst_receiver_rmse_db`
+- `max_outlier_rejection_ratio`
+- `max_abs_effective_time_offset_steps`
 
 ## 8. Propagation Model Overrides
 

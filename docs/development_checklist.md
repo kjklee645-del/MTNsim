@@ -76,10 +76,10 @@ Status legend:
 | Scene runtime | Dedicated runtime scene object hierarchy | [x] | `scene/objects.py` |
 | Compatibility | Legacy `scene.barriers` support | [x] | converted into `noise_barriers` |
 | Geometry | Building edge decomposition | [x] | first-pass shielding conversion |
-| Geometry | Terrain surface / edge objects | [ ] | not started |
-| Geometry | Vegetation objects | [ ] | not started |
+| Geometry | Terrain surface / edge objects | [~] | `terrain_edges` added as first-pass scene/runtime objects; terrain surfaces still not implemented |
+| Geometry | Vegetation objects | [~] | `vegetation_zones` added as first-pass scene/runtime objects |
 | Propagation model | Common propagation properties per object type | [x] | defaults + per-object overrides added |
-| Propagation model | Material-aware corrections | [~] | geometry-coupled shielding/reflection/diffraction material corrections active |
+| Propagation model | Material-aware corrections | [~] | geometry-coupled shielding/reflection/diffraction material corrections active, plus first-pass ground and vegetation path corrections |
 
 ## 7. Calibration and Validation
 
@@ -93,7 +93,7 @@ Status legend:
 | Validation | Field-data comparison | [~] | validation suite now covers baseline reference, shifted/outlier recovery, speed-drop, barrier, and building-default seeded reference cases; true field datasets still needed |
 | Validation prep | Field-data checklist and methodology docs | [x] | `docs/field_validation_data_checklist.md`, `docs/field_validation_methodology.md` |
 | Validation prep | Field-campaign import convention and quality report flow | [x] | demo/template campaigns plus `--inspect-field-campaign` added, including `traffic_metadata.json` and `scene/scene_manifest.json` checks |
-| Validation prep | Campaign-aware validation/report flow | [x] | `--validate-field-campaign` now runs simulation, calibration, thresholds, and reports |
+| Validation prep | Campaign-aware validation/report flow | [x] | `--validate-field-campaign` now runs simulation, calibration, thresholds, receiver coverage checks, outlier diagnostics, and reports |
 
 ## 8. Product Layers
 
@@ -112,7 +112,7 @@ Status legend:
 | --- | --- | --- | --- |
 | 1 | Expand validation from seeded reference cases toward true field datasets and stronger acceptance rules | [~] | reusable validation suite now covers multiple scenarios, and campaign import contracts are standardized, but it still relies mostly on seeded references rather than field measurements |
 | 2 | Deepen calibration workflow with richer alignment and validation | [~] | campaign-aware validation now exists, but richer field-facing diagnostics and correction workflows still need expansion |
-| 3 | Continue scene/physics expansion for terrain and richer object classes | [ ] | propagation structure is stronger, but scene fidelity is still limited |
+| 3 | Continue scene/physics expansion for terrain and richer object classes | [~] | `terrain_edges`, `ground_surfaces`, and `vegetation_zones` now exist, but terrain surfaces and stronger physics are still limited |
 | 4 | Deepen reporting / GUI / richer agent control | [ ] | should come after core physics and validation |
 
 ## 10. Maintenance Rule

@@ -21,11 +21,31 @@ _DEFAULTS: dict[str, dict[str, MaterialDefaults]] = {
         'absorptive_panel': MaterialDefaults(5.0, 2.0, 0.65, True, True),
         'metal': MaterialDefaults(1.5, 1.0, 0.10, True, True),
     },
+    'terrain_edge': {
+        'soil': MaterialDefaults(4.0, 2.5, 0.55, True, True),
+        'rock': MaterialDefaults(2.2, 1.3, 0.10, True, True),
+        'retaining_wall': MaterialDefaults(2.0, 1.2, 0.15, True, True),
+        'generic': MaterialDefaults(3.5, 2.0, 0.35, True, True),
+    },
     'building': {
         'generic': MaterialDefaults(2.5, 1.5, 0.15, True, True),
         'concrete': MaterialDefaults(2.0, 1.0, 0.12, True, True),
         'glass': MaterialDefaults(1.0, 1.0, 0.05, True, False),
         'brick': MaterialDefaults(2.5, 1.5, 0.18, True, True),
+    },
+    'ground_surface': {
+        'grass': MaterialDefaults(5.5, 3.0, 0.85, False, False),
+        'soil': MaterialDefaults(4.5, 2.6, 0.70, False, False),
+        'gravel': MaterialDefaults(3.5, 2.0, 0.45, False, False),
+        'asphalt': MaterialDefaults(1.8, 1.0, 0.08, True, False),
+        'concrete': MaterialDefaults(1.5, 0.9, 0.05, True, False),
+        'generic': MaterialDefaults(4.0, 2.2, 0.55, False, False),
+    },
+    'vegetation_zone': {
+        'generic': MaterialDefaults(5.0, 3.2, 0.75, False, True),
+        'dense_trees': MaterialDefaults(5.5, 3.6, 0.82, False, True),
+        'sparse_trees': MaterialDefaults(4.0, 2.6, 0.55, False, True),
+        'shrub': MaterialDefaults(5.0, 3.0, 0.78, False, True),
     },
 }
 
