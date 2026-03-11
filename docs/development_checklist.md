@@ -1,6 +1,6 @@
 # MTNsim Development Checklist
 
-Last updated: 2026-03-09
+Last updated: 2026-03-10
 Owner: Codex + User
 Purpose: keep a single progress checklist that reflects product direction, implementation order, and current technical status.
 
@@ -59,8 +59,8 @@ Status legend:
 | Emission | Vehicle emission module split | [x] | `acoustics/emission` |
 | Propagation | Distance module | [x] | active |
 | Propagation | Shielding module | [x] | first-pass CPU implementation |
-| Propagation | Reflection module | [~] | placeholder only |
-| Propagation | Diffraction module | [~] | placeholder only |
+| Propagation | Reflection module | [~] | first-pass specular single-bounce heuristic active |
+| Propagation | Diffraction module | [~] | first-pass path-excess edge diffraction heuristic active |
 | Noise field | CPU grid/receiver updates | [x] | active |
 | Noise field | GPU free-field path | [x] | active without shielding |
 | Noise field | GPU shielding-aware path | [ ] | not implemented |
@@ -78,15 +78,15 @@ Status legend:
 | Geometry | Terrain surface / edge objects | [ ] | not started |
 | Geometry | Vegetation objects | [ ] | not started |
 | Propagation model | Common propagation properties per object type | [x] | defaults + per-object overrides added |
-| Propagation model | Material-aware corrections | [ ] | next active step |
+| Propagation model | Material-aware corrections | [~] | path-specific shielding/reflection/diffraction material corrections active |
 
 ## 7. Calibration and Validation
 
 | Area | Item | Status | Notes |
 | --- | --- | --- | --- |
-| Calibration | Measurement import workflow | [ ] | not started |
-| Calibration | Sensor alignment | [ ] | not started |
-| Calibration | Correction factor estimation | [ ] | not started |
+| Calibration | Measurement import workflow | [x] | CSV measurement loader and calibration service added |
+| Calibration | Sensor alignment | [~] | sensor metadata mapping, time offset, and valid window support added |
+| Calibration | Correction factor estimation | [~] | receiver/global bias recommendation with skipped/unmatched tracking added |
 | Validation | Benchmark scenarios | [~] | engineering checks exist, formal benchmark set absent |
 | Validation | Integration tests | [~] | smoke-level validation only |
 | Validation | Field-data comparison | [ ] | not started |
@@ -106,9 +106,9 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Implement material-aware corrections | [ ] | common property layer is now in place |
-| 2 | Extend reflection and diffraction beyond placeholders | [ ] | depends on material/object properties |
-| 3 | Add calibration workflow | [ ] | depends on stable outputs and propagation model |
+| 1 | Strengthen reflection and diffraction beyond current heuristics | [ ] | first-pass models are active, but physics is still simplified |
+| 2 | Strengthen material-aware corrections beyond heuristic shielding use | [ ] | current version is still first-pass only |
+| 3 | Deepen calibration workflow with richer sensor metadata and alignment | [ ] | baseline calibration loop now exists |
 | 4 | Deepen reporting / GUI / richer agent control | [ ] | should come after core physics and validation |
 
 ## 10. Maintenance Rule

@@ -1,6 +1,6 @@
 # MTNsim Current Status
 
-Date: 2026-03-09
+Date: 2026-03-10
 
 ## 1. Summary
 
@@ -15,7 +15,7 @@ The codebase now supports:
 - scenario and result comparison
 - first-pass shielding using roadside barriers and building footprints
 - a first runtime scene-object hierarchy for clearer geometry handling
-- a common propagation-property layer for scene objects
+- a common propagation-property layer for scene objects, plus path-specific material-aware reflection and diffraction effects
 
 ## 2. What Has Been Implemented
 
@@ -65,7 +65,7 @@ Implemented:
 Current state:
 - distance attenuation is active
 - shielding is active in a first-pass CPU implementation
-- reflection and diffraction modules exist as placeholders for later expansion
+- reflection and diffraction now have first-pass specular/path-excess heuristic models wired into active propagation
 
 ### 2.4 Scene Generalization Work
 
@@ -100,7 +100,23 @@ Behavior:
 Compatibility note:
 - legacy `scene.barriers` input is still accepted and internally converted into `noise_barriers`
 
-### 2.5 Comparison Workflow
+### 2.5 Calibration Workflow
+
+Implemented:
+- `services/calibration_service.py`
+- `schemas/calibration.py`
+- `schemas/calibration.schema.json`
+- `io/measurements.py`
+- CLI calibration entry in `app/main.py`
+
+What it does now:
+- loads measurement CSV data in `sensor_id/receiver_id,time_index|time_seconds,value_db` format
+- applies optional sensor metadata for receiver mapping, time offset, enabled flag, and valid time window
+- aligns measurements with simulated receiver histories
+- computes receiver-level and global bias, MAE, and RMSE while tracking skipped and unmatched samples
+- writes `calibration_summary.json` per calibrated run
+
+### 2.6 Comparison Workflow
 
 Implemented:
 - configuration comparison between two scenarios
@@ -119,6 +135,7 @@ Validated scenario files:
 - `speed_drop_80.toml`
 - `lane_change_enforce.toml`
 - `barrier_shielding.toml`
+- `building_shielding_default.toml`
 - `building_shielding.toml`
 
 Observed comparison examples:
@@ -126,6 +143,8 @@ Observed comparison examples:
 - `baseline` vs `lane_change_enforce`: small average decrease around `-0.10 dB`
 - `baseline` vs `barrier_shielding`: average receiver mean level decreased by about `-4.74 dB`
 - `baseline` vs `building_shielding`: average receiver mean level decreased by about `-5.56 dB`
+- `building_shielding_default` vs `building_shielding`: average receiver mean level changed by about `-0.07 dB`, with a strong near-field decrease and some far-field increases due to current reflection effects
+- `baseline` calibration against example measurement CSV + sensor metadata: overall mean bias about `-0.67 dB`, overall RMSE about `0.95 dB`
 
 These values are prototype-level engineering checks, not yet validated against measured field data.
 
@@ -135,9 +154,9 @@ These values are prototype-level engineering checks, not yet validated against m
 
 - shielding is simplified to line-of-sight crossing plus fixed attenuation
 - building shielding is approximated using footprint edges only
-- reflection is not implemented yet
-- diffraction is not implemented yet
-- common propagation properties are stored but not yet actively used beyond shielding attenuation
+- reflection now uses a first-pass specular single-bounce heuristic tied to scene-object materials
+- diffraction now uses a first-pass path-excess edge-diffraction heuristic on blocked paths
+- common propagation properties now affect shielding, reflection, and diffraction through early heuristic models, but they are not yet full physics-based implementations
 
 ### 4.2 Performance Limitations
 
@@ -147,7 +166,7 @@ These values are prototype-level engineering checks, not yet validated against m
 ### 4.3 Product Limitations
 
 - no GUI yet
-- no calibration pipeline yet
+- an initial calibration pipeline is now available for measurement CSV alignment and bias estimation
 - no report generator yet
 - no production-grade scene import workflow yet
 - AI-agent structures exist only as an architectural baseline, not as a working user-facing capability
@@ -166,6 +185,7 @@ The development sequence followed so far was:
 9. scene-object generalization
 10. runtime scene-object hierarchy cleanup
 11. common propagation-property layer
+12. first-pass material-aware correction wiring
 
 This order was correct because:
 - stable config had to come before larger refactoring
@@ -175,9 +195,9 @@ This order was correct because:
 
 ## 6. Recommended Next Order
 
-1. implement material-aware corrections on top of the common propagation-property layer
-2. extend reflection and diffraction beyond placeholders
-3. add calibration workflow against measurements
+1. strengthen reflection and diffraction beyond the current heuristics
+2. strengthen material-aware corrections beyond the current heuristic use
+3. deepen calibration workflow against measurements
 4. only then deepen higher-level product layers such as reporting, GUI, and richer agent control
 
 ## 7. Practical Repository State
@@ -197,4 +217,4 @@ Repository excludes from version control through `.gitignore`:
 
 ## 8. Bottom Line
 
-MTNsim is no longer just a prototype script. It is now a structured simulation kernel with a clear product direction, reproducible scenario handling, comparison capability, an initial runtime scene hierarchy, and the common propagation-property layer needed for the next material-aware propagation step.
+MTNsim is no longer just a prototype script. It is now a structured simulation kernel with a clear product direction, reproducible scenario handling, comparison capability, an initial runtime scene hierarchy, path-specific material-aware propagation behavior, and a baseline calibration loop against measurement CSV data.

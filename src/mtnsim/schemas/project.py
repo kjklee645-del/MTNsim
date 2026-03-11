@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +21,7 @@ class ProjectPaths:
     outputs: str
     scene: str | None = None
     measurements: str | None = None
+    measurement_metadata: str | None = None
 
 
 @dataclass(slots=True)

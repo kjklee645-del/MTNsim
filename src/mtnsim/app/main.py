@@ -13,6 +13,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--scenario", default=None, help="Path to scenario TOML")
     parser.add_argument("--compare-scenario", default=None, help="Second scenario TOML path for comparison")
     parser.add_argument("--run", action="store_true", help="Run the simulation instead of only printing a summary")
+    parser.add_argument("--calibrate", action="store_true", help="Run calibration against measurement CSV")
+    parser.add_argument("--measurement", default=None, help="Measurement CSV path for calibration")
+    parser.add_argument("--measurement-meta", default=None, help="Measurement sensor metadata CSV path for calibration")
+    parser.add_argument("--result-summary", default=None, help="Existing run_result_summary.json path for calibration")
     parser.add_argument("--cpu", action="store_true", help="Force CPU noise calculation")
     return parser
 
@@ -26,6 +30,29 @@ def main() -> None:
     scenario_path = Path(args.scenario) if args.scenario else root / "examples" / "scenarios" / "baseline.toml"
 
     runner = AppRunner()
+
+    if args.calibrate and args.result_summary:
+        if not args.measurement:
+            raise SystemExit('--measurement is required when using --calibrate with --result-summary')
+        calibration = runner.calibrate_existing_result(
+            Path(args.result_summary),
+            Path(args.measurement),
+            measurement_metadata_path=Path(args.measurement_meta) if args.measurement_meta else None,
+        )
+        print(json.dumps(calibration, indent=2))
+        return
+
+    if args.calibrate and args.run:
+        calibration = runner.calibrate_project_run(
+            manifest_path,
+            scenario_path,
+            measurement_path=args.measurement,
+            measurement_metadata_path=args.measurement_meta,
+            use_gpu=not args.cpu,
+        )
+        print(json.dumps(calibration, indent=2))
+        return
+
     if args.compare_scenario and args.run:
         comparison = runner.compare_project_runs(manifest_path, scenario_path, Path(args.compare_scenario), use_gpu=not args.cpu)
         print(json.dumps(comparison, indent=2))

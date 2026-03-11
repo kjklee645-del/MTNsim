@@ -41,6 +41,11 @@ class LinearSceneObject(SceneObject):
                 y2=self.end_xy[1],
                 height_meters=self.height_meters,
                 attenuation_db=self.material.shielding_attenuation_db,
+                reflection_loss_db=self.material.reflection_loss_db,
+                diffraction_loss_db=self.material.diffraction_loss_db,
+                absorption_coefficient=self.material.absorption_coefficient,
+                allows_reflection=self.material.allows_reflection,
+                allows_diffraction=self.material.allows_diffraction,
             )
         ]
 
@@ -64,6 +69,11 @@ class PolygonSceneObject(SceneObject):
                     y2=end_point[1],
                     height_meters=self.height_meters,
                     attenuation_db=self.material.shielding_attenuation_db,
+                    reflection_loss_db=self.material.reflection_loss_db,
+                    diffraction_loss_db=self.material.diffraction_loss_db,
+                    absorption_coefficient=self.material.absorption_coefficient,
+                    allows_reflection=self.material.allows_reflection,
+                    allows_diffraction=self.material.allows_diffraction,
                 )
             )
         return segments
@@ -98,7 +108,6 @@ class SceneModel:
         return segments
 
 
-
 def build_scene_model(scene_config: SceneConfig) -> SceneModel:
     objects: list[SceneObject] = []
     for barrier in scene_config.noise_barriers:
@@ -106,7 +115,6 @@ def build_scene_model(scene_config: SceneConfig) -> SceneModel:
     for building in scene_config.buildings:
         objects.append(_building_to_object(building))
     return SceneModel(objects=objects)
-
 
 
 def _noise_barrier_to_object(barrier: NoiseBarrier) -> NoiseBarrierObject:
@@ -125,7 +133,6 @@ def _noise_barrier_to_object(barrier: NoiseBarrier) -> NoiseBarrierObject:
     )
 
 
-
 def _building_to_object(building: Building) -> BuildingObject:
     return BuildingObject(
         id=building.id,
@@ -139,7 +146,6 @@ def _building_to_object(building: Building) -> BuildingObject:
         height_meters=building.height_meters,
         footprint=list(building.footprint),
     )
-
 
 
 def _build_material(

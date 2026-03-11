@@ -7,6 +7,9 @@ from uuid import uuid4
 
 from mtnsim.acoustics.field.noise_grid import update_noise_grid_cpu, update_noise_grid_gpu
 from mtnsim.acoustics.propagation.correction import PropagationContext
+from mtnsim.acoustics.propagation.diffraction import build_diffraction_context
+from mtnsim.acoustics.propagation.materials import MaterialContext
+from mtnsim.acoustics.propagation.reflection import build_reflection_context
 from mtnsim.acoustics.propagation.shielding import BarrierSegment, build_shielding_context
 from mtnsim.core.context import RunContext
 from mtnsim.io.result_store import write_receiver_histories, write_run_manifest, write_run_result_summary
@@ -194,6 +197,8 @@ class RunService:
             receiver_stats=self._build_receiver_stats(receiver_histories),
             propagation_features={
                 'shielding_enabled': bool(shielding_segments),
+                'reflection_enabled': bool(shielding_segments),
+                'diffraction_enabled': bool(shielding_segments),
                 'shielding_segment_count': len(shielding_segments),
                 'noise_barrier_count': len(scene_model.noise_barriers),
                 'building_count': len(scene_model.buildings),
@@ -279,8 +284,28 @@ class RunService:
                 source_pos=vehicle_position,
                 barriers=shielding_segments,
             )
-            if shielding is None:
+            reflection = build_reflection_context(
+                receiver_pos=poi_position,
+                source_pos=vehicle_position,
+                barriers=shielding_segments,
+            )
+            diffraction = build_diffraction_context(shielding)
+            material = None
+            if shielding is not None:
+                material = MaterialContext(
+                    reflection_loss_db=shielding.reflection_loss_db,
+                    diffraction_loss_db=shielding.diffraction_loss_db,
+                    absorption_coefficient=shielding.absorption_coefficient,
+                    allows_reflection=shielding.allows_reflection,
+                    allows_diffraction=shielding.allows_diffraction,
+                )
+            if shielding is None and reflection is None and diffraction is None and material is None:
                 return None
-            return PropagationContext(shielding=shielding)
+            return PropagationContext(
+                shielding=shielding,
+                reflection=reflection,
+                diffraction=diffraction,
+                material=material,
+            )
 
         return provider
