@@ -42,6 +42,10 @@ class LinearSceneObject(SceneObject):
     start_xy: tuple[float, float]
     end_xy: tuple[float, float]
 
+    @property
+    def bbox(self) -> tuple[float, float, float, float]:
+        return _segment_bbox(self.start_xy, self.end_xy)
+
     def to_shielding_segments(self) -> list[BarrierSegment]:
         return [
             BarrierSegment(
@@ -64,6 +68,10 @@ class LinearSceneObject(SceneObject):
 @dataclass(slots=True)
 class PolygonSceneObject(SceneObject):
     footprint: list[tuple[float, float]] = field(default_factory=list)
+
+    @property
+    def bbox(self) -> tuple[float, float, float, float]:
+        return _polygon_bbox(self.footprint)
 
     def to_shielding_segments(self) -> list[BarrierSegment]:
         if len(self.footprint) < 3:
@@ -142,6 +150,8 @@ class VegetationZoneObject(PolygonSceneObject):
 @dataclass(slots=True)
 class SceneModel:
     objects: list[SceneObject] = field(default_factory=list)
+    _shielding_segments_cache: list[BarrierSegment] | None = field(default=None, init=False, repr=False)
+    _shielding_segment_bboxes_cache: list[tuple[BarrierSegment, tuple[float, float, float, float]]] | None = field(default=None, init=False, repr=False)
 
     @property
     def noise_barriers(self) -> list[NoiseBarrierObject]:
@@ -163,18 +173,52 @@ class SceneModel:
     def vegetation_zones(self) -> list[VegetationZoneObject]:
         return [item for item in self.objects if isinstance(item, VegetationZoneObject)]
 
+    @property
+    def shielding_segments(self) -> list[BarrierSegment]:
+        if self._shielding_segments_cache is None:
+            segments: list[BarrierSegment] = []
+            for item in self.objects:
+                segments.extend(item.to_shielding_segments())
+            self._shielding_segments_cache = segments
+        return self._shielding_segments_cache
+
+    @property
+    def shielding_segment_bboxes(self) -> list[tuple[BarrierSegment, tuple[float, float, float, float]]]:
+        if self._shielding_segment_bboxes_cache is None:
+            self._shielding_segment_bboxes_cache = [
+                (segment, _segment_bbox((segment.x1, segment.y1), (segment.x2, segment.y2)))
+                for segment in self.shielding_segments
+            ]
+        return self._shielding_segment_bboxes_cache
+
     def to_shielding_segments(self) -> list[BarrierSegment]:
-        segments: list[BarrierSegment] = []
-        for item in self.objects:
-            segments.extend(item.to_shielding_segments())
-        return segments
+        return list(self.shielding_segments)
+
+    def candidate_shielding_segments(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> list[BarrierSegment]:
+        path_bbox = _segment_bbox(source_xy, receiver_xy)
+        return [segment for segment, bbox in self.shielding_segment_bboxes if _bbox_intersects(path_bbox, bbox)]
+
+    def has_path_scene_effects(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> bool:
+        path_bbox = _segment_bbox(source_xy, receiver_xy)
+        for segment_bbox in (bbox for _, bbox in self.shielding_segment_bboxes):
+            if _bbox_intersects(path_bbox, segment_bbox):
+                return True
+        for item in self.ground_surfaces:
+            if _bbox_intersects(path_bbox, item.bbox):
+                return True
+        for item in self.vegetation_zones:
+            if _bbox_intersects(path_bbox, item.bbox):
+                return True
+        return False
 
     def ground_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
-        total = sum(item.ground_correction_db(receiver_xy, source_xy) for item in self.ground_surfaces)
+        path_bbox = _segment_bbox(source_xy, receiver_xy)
+        total = sum(item.ground_correction_db(receiver_xy, source_xy) for item in self.ground_surfaces if _bbox_intersects(path_bbox, item.bbox))
         return _clamp(total, -3.0, 1.2)
 
     def vegetation_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
-        total = sum(item.vegetation_correction_db(receiver_xy, source_xy) for item in self.vegetation_zones)
+        path_bbox = _segment_bbox(source_xy, receiver_xy)
+        total = sum(item.vegetation_correction_db(receiver_xy, source_xy) for item in self.vegetation_zones if _bbox_intersects(path_bbox, item.bbox))
         return _clamp(total, -5.5, 0.0)
 
 
@@ -339,3 +383,26 @@ def _point_in_polygon(point: tuple[float, float], polygon: list[tuple[float, flo
 
 def _clamp(value: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(value, maximum))
+
+
+
+def _segment_bbox(point_a: tuple[float, float], point_b: tuple[float, float]) -> tuple[float, float, float, float]:
+    return (
+        min(point_a[0], point_b[0]),
+        min(point_a[1], point_b[1]),
+        max(point_a[0], point_b[0]),
+        max(point_a[1], point_b[1]),
+    )
+
+
+def _polygon_bbox(footprint: list[tuple[float, float]]) -> tuple[float, float, float, float]:
+    return (
+        min(point[0] for point in footprint),
+        min(point[1] for point in footprint),
+        max(point[0] for point in footprint),
+        max(point[1] for point in footprint),
+    )
+
+
+def _bbox_intersects(a: tuple[float, float, float, float], b: tuple[float, float, float, float]) -> bool:
+    return not (a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1])

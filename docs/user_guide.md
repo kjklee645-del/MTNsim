@@ -93,6 +93,10 @@ Typical outputs:
 - `outputs/<run_id>/poi_*.csv`
 - `outputs/<run_id>/grid_final_snapshot.json`
 
+Performance note:
+- the default project stores a final grid snapshot, not a full grid time series, so the grid is only computed on the last step by default.
+- if you explicitly turn `store_grid_timeseries` back on, scene-aware CPU runs will become heavier again.
+
 ## 5. Scenario Comparison
 
 ### 5.1 Compare Configuration Only

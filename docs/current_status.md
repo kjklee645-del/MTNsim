@@ -247,6 +247,7 @@ Observed comparison examples:
 - demo campaign-aware validation run passed with zero bias and zero RMSE against the seeded baseline reference package
 - campaign validation now supports stronger gates for receiver coverage, worst-receiver RMSE, outlier rejection, and effective time-offset magnitude
 - reduced-size terrain/ground/vegetation validation run showed an average receiver mean-level change of about `-1.60 dB`, with the strongest reduction near `poi_500_115` under the current first-pass scene-effect model
+- full-size terrain/ground/vegetation run now completes after grid-update optimization and shows an average receiver mean-level change of about `-1.94 dB` versus baseline
 
 These values are prototype-level engineering checks, not yet validated against measured field data.
 
@@ -264,6 +265,7 @@ These values are prototype-level engineering checks, not yet validated against m
 
 - shielding-enabled runs currently fall back to CPU
 - GPU is currently practical only for free-field distance-based computation
+- default project runs now compute the grid only on the final step unless full grid timeseries storage is explicitly requested
 
 ### 4.3 Product Limitations
 

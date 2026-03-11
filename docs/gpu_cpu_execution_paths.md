@@ -68,3 +68,14 @@ Current state:
 - scene-aware accuracy work is now ahead of scene-aware performance work.
 
 So the next optimization goal is not ?introduce GPU from scratch,? but ?extend GPU coverage from free-field propagation to scene-aware propagation.?
+
+## 7. Grid Snapshot Scheduling
+
+The default project now stores a final grid snapshot without recomputing the full grid on every simulation step.
+
+| Setting | Current behavior |
+| --- | --- |
+| `store_grid_timeseries = false` | receiver histories are updated every step, but the grid is computed only on the final step |
+| `store_grid_timeseries = true` | full grid can still be computed each step when needed |
+
+This change improves scene-aware CPU runs substantially without changing the final grid snapshot artifact.

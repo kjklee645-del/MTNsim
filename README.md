@@ -10,7 +10,7 @@ Implemented in the repository today:
 - project manifest and scenario schema
 - package-based application structure under `src/mtnsim`
 - deterministic SUMO-backed execution with seeded scenario runs
-- receiver time-series and grid snapshot outputs
+- receiver time-series and final grid snapshot outputs
 - run/result schema and scenario/result comparison services
 - first-pass propagation split for distance, shielding, reflection, diffraction, and material-aware correction
 - calibration with metadata mapping, auto time sync, and outlier rejection

@@ -163,16 +163,18 @@ class RunService:
                     vehicle_speeds[snapshot.vehicle_id] = snapshot.speed_mps
 
                 engine = update_noise_grid_gpu if effective_use_gpu else update_noise_grid_cpu
-                final_grid_snapshot = engine(
-                    {cell_id: (cell.x, cell.y, cell.z) for cell_id, cell in grid_domain.cells.items()},
-                    vehicle_positions,
-                    vehicle_types,
-                    vehicle_speeds,
-                    coefficients,
-                    context.scenario.noise.background_noise_db,
-                    context.scenario.noise.max_area_meters,
-                    propagation_provider,
-                )
+                should_compute_grid = context.project.outputs.store_grid_timeseries or (time_step == context.project.simulation_defaults.max_steps - 1)
+                if should_compute_grid:
+                    final_grid_snapshot = engine(
+                        {cell_id: (cell.x, cell.y, cell.z) for cell_id, cell in grid_domain.cells.items()},
+                        vehicle_positions,
+                        vehicle_types,
+                        vehicle_speeds,
+                        coefficients,
+                        context.scenario.noise.background_noise_db,
+                        context.scenario.noise.max_area_meters,
+                        propagation_provider,
+                    )
                 receiver_snapshot = engine(
                     receiver_positions,
                     vehicle_positions,
@@ -191,10 +193,8 @@ class RunService:
         run_summary = self.summarize(context)
         manifest_file = write_run_manifest(output_dir, run_summary)
         receiver_files = write_receiver_histories(output_dir, receiver_histories)
-        grid_snapshot_file = None
-        if context.project.outputs.store_grid_timeseries:
-            grid_snapshot_file = output_dir / 'grid_final_snapshot.json'
-            grid_snapshot_file.write_text(json.dumps(final_grid_snapshot, indent=2), encoding='utf-8')
+        grid_snapshot_file = output_dir / 'grid_final_snapshot.json'
+        grid_snapshot_file.write_text(json.dumps(final_grid_snapshot, indent=2), encoding='utf-8')
 
         result_summary = RunResultSummary(
             run=run_summary,
@@ -313,15 +313,19 @@ class RunService:
             vehicle_id: str,
             vehicle_position: tuple[float, float],
         ) -> PropagationContext | None:
+            receiver_xy = (poi_position[0], poi_position[1])
+            if not scene_model.has_path_scene_effects(receiver_xy, vehicle_position):
+                return None
+            candidate_segments = scene_model.candidate_shielding_segments(receiver_xy, vehicle_position)
             shielding = build_shielding_context(
                 receiver_pos=poi_position,
                 source_pos=vehicle_position,
-                barriers=shielding_segments,
+                barriers=candidate_segments,
             )
             reflection = build_reflection_context(
                 receiver_pos=poi_position,
                 source_pos=vehicle_position,
-                barriers=shielding_segments,
+                barriers=candidate_segments,
                 settings=reflection_settings,
             )
             diffraction = build_diffraction_context(shielding, settings=diffraction_settings)
