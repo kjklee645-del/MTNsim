@@ -1,4 +1,4 @@
-# MTNsim
+﻿# MTNsim
 
 MTNsim is a microscopic traffic noise simulation prototype that combines SUMO-based vehicle motion, receiver/grid noise calculation, scenario comparison, and early-stage shielding logic.
 
@@ -29,6 +29,10 @@ Supported example scenarios:
 - `schemas`: JSON schema definitions
 - `data/sumo`: example SUMO network inputs
 - `docs`: internal design and progress notes
+
+## User Guide
+
+- Detailed usage: docs/user_guide.md
 
 ## Quick Start
 
@@ -89,3 +93,5 @@ Compare actual run results:
 3. Expand propagation beyond shielding into usable reflection and diffraction logic.
 4. Add calibration workflow and benchmark validation.
 5. Deepen bounded command interfaces for future AI-agent control.
+
+
