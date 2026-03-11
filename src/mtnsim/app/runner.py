@@ -4,12 +4,16 @@ from pathlib import Path
 
 from mtnsim.api.project_api import ProjectAPI
 from mtnsim.api.simulation_api import SimulationAPI
+from mtnsim.services.benchmark_service import BenchmarkService
+from mtnsim.services.tuning_service import TuningService
 
 
 class AppRunner:
     def __init__(self) -> None:
         self.project_api = ProjectAPI()
         self.simulation_api = SimulationAPI()
+        self.benchmark_service = BenchmarkService()
+        self.tuning_service = TuningService(self.benchmark_service)
 
     def summarize_project(self, manifest_path: str | Path, scenario_path: str | Path) -> dict:
         project = self.project_api.load_manifest(manifest_path)
@@ -89,3 +93,11 @@ class AppRunner:
             measurement_metadata_file=measurement_metadata_path,
             time_step_seconds=time_step_seconds,
         )
+
+
+    def run_propagation_benchmarks(self, benchmark_file: str | Path) -> dict:
+        return self.benchmark_service.run_propagation_benchmarks(benchmark_file).to_dict()
+
+
+    def tune_propagation(self, benchmark_file: str | Path, tuning_file: str | Path) -> dict:
+        return self.tuning_service.tune_propagation(benchmark_file, tuning_file).to_dict()

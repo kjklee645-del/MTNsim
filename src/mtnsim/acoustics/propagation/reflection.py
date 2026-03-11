@@ -1,10 +1,27 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 import math
 
 from mtnsim.acoustics.propagation.materials import MaterialContext, surface_reflectivity
 from mtnsim.acoustics.propagation.shielding import BarrierSegment
+
+
+@dataclass(frozen=True, slots=True)
+class ReflectionModelSettings:
+    max_extra_path_meters: float = 120.0
+    max_nearest_offset_meters: float = 80.0
+    min_normal_alignment: float = 0.10
+    centrality_floor: float = 0.25
+    centrality_weight: float = 1.5
+    extra_path_scale_meters: float = 30.0
+    source_distance_scale_meters: float = 180.0
+    receiver_distance_scale_meters: float = 180.0
+    energy_scale: float = 2.2
+    max_gain_db: float = 3.5
+
+
+DEFAULT_REFLECTION_SETTINGS = ReflectionModelSettings()
 
 
 @dataclass(slots=True)
@@ -24,7 +41,9 @@ def build_reflection_context(
     source_pos: tuple[float, float],
     barriers: list[BarrierSegment],
     source_height_meters: float = 0.3,
+    settings: ReflectionModelSettings | None = None,
 ) -> ReflectionContext | None:
+    settings = settings or DEFAULT_REFLECTION_SETTINGS
     receiver_xy = (receiver_pos[0], receiver_pos[1])
     direct_distance = _distance_3d(receiver_pos, source_pos, source_height_meters)
     best_context: ReflectionContext | None = None
@@ -52,7 +71,7 @@ def build_reflection_context(
             _point_to_segment_distance(source_pos, (barrier.x1, barrier.y1), (barrier.x2, barrier.y2)),
             _point_to_segment_distance(receiver_xy, (barrier.x1, barrier.y1), (barrier.x2, barrier.y2)),
         )
-        if extra_path > 120.0 or nearest_offset > 80.0:
+        if extra_path > settings.max_extra_path_meters or nearest_offset > settings.max_nearest_offset_meters:
             continue
 
         normal_alignment = _normal_alignment(
@@ -62,11 +81,16 @@ def build_reflection_context(
             segment_start=(barrier.x1, barrier.y1),
             segment_end=(barrier.x2, barrier.y2),
         )
-        if normal_alignment < 0.15:
+        if normal_alignment < settings.min_normal_alignment:
             continue
 
-        centrality = max(0.25, 1.0 - (abs(segment_fraction - 0.5) * 1.5))
-        distance_factor = 1.0 / (1.0 + (extra_path / 25.0) + (source_to_surface / 180.0) + (surface_to_receiver / 180.0))
+        centrality = max(settings.centrality_floor, 1.0 - (abs(segment_fraction - 0.5) * settings.centrality_weight))
+        distance_factor = 1.0 / (
+            1.0
+            + (extra_path / settings.extra_path_scale_meters)
+            + (source_to_surface / settings.source_distance_scale_meters)
+            + (surface_to_receiver / settings.receiver_distance_scale_meters)
+        )
         reflectivity = surface_reflectivity(
             MaterialContext(
                 reflection_loss_db=barrier.reflection_loss_db,
@@ -76,9 +100,9 @@ def build_reflection_context(
                 allows_diffraction=barrier.allows_diffraction,
             )
         )
-        reflected_energy = reflectivity * normal_alignment * centrality * distance_factor * 2.8
+        reflected_energy = reflectivity * normal_alignment * centrality * distance_factor * settings.energy_scale
         gain = 10.0 * math.log10(1.0 + reflected_energy)
-        gain = max(0.0, min(gain, 4.0))
+        gain = max(0.0, min(gain, settings.max_gain_db))
 
         if gain > best_gain:
             best_gain = gain

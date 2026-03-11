@@ -1,0 +1,142 @@
+{
+  "cases": [
+    {
+      "case_id": "reflection_concrete_mid",
+      "mode": "reflection",
+      "source_xy": [
+        500.0,
+        0.0
+      ],
+      "receiver_xyz": [
+        500.0,
+        35.0,
+        1.5
+      ],
+      "barrier": {
+        "id": "wall_concrete",
+        "x1": 420.0,
+        "y1": 40.0,
+        "x2": 580.0,
+        "y2": 40.0,
+        "height_meters": 15.0,
+        "attenuation_db": 10.0,
+        "reflection_loss_db": 2.0,
+        "diffraction_loss_db": 2.0,
+        "absorption_coefficient": 0.12,
+        "allows_reflection": true,
+        "allows_diffraction": true
+      },
+      "expected": {
+        "min_gain_db": 3.0,
+        "max_gain_db": 3.8
+      }
+    },
+    {
+      "case_id": "reflection_absorptive_mid",
+      "mode": "reflection",
+      "source_xy": [
+        500.0,
+        0.0
+      ],
+      "receiver_xyz": [
+        500.0,
+        35.0,
+        1.5
+      ],
+      "barrier": {
+        "id": "wall_absorptive",
+        "x1": 420.0,
+        "y1": 40.0,
+        "x2": 580.0,
+        "y2": 40.0,
+        "height_meters": 15.0,
+        "attenuation_db": 10.0,
+        "reflection_loss_db": 5.0,
+        "diffraction_loss_db": 2.0,
+        "absorption_coefficient": 0.65,
+        "allows_reflection": true,
+        "allows_diffraction": true
+      },
+      "expected": {
+        "min_gain_db": 0.2,
+        "max_gain_db": 0.8
+      }
+    },
+    {
+      "case_id": "diffraction_moderate_barrier",
+      "mode": "diffraction",
+      "source_xy": [
+        500.0,
+        0.0
+      ],
+      "receiver_xyz": [
+        500.0,
+        65.0,
+        1.5
+      ],
+      "barrier": {
+        "id": "barrier_moderate",
+        "x1": 420.0,
+        "y1": 35.0,
+        "x2": 580.0,
+        "y2": 35.0,
+        "height_meters": 4.0,
+        "attenuation_db": 12.0,
+        "reflection_loss_db": 2.0,
+        "diffraction_loss_db": 1.5,
+        "absorption_coefficient": 0.18,
+        "allows_reflection": true,
+        "allows_diffraction": true
+      },
+      "expected": {
+        "min_gain_db": 2.5,
+        "max_gain_db": 3.5
+      }
+    },
+    {
+      "case_id": "diffraction_tall_barrier",
+      "mode": "diffraction",
+      "source_xy": [
+        500.0,
+        0.0
+      ],
+      "receiver_xyz": [
+        500.0,
+        65.0,
+        1.5
+      ],
+      "barrier": {
+        "id": "barrier_tall",
+        "x1": 420.0,
+        "y1": 35.0,
+        "x2": 580.0,
+        "y2": 35.0,
+        "height_meters": 6.0,
+        "attenuation_db": 12.0,
+        "reflection_loss_db": 2.0,
+        "diffraction_loss_db": 1.5,
+        "absorption_coefficient": 0.18,
+        "allows_reflection": true,
+        "allows_diffraction": true
+      },
+      "expected": {
+        "min_gain_db": 0.8,
+        "max_gain_db": 1.8
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "comparison_id": "absorptive_reflection_lower_than_concrete",
+      "mode": "less_than",
+      "left_case": "reflection_absorptive_mid",
+      "right_case": "reflection_concrete_mid"
+    },
+    {
+      "comparison_id": "tall_barrier_diffraction_lower_than_moderate",
+      "mode": "less_than",
+      "left_case": "diffraction_tall_barrier",
+      "right_case": "diffraction_moderate_barrier"
+    }
+  ]
+}

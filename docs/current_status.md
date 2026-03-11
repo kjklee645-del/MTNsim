@@ -116,7 +116,36 @@ What it does now:
 - computes receiver-level and global bias, MAE, and RMSE while tracking skipped and unmatched samples
 - writes `calibration_summary.json` per calibrated run
 
-### 2.6 Comparison Workflow
+### 2.6 Benchmark Workflow
+
+Implemented:
+- `benchmarks/propagation_reference_cases.json`
+- `services/benchmark_service.py`
+- CLI benchmark entry in `app/main.py`
+
+What it does now:
+- runs synthetic propagation reference cases for reflection and diffraction
+- checks each case against expected numeric ranges
+- verifies comparison relations such as absorptive < concrete reflection and taller barrier < moderate barrier diffraction
+
+### 2.7 Tuned Defaults and Scenario Overrides
+- Reflection and diffraction now use tuned defaults from the benchmark search.
+- Scenario authors can override any model parameter with `propagation_model.reflection` and `propagation_model.diffraction`.
+- Run summaries now persist the exact effective propagation settings used for reproducibility.
+
+### 2.7 Tuning Workflow
+
+Implemented:
+- `benchmarks/propagation_tuning_space.json`
+- `services/tuning_service.py`
+- CLI tuning entry in `app/main.py`
+
+What it does now:
+- evaluates candidate reflection/diffraction parameter sets against benchmark cases
+- scores candidates by range violations and comparison failures
+- returns the best-performing parameter combination under the current benchmark suite
+
+### 2.8 Comparison Workflow
 
 Implemented:
 - configuration comparison between two scenarios
@@ -145,6 +174,7 @@ Observed comparison examples:
 - `baseline` vs `building_shielding`: average receiver mean level decreased by about `-5.56 dB`
 - `building_shielding_default` vs `building_shielding`: average receiver mean level changed by about `+0.45 dB`, with a strong near-field decrease and more visible far-field increases under the current reflection model
 - `baseline` calibration against example measurement CSV + sensor metadata: overall mean bias about `-0.67 dB`, overall RMSE about `0.95 dB`
+- propagation tuning benchmark: current search space found a zero-penalty candidate over 6,561 parameter combinations
 
 These values are prototype-level engineering checks, not yet validated against measured field data.
 
@@ -209,6 +239,7 @@ Repository now contains:
 - example SUMO network under `data/sumo`
 - planning and status docs under `docs` and the repository root
 - a persistent progress checklist under `docs/development_checklist.md`
+- propagation benchmark cases under `benchmarks`
 
 Repository excludes from version control through `.gitignore`:
 - `outputs/`

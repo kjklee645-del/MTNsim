@@ -18,6 +18,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--measurement-meta", default=None, help="Measurement sensor metadata CSV path for calibration")
     parser.add_argument("--result-summary", default=None, help="Existing run_result_summary.json path for calibration")
     parser.add_argument("--cpu", action="store_true", help="Force CPU noise calculation")
+    parser.add_argument("--benchmark-propagation", action="store_true", help="Run propagation benchmark cases")
+    parser.add_argument("--benchmark-file", default=None, help="Propagation benchmark JSON path")
+    parser.add_argument("--tune-propagation", action="store_true", help="Tune propagation parameters against benchmark cases")
+    parser.add_argument("--tuning-file", default=None, help="Propagation tuning-space JSON path")
     return parser
 
 
@@ -30,6 +34,19 @@ def main() -> None:
     scenario_path = Path(args.scenario) if args.scenario else root / "examples" / "scenarios" / "baseline.toml"
 
     runner = AppRunner()
+
+    if args.benchmark_propagation:
+        benchmark_file = Path(args.benchmark_file) if args.benchmark_file else root / 'benchmarks' / 'propagation_reference_cases.json'
+        result = runner.run_propagation_benchmarks(benchmark_file)
+        print(json.dumps(result, indent=2))
+        return
+
+    if args.tune_propagation:
+        benchmark_file = Path(args.benchmark_file) if args.benchmark_file else root / 'benchmarks' / 'propagation_reference_cases.json'
+        tuning_file = Path(args.tuning_file) if args.tuning_file else root / 'benchmarks' / 'propagation_tuning_space.json'
+        result = runner.tune_propagation(benchmark_file, tuning_file)
+        print(json.dumps(result, indent=2))
+        return
 
     if args.calibrate and args.result_summary:
         if not args.measurement:

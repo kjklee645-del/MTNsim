@@ -87,7 +87,7 @@ Status legend:
 | Calibration | Measurement import workflow | [x] | CSV measurement loader and calibration service added |
 | Calibration | Sensor alignment | [~] | sensor metadata mapping, time offset, and valid window support added |
 | Calibration | Correction factor estimation | [~] | receiver/global bias recommendation with skipped/unmatched tracking added |
-| Validation | Benchmark scenarios | [~] | engineering checks exist, formal benchmark set absent |
+| Validation | Benchmark scenarios | [~] | propagation reference benchmark cases, runner, and tuning-space added |
 | Validation | Integration tests | [~] | smoke-level validation only |
 | Validation | Field-data comparison | [ ] | not started |
 
