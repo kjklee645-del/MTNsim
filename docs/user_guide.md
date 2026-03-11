@@ -218,12 +218,29 @@ Use this when a real or staged field campaign folder has been assembled and you 
 What it does:
 - loads the campaign manifest
 - checks measurement, metadata, traffic, scene, and notes inputs
+- validates `traffic_metadata.json` and `scene/scene_manifest.json` against the campaign contract
 - reports missing files, duplicate sensor/time keys, missing mappings, and basic data-quality issues
 - writes campaign reports into the campaign `reports/` folder
 
 Useful paths:
 - demo campaign: `data/field/demo_seeded_campaign/campaign.json`
 - empty template: `data/field/template_campaign/campaign.json`
+- import contract: `docs/campaign_import_standard.md`
+
+## 7.7 Run Campaign-Aware Validation
+
+Use this when a campaign package is structurally ready and you want MTNsim to run the linked scenario, calibrate against the campaign data, and write a campaign validation report.
+
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --validate-field-campaign --campaign-file 'D:\Codex\MTNsim\data\field\demo_seeded_campaign\campaign.json' --cpu
+```
+
+What it does:
+- inspects the campaign package first
+- runs the scenario referenced by the campaign manifest
+- calibrates against campaign measurements
+- checks campaign-level thresholds
+- writes `campaign_validation_summary.json` and `campaign_validation_report.md` into the campaign `reports/` folder
 
 ## 8. Propagation Model Overrides
 

@@ -5,7 +5,9 @@
 - Measurement file: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\..\..\measurements\baseline_reference_measurements.csv`
 - Sensor metadata file: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\sensor_metadata.csv`
 - Traffic file: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\traffic.csv`
+- Traffic metadata file: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\traffic_metadata.json`
 - Scene path: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\scene`
+- Scene manifest file: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\scene\scene_manifest.json`
 - Notes file: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\notes.md`
 
 ## Summary
@@ -14,11 +16,15 @@
 - Measurement sensor count: `8`
 - Metadata sensor count: `8`
 - Traffic row count: `3`
+- Expected time zone: `Asia/Seoul`
+- Coordinate system: `LOCAL_METERS`
 
 ## Checks
 
 - [x] `measurement_required_columns` (error): Measurements need sensor, time, and value columns.
   details: `{"columns": ["receiver_id", "sensor_id", "time_index", "value_db"]}`
+- [x] `measurement_preferred_time_column_present` (warning): Measurement file should include the preferred time column declared in the campaign manifest.
+  details: `{"preferred_time_column": "time_index", "columns": ["receiver_id", "sensor_id", "time_index", "value_db"]}`
 - [x] `measurement_rows_present` (error): Measurement file should contain at least one row.
   details: `{"row_count": 4800}`
 - [x] `measurement_duplicate_sensor_time_keys` (error): Measurement file should not contain duplicate sensor/time pairs.
@@ -43,8 +49,22 @@
   details: `{"row_count": 3}`
 - [x] `traffic_minimum_columns` (warning): Traffic file should include time, flow, and speed information.
   details: `{"columns": ["average_speed_kmh", "heavy_vehicle_share", "time_index", "traffic_volume"]}`
+- [x] `traffic_heavy_vehicle_share_column` (warning): Traffic file should include heavy-vehicle share if available.
+  details: `{"columns": ["average_speed_kmh", "heavy_vehicle_share", "time_index", "traffic_volume"]}`
+- [x] `traffic_metadata_required_fields` (warning): Traffic metadata should include time_zone, time_column, and speed_unit.
+  details: `{"keys": ["data_type", "flow_unit", "sampling_interval_seconds", "speed_unit", "time_column", "time_zone"]}`
+- [x] `traffic_metadata_expected_time_zone` (warning): Traffic metadata time zone should match the campaign manifest.
+  details: `{"expected_time_zone": "Asia/Seoul", "actual_time_zone": "Asia/Seoul"}`
 - [x] `scene_path_exists` (warning): scene_path_exists should point to an existing dir.
   details: `{"path": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\scene"}`
+- [x] `scene_manifest_required_fields` (warning): Scene manifest should include coordinate_system and layers.
+  details: `{"keys": ["coordinate_system", "layers", "notes"]}`
+- [x] `scene_manifest_coordinate_system_match` (warning): Scene manifest coordinate system should match the campaign manifest.
+  details: `{"expected_coordinate_system": "LOCAL_METERS", "actual_coordinate_system": "LOCAL_METERS"}`
+- [x] `scene_manifest_has_relevant_layer` (warning): Scene manifest should reference at least one relevant scene layer.
+  details: `{"layer_keys": ["barriers", "buildings", "terrain"]}`
+- [x] `scene_manifest_layer_files_exist` (warning): Scene manifest referenced files should exist inside or relative to the scene bundle.
+  details: `{"missing_files": []}`
 - [x] `notes_file_exists` (warning): notes_file_exists should point to an existing file.
   details: `{"path": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\notes.md"}`
 - [x] `measurement_sensors_mapped_in_metadata` (error): All measurement sensor IDs should exist in sensor metadata.

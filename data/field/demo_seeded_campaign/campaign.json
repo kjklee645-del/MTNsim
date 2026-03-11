@@ -8,5 +8,23 @@
   "scene_path": "scene",
   "notes_file": "notes.md",
   "time_column_preference": "time_index",
-  "expected_unit": "dB(A)"
+  "expected_unit": "dB(A)",
+  "scenario_file": "../../../examples/scenarios/baseline.toml",
+  "auto_time_sync": false,
+  "max_time_offset_steps": 5,
+  "outlier_error_threshold_db": null,
+  "min_alignment_samples": 3,
+  "validation_thresholds": {
+    "min_aligned_sample_count": 4800,
+    "max_overall_rmse_db": 1e-06,
+    "max_abs_overall_mean_bias_db": 1e-06,
+    "max_unmatched_sensor_count": 0,
+    "min_coverage_ratio": 1.0,
+    "max_receiver_rmse_db": 1e-06,
+    "max_receiver_abs_mean_bias_db": 1e-06
+  },
+  "traffic_metadata_file": "traffic_metadata.json",
+  "scene_manifest_file": "scene/scene_manifest.json",
+  "expected_time_zone": "Asia/Seoul",
+  "coordinate_system": "LOCAL_METERS"
 }

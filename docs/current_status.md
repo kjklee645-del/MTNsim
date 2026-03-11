@@ -163,8 +163,8 @@ Implemented:
 
 What it does now:
 - loads a field-campaign manifest
-- checks measurement CSV, sensor metadata CSV, optional traffic file, scene path, and notes file
-- verifies required columns, row counts, duplicate sensor/time keys, plausible dB ranges, and metadata mapping coverage
+- checks measurement CSV, sensor metadata CSV, traffic CSV, traffic metadata JSON, scene path, scene manifest, and notes file
+- verifies required columns, row counts, duplicate sensor/time keys, plausible dB ranges, metadata mapping coverage, time-zone consistency, coordinate-system consistency, and referenced scene-layer files
 - writes JSON and Markdown inspection reports into the campaign `reports/` folder
 
 
@@ -194,6 +194,20 @@ Current comparison outputs include:
 - aggregate mean-of-mean dB delta summary
 - object-level propagation-property differences in scene definitions
 
+### 2.11 Campaign-Aware Validation Workflow
+
+Implemented:
+- `services/campaign_validation_service.py`
+- campaign validation summary writing in `io/result_store.py`
+- CLI campaign validation entry in `app/main.py`
+
+What it does now:
+- loads a field-campaign manifest and inspects campaign quality first
+- runs the linked scenario against the current project
+- calibrates against the campaign measurement and metadata files
+- evaluates campaign-level acceptance thresholds
+- writes JSON and Markdown campaign validation reports into the campaign `reports/` folder
+
 ## 3. Validated Scenarios
 
 Validated scenario files:
@@ -218,6 +232,9 @@ Observed comparison examples:
 - validation suite run: baseline reference measurement, shifted/outlier calibration recovery, speed-drop reference, barrier reference, and building-default reference cases all passed from one repeatable suite run
 - field-validation preparation docs now define required datasets and methodology before real campaign data arrives
 - demo field-campaign inspection run passed and produced both JSON and Markdown campaign-quality reports
+- campaign import standard document now defines the contract for `traffic_metadata.json` and `scene/scene_manifest.json`
+- standardized demo/template campaigns now pass traffic-metadata and scene-manifest inspection checks
+- demo campaign-aware validation run passed with zero bias and zero RMSE against the seeded baseline reference package
 
 These values are prototype-level engineering checks, not yet validated against measured field data.
 
@@ -241,7 +258,7 @@ These values are prototype-level engineering checks, not yet validated against m
 - no GUI yet
 - an initial calibration pipeline is now available for measurement CSV alignment and bias estimation
 - no report generator yet
-- no production-grade scene import workflow yet
+- campaign import standardization now exists for traffic metadata and scene manifests, but full production-grade GIS/CAD ingestion is still not implemented
 - AI-agent structures exist only as an architectural baseline, not as a working user-facing capability
 
 ## 5. Why The Current Order Was Correct

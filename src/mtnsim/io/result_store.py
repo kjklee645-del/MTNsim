@@ -8,6 +8,7 @@ from mtnsim.schemas.calibration import CalibrationSummary
 from mtnsim.schemas.results import RunResultSummary
 from mtnsim.schemas.run import RunSummary
 from mtnsim.schemas.validation import ValidationSuiteSummary
+from mtnsim.schemas.field_campaign import FieldCampaignValidationSummary
 
 
 def write_receiver_history(output_dir: str | Path, receiver_id: str, values: list[float]) -> Path:
@@ -57,6 +58,15 @@ def write_calibration_summary(output_dir: str | Path, payload: CalibrationSummar
 
 
 def write_validation_suite_summary(output_dir: str | Path, payload: ValidationSuiteSummary | dict, file_name: str = 'validation_suite_summary.json') -> Path:
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    target = output_path / file_name
+    content = payload.to_dict() if hasattr(payload, 'to_dict') else payload
+    target.write_text(json.dumps(content, indent=2), encoding='utf-8')
+    return target
+
+
+def write_field_campaign_validation_summary(output_dir: str | Path, payload: FieldCampaignValidationSummary | dict, file_name: str = 'campaign_validation_summary.json') -> Path:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     target = output_path / file_name

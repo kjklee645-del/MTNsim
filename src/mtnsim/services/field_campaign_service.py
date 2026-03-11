@@ -25,19 +25,24 @@ class FieldCampaignService:
         measurement_path = self._resolve(campaign_root, manifest.measurement_file)
         metadata_path = self._resolve(campaign_root, manifest.sensor_metadata_file)
         traffic_path = self._resolve(campaign_root, manifest.traffic_file) if manifest.traffic_file else None
+        traffic_metadata_path = self._resolve(campaign_root, manifest.traffic_metadata_file) if manifest.traffic_metadata_file else None
         scene_path = self._resolve(campaign_root, manifest.scene_path) if manifest.scene_path else None
+        scene_manifest_path = self._resolve(campaign_root, manifest.scene_manifest_file) if manifest.scene_manifest_file else None
         notes_path = self._resolve(campaign_root, manifest.notes_file) if manifest.notes_file else None
 
         checks: list[CampaignQualityCheck] = []
 
-        measurement_stats = self._inspect_measurements(measurement_path)
+        measurement_stats = self._inspect_measurements(measurement_path, manifest)
         metadata_stats = self._inspect_metadata(metadata_path)
         traffic_stats = self._inspect_traffic(traffic_path)
+        traffic_metadata_checks = self._inspect_traffic_metadata(traffic_metadata_path, manifest)
+        scene_checks = self._inspect_scene_bundle(scene_path, scene_manifest_path, manifest)
 
         checks.extend(measurement_stats['checks'])
         checks.extend(metadata_stats['checks'])
         checks.extend(traffic_stats['checks'])
-        checks.extend(self._check_optional_path('scene_path_exists', scene_path, expected_kind='dir', severity='warning'))
+        checks.extend(traffic_metadata_checks)
+        checks.extend(scene_checks)
         checks.extend(self._check_optional_path('notes_file_exists', notes_path, expected_kind='file', severity='warning'))
 
         measurement_sensor_ids = measurement_stats['sensor_ids']
@@ -71,12 +76,22 @@ class FieldCampaignService:
         report_file = output_dir / 'campaign_inspection_report.md'
         summary_file.write_text(json.dumps(summary.to_dict(), indent=2), encoding='utf-8')
         report_file.write_text(
-            self._build_markdown_report(manifest, summary, measurement_path, metadata_path, traffic_path, scene_path, notes_path),
+            self._build_markdown_report(
+                manifest,
+                summary,
+                measurement_path,
+                metadata_path,
+                traffic_path,
+                traffic_metadata_path,
+                scene_path,
+                scene_manifest_path,
+                notes_path,
+            ),
             encoding='utf-8',
         )
         return FieldCampaignInspectionArtifacts(summary=summary, output_dir=output_dir, summary_file=summary_file, report_file=report_file)
 
-    def _inspect_measurements(self, path: Path) -> dict:
+    def _inspect_measurements(self, path: Path, manifest: FieldCampaignManifest) -> dict:
         checks: list[CampaignQualityCheck] = []
         if not path.exists():
             checks.append(CampaignQualityCheck('measurement_file_exists', False, 'error', 'Measurement file must exist.', {'path': str(path)}))
@@ -88,6 +103,16 @@ class FieldCampaignService:
         has_value = 'value_db' in fieldnames
         has_time = any(column in fieldnames for column in ('time_index', 'timestamp', 'time_seconds'))
         checks.append(CampaignQualityCheck('measurement_required_columns', has_sensor and has_value and has_time, 'error', 'Measurements need sensor, time, and value columns.', {'columns': sorted(fieldnames)}))
+        if manifest.time_column_preference:
+            checks.append(
+                CampaignQualityCheck(
+                    'measurement_preferred_time_column_present',
+                    manifest.time_column_preference in fieldnames,
+                    'warning',
+                    'Measurement file should include the preferred time column declared in the campaign manifest.',
+                    {'preferred_time_column': manifest.time_column_preference, 'columns': sorted(fieldnames)},
+                )
+            )
         sensor_ids: set[str] = set()
         duplicate_counter: Counter[tuple[str, str]] = Counter()
         impossible_db_count = 0
@@ -169,9 +194,49 @@ class FieldCampaignService:
         has_time = any(column in fieldnames for column in ('time_index', 'timestamp', 'time_seconds', 'interval_start'))
         has_flow = any(column in fieldnames for column in ('traffic_volume', 'vehicle_count', 'flow_veh_per_hour'))
         has_speed = any(column in fieldnames for column in ('average_speed_kmh', 'speed_kmh', 'mean_speed_kmh'))
+        has_heavy_share = 'heavy_vehicle_share' in fieldnames or 'heavy_vehicle_fraction' in fieldnames
         checks.append(CampaignQualityCheck('traffic_rows_present', len(rows) > 0, 'warning', 'Traffic file should contain at least one row.', {'row_count': len(rows)}))
         checks.append(CampaignQualityCheck('traffic_minimum_columns', has_time and has_flow and has_speed, 'warning', 'Traffic file should include time, flow, and speed information.', {'columns': sorted(fieldnames)}))
+        checks.append(CampaignQualityCheck('traffic_heavy_vehicle_share_column', has_heavy_share, 'warning', 'Traffic file should include heavy-vehicle share if available.', {'columns': sorted(fieldnames)}))
         return {'row_count': len(rows), 'checks': checks}
+
+    def _inspect_traffic_metadata(self, path: Path | None, manifest: FieldCampaignManifest) -> list[CampaignQualityCheck]:
+        if path is None:
+            return [CampaignQualityCheck('traffic_metadata_file_declared', False, 'warning', 'Traffic metadata file is not declared in the campaign manifest.', {})]
+        if not path.exists():
+            return [CampaignQualityCheck('traffic_metadata_file_exists', False, 'warning', 'Traffic metadata file path was declared but does not exist.', {'path': str(path)})]
+        payload = json.loads(path.read_text(encoding='utf-8'))
+        checks: list[CampaignQualityCheck] = []
+        checks.append(CampaignQualityCheck('traffic_metadata_required_fields', all(key in payload for key in ('time_zone', 'time_column', 'speed_unit')), 'warning', 'Traffic metadata should include time_zone, time_column, and speed_unit.', {'keys': sorted(payload.keys())}))
+        if manifest.expected_time_zone:
+            checks.append(CampaignQualityCheck('traffic_metadata_expected_time_zone', payload.get('time_zone') == manifest.expected_time_zone, 'warning', 'Traffic metadata time zone should match the campaign manifest.', {'expected_time_zone': manifest.expected_time_zone, 'actual_time_zone': payload.get('time_zone')}))
+        return checks
+
+    def _inspect_scene_bundle(self, scene_path: Path | None, scene_manifest_path: Path | None, manifest: FieldCampaignManifest) -> list[CampaignQualityCheck]:
+        checks: list[CampaignQualityCheck] = []
+        checks.extend(self._check_optional_path('scene_path_exists', scene_path, expected_kind='dir', severity='warning'))
+        if scene_manifest_path is None:
+            checks.append(CampaignQualityCheck('scene_manifest_file_declared', False, 'warning', 'Scene manifest file is not declared in the campaign manifest.', {}))
+            return checks
+        if not scene_manifest_path.exists():
+            checks.append(CampaignQualityCheck('scene_manifest_file_exists', False, 'warning', 'Scene manifest file path was declared but does not exist.', {'path': str(scene_manifest_path)}))
+            return checks
+        payload = json.loads(scene_manifest_path.read_text(encoding='utf-8'))
+        checks.append(CampaignQualityCheck('scene_manifest_required_fields', all(key in payload for key in ('coordinate_system', 'layers')), 'warning', 'Scene manifest should include coordinate_system and layers.', {'keys': sorted(payload.keys())}))
+        if manifest.coordinate_system:
+            checks.append(CampaignQualityCheck('scene_manifest_coordinate_system_match', payload.get('coordinate_system') == manifest.coordinate_system, 'warning', 'Scene manifest coordinate system should match the campaign manifest.', {'expected_coordinate_system': manifest.coordinate_system, 'actual_coordinate_system': payload.get('coordinate_system')}))
+        layers = payload.get('layers') or {}
+        checks.append(CampaignQualityCheck('scene_manifest_has_relevant_layer', any(key in layers for key in ('buildings', 'barriers', 'terrain', 'ground_surfaces', 'vegetation')), 'warning', 'Scene manifest should reference at least one relevant scene layer.', {'layer_keys': sorted(layers.keys()) if isinstance(layers, dict) else []}))
+        if isinstance(layers, dict) and scene_path is not None:
+            missing_files: list[str] = []
+            for value in layers.values():
+                if not value:
+                    continue
+                target = self._resolve(scene_path, value)
+                if not target.exists():
+                    missing_files.append(str(target))
+            checks.append(CampaignQualityCheck('scene_manifest_layer_files_exist', not missing_files, 'warning', 'Scene manifest referenced files should exist inside or relative to the scene bundle.', {'missing_files': missing_files}))
+        return checks
 
     def _check_optional_path(self, check_id: str, path: Path | None, expected_kind: str, severity: str) -> list[CampaignQualityCheck]:
         if path is None:
@@ -190,7 +255,9 @@ class FieldCampaignService:
         measurement_path: Path,
         metadata_path: Path,
         traffic_path: Path | None,
+        traffic_metadata_path: Path | None,
         scene_path: Path | None,
+        scene_manifest_path: Path | None,
         notes_path: Path | None,
     ) -> str:
         lines = [
@@ -201,7 +268,9 @@ class FieldCampaignService:
             f'- Measurement file: `{measurement_path}`',
             f'- Sensor metadata file: `{metadata_path}`',
             f'- Traffic file: `{traffic_path}`' if traffic_path else '- Traffic file: not declared',
+            f'- Traffic metadata file: `{traffic_metadata_path}`' if traffic_metadata_path else '- Traffic metadata file: not declared',
             f'- Scene path: `{scene_path}`' if scene_path else '- Scene path: not declared',
+            f'- Scene manifest file: `{scene_manifest_path}`' if scene_manifest_path else '- Scene manifest file: not declared',
             f'- Notes file: `{notes_path}`' if notes_path else '- Notes file: not declared',
             '',
             '## Summary',
@@ -210,6 +279,8 @@ class FieldCampaignService:
             f'- Measurement sensor count: `{summary.measurement_sensor_count}`',
             f'- Metadata sensor count: `{summary.metadata_sensor_count}`',
             f'- Traffic row count: `{summary.traffic_row_count}`',
+            f'- Expected time zone: `{manifest.expected_time_zone}`',
+            f'- Coordinate system: `{manifest.coordinate_system}`',
             '',
             '## Checks',
             '',

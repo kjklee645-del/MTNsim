@@ -8,6 +8,7 @@ from mtnsim.services.benchmark_service import BenchmarkService
 from mtnsim.services.tuning_service import TuningService
 from mtnsim.services.validation_service import ValidationService
 from mtnsim.services.field_campaign_service import FieldCampaignService
+from mtnsim.services.campaign_validation_service import CampaignValidationService
 
 
 class AppRunner:
@@ -18,6 +19,7 @@ class AppRunner:
         self.tuning_service = TuningService(self.benchmark_service)
         self.validation_service = ValidationService()
         self.field_campaign_service = FieldCampaignService()
+        self.campaign_validation_service = CampaignValidationService(self.field_campaign_service, self.simulation_api.run_service, self.simulation_api.calibration_service)
 
     def summarize_project(self, manifest_path: str | Path, scenario_path: str | Path) -> dict:
         project = self.project_api.load_manifest(manifest_path)
@@ -134,4 +136,18 @@ class AppRunner:
             'output_dir': str(artifacts.output_dir),
             'summary_file': str(artifacts.summary_file),
             'report_file': str(artifacts.report_file),
+        }
+
+    def validate_field_campaign(self, manifest_path: str | Path, scenario_path: str | Path | None, campaign_file: str | Path, use_gpu: bool = False) -> dict:
+        project = self.project_api.load_manifest(manifest_path)
+        if scenario_path is None:
+            from mtnsim.schemas.field_campaign import FieldCampaignManifest
+            campaign = FieldCampaignManifest.load(campaign_file)
+            scenario_path = Path(campaign.scenario_file) if campaign.scenario_file else Path(manifest_path).resolve().parent / 'scenarios' / f"{project.project.default_scenario}.toml"
+            if not Path(scenario_path).is_absolute() and campaign.source_path is not None:
+                scenario_path = campaign.source_path.parent / Path(scenario_path)
+        summary, output_path = self.campaign_validation_service.validate_campaign(project, scenario_path, campaign_file, use_gpu=use_gpu)
+        return {
+            'campaign_validation_summary': summary.to_dict(),
+            'campaign_validation_summary_file': str(output_path),
         }

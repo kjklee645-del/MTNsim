@@ -16,6 +16,8 @@ Implemented in the repository today:
 - calibration with metadata mapping, auto time sync, and outlier rejection
 - propagation benchmark, tuning, and multi-case validation suite workflows
 - field-campaign inspection, quality checks, and markdown/JSON campaign reports
+- campaign-aware validation that runs simulation, calibration, and threshold checks from a campaign manifest
+- standardized campaign import contracts for traffic metadata and scene manifests
 
 Supported example scenarios:
 - `baseline`
@@ -86,6 +88,12 @@ Inspect a field campaign package:
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --inspect-field-campaign --campaign-file 'D:\Codex\MTNsim\data\field\demo_seeded_campaign\campaign.json'
 ```
 
+Run campaign-aware validation:
+
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --validate-field-campaign --campaign-file 'D:\Codex\MTNsim\data\field\demo_seeded_campaign\campaign.json' --cpu
+```
+
 ## Current Implementation Notes
 
 - When no shielding object is present, the engine can use the existing GPU path for free-field distance attenuation.
@@ -103,6 +111,7 @@ Inspect a field campaign package:
 - `docs/current_status.md`
 - `docs/development_checklist.md`
 - `docs/user_guide.md`
+- `docs/campaign_import_standard.md`
 - `paper/manuscript_draft.md`
 
 ## Recommended Next Steps

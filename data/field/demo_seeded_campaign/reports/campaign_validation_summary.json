@@ -1,0 +1,140 @@
+{
+  "campaign_id": "demo_seeded_campaign",
+  "name": "Demo Seeded Campaign",
+  "project": "mtnsim-demo",
+  "scenario": "baseline",
+  "inspection_passed": true,
+  "validation_passed": true,
+  "simulation_executed": true,
+  "inspection_summary_file": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\reports\\campaign_inspection_summary.json",
+  "inspection_report_file": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\reports\\campaign_inspection_report.md",
+  "result_summary_file": "D:\\Codex\\MTNsim\\outputs\\cd2062d4e14d4cd69089f4be2b6002f4\\run_result_summary.json",
+  "calibration_summary_file": "D:\\Codex\\MTNsim\\outputs\\cd2062d4e14d4cd69089f4be2b6002f4\\calibration_summary.json",
+  "campaign_validation_report_file": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\reports\\campaign_validation_report.md",
+  "threshold_checks": {
+    "min_aligned_sample_count": {
+      "passed": true,
+      "actual": 4800,
+      "expected_min": 4800
+    },
+    "max_overall_rmse_db": {
+      "passed": true,
+      "actual": 0.0,
+      "expected_max": 1e-06
+    },
+    "max_abs_overall_mean_bias_db": {
+      "passed": true,
+      "actual": 0.0,
+      "expected_max": 1e-06
+    },
+    "max_unmatched_sensor_count": {
+      "passed": true,
+      "actual": 0,
+      "expected_max": 0
+    },
+    "min_coverage_ratio": {
+      "passed": true,
+      "actual": 1.0,
+      "expected_min": 1.0
+    },
+    "max_receiver_rmse_db": {
+      "passed": true,
+      "actual_failed_receivers": [],
+      "expected_max": 1e-06
+    },
+    "max_receiver_abs_mean_bias_db": {
+      "passed": true,
+      "actual_failed_receivers": [],
+      "expected_max": 1e-06
+    }
+  },
+  "receiver_diagnostics": [
+    {
+      "receiver_id": "poi_500_115",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.0,
+      "mae_db": 0.0,
+      "rmse_db": 0.0,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_165",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.0,
+      "mae_db": 0.0,
+      "rmse_db": 0.0,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_215",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.0,
+      "mae_db": 0.0,
+      "rmse_db": 0.0,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_25",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.0,
+      "mae_db": 0.0,
+      "rmse_db": 0.0,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_35",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.0,
+      "mae_db": 0.0,
+      "rmse_db": 0.0,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_45",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.0,
+      "mae_db": 0.0,
+      "rmse_db": 0.0,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_55",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.0,
+      "mae_db": 0.0,
+      "rmse_db": 0.0,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_65",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.0,
+      "mae_db": 0.0,
+      "rmse_db": 0.0,
+      "rejected_outlier_count": 0
+    }
+  ],
+  "high_error_receiver_ids": [],
+  "worst_receiver_id": "poi_500_65",
+  "overall_mean_bias_db": 0.0,
+  "overall_rmse_db": 0.0,
+  "aligned_sample_count": 4800,
+  "unmatched_sensor_count": 0,
+  "coverage_ratio": 1.0
+}

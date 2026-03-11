@@ -29,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--validate-suite", action="store_true", help="Run a validation suite of scenario + measurement cases")
     parser.add_argument("--validation-file", default=None, help="Validation suite JSON path")
     parser.add_argument("--inspect-field-campaign", action="store_true", help="Inspect a field campaign package and generate a quality report")
+    parser.add_argument("--validate-field-campaign", action="store_true", help="Run simulation, calibration, and reporting for a field campaign package")
     parser.add_argument("--campaign-file", default=None, help="Field campaign JSON manifest path")
     return parser
 
@@ -65,6 +66,12 @@ def main() -> None:
     if args.inspect_field_campaign:
         campaign_file = Path(args.campaign_file) if args.campaign_file else root / 'data' / 'field' / 'demo_seeded_campaign' / 'campaign.json'
         result = runner.inspect_field_campaign(campaign_file)
+        print(json.dumps(result, indent=2))
+        return
+
+    if args.validate_field_campaign:
+        campaign_file = Path(args.campaign_file) if args.campaign_file else root / 'data' / 'field' / 'demo_seeded_campaign' / 'campaign.json'
+        result = runner.validate_field_campaign(manifest_path, Path(args.scenario) if args.scenario else None, campaign_file, use_gpu=not args.cpu)
         print(json.dumps(result, indent=2))
         return
 

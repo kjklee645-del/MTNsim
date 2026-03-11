@@ -92,7 +92,8 @@ Status legend:
 | Validation | Integration tests | [~] | smoke-level validation only |
 | Validation | Field-data comparison | [~] | validation suite now covers baseline reference, shifted/outlier recovery, speed-drop, barrier, and building-default seeded reference cases; true field datasets still needed |
 | Validation prep | Field-data checklist and methodology docs | [x] | `docs/field_validation_data_checklist.md`, `docs/field_validation_methodology.md` |
-| Validation prep | Field-campaign import convention and quality report flow | [x] | demo/template campaigns plus `--inspect-field-campaign` added |
+| Validation prep | Field-campaign import convention and quality report flow | [x] | demo/template campaigns plus `--inspect-field-campaign` added, including `traffic_metadata.json` and `scene/scene_manifest.json` checks |
+| Validation prep | Campaign-aware validation/report flow | [x] | `--validate-field-campaign` now runs simulation, calibration, thresholds, and reports |
 
 ## 8. Product Layers
 
@@ -109,8 +110,8 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Expand validation from seeded reference cases toward true field datasets and stronger acceptance rules | [~] | reusable validation suite now covers multiple scenarios, but it still relies mostly on seeded references rather than field measurements |
-| 2 | Deepen calibration workflow with richer alignment and validation | [~] | field-campaign inspection is ready, but campaign-aware calibration/reporting still needs expansion |
+| 1 | Expand validation from seeded reference cases toward true field datasets and stronger acceptance rules | [~] | reusable validation suite now covers multiple scenarios, and campaign import contracts are standardized, but it still relies mostly on seeded references rather than field measurements |
+| 2 | Deepen calibration workflow with richer alignment and validation | [~] | campaign-aware validation now exists, but richer field-facing diagnostics and correction workflows still need expansion |
 | 3 | Continue scene/physics expansion for terrain and richer object classes | [ ] | propagation structure is stronger, but scene fidelity is still limited |
 | 4 | Deepen reporting / GUI / richer agent control | [ ] | should come after core physics and validation |
 
