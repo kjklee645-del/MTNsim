@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread
+from PySide6.QtCore import Qt, QThread, QTimer
 from PySide6.QtWidgets import (
     QFileDialog,
     QListWidget,
@@ -36,6 +36,10 @@ class MainWindow(QMainWindow):
         self.current_result_summary = None
         self.current_result_summary_path: Path | None = None
         self.dynamic_heatmap_context = None
+        self._playback_prefetch_timer = QTimer(self)
+        self._playback_prefetch_timer.setSingleShot(True)
+        self._playback_prefetch_timer.timeout.connect(self._run_playback_prefetch)
+        self._pending_prefetch_frame_indices: list[int] = []
         self._build_ui()
         self._connect_signals()
         if manifest_path is not None:
@@ -133,6 +137,7 @@ class MainWindow(QMainWindow):
         self.result_viewer_view.recent_result_selected.connect(self.load_result_summary)
         self.result_viewer_view.receiver_selected.connect(self.load_receiver_series)
         self.vehicle_playback_view.playback_frame_changed.connect(self._sync_heatmap_to_playback_frame)
+        self.vehicle_playback_view.contribution_view_changed.connect(self._refresh_playback_contribution_view)
         self.navigation_list.currentRowChanged.connect(self._handle_navigation_change)
 
     def open_project_dialog(self) -> None:
@@ -251,6 +256,8 @@ class MainWindow(QMainWindow):
             return
         series = self.result_controller.load_receiver_series(receiver_id, csv_path)
         self.result_viewer_view.set_receiver_series(series.receiver_id, series.points)
+        frame_index = self.vehicle_playback_view.slider.value() if self.vehicle_playback_view.dataset is not None else None
+        self.result_viewer_view.set_playback_cursor(frame_index)
 
     def show_project_home(self) -> None:
         self.central_stack.setCurrentWidget(self.project_home_view)
@@ -382,6 +389,8 @@ class MainWindow(QMainWindow):
             self.scene_view.set_snapshot(None)
             self.vehicle_playback_view.set_snapshot(None)
             self.dynamic_heatmap_context = None
+            self._pending_prefetch_frame_indices = []
+            self._playback_prefetch_timer.stop()
             return
         snapshot = self.scene_controller.build_snapshot(project_state.project, project_state.selected_scenario)
         self.scene_view.set_snapshot(snapshot)
@@ -435,14 +444,85 @@ class MainWindow(QMainWindow):
             return
         if frame_index < 0 or frame_index >= dataset.frame_count:
             return
-        cells = self.result_controller.compute_dynamic_heatmap(self.dynamic_heatmap_context, dataset.frames[frame_index])
+        frame = dataset.frames[frame_index]
+        selected_vehicle_id = self.vehicle_playback_view.selected_vehicle_id()
+        contribution_only = self.vehicle_playback_view.is_selected_vehicle_contribution_only()
+
+        if contribution_only and selected_vehicle_id:
+            cells = self.result_controller.compute_vehicle_contribution_heatmap(self.dynamic_heatmap_context, frame, selected_vehicle_id)
+        elif contribution_only:
+            cells = []
+        else:
+            cells = self.result_controller.compute_dynamic_heatmap(self.dynamic_heatmap_context, frame)
+            self._schedule_playback_prefetch(frame_index)
+
         self.scene_view.canvas.set_heatmap_cells(cells)
         self.vehicle_playback_view.set_heatmap_cells(cells)
+        self.result_viewer_view.set_playback_cursor(frame.time_index)
+
+        project_state = self.session_state.project_state
+        receiver_positions = {}
+        if project_state.selected_scenario is not None:
+            receiver_positions = {
+                receiver.id: (receiver.x, receiver.y, receiver.z)
+                for receiver in project_state.selected_scenario.receivers
+            }
+        contributions = self.result_controller.compute_vehicle_receiver_contributions(
+            self.dynamic_heatmap_context,
+            frame,
+            selected_vehicle_id,
+            receiver_positions,
+        )
+        self.vehicle_playback_view.set_selected_vehicle_receiver_contributions(contributions)
+
+    def _schedule_playback_prefetch(self, anchor_frame_index: int) -> None:
+        dataset = self.vehicle_playback_view.dataset
+        context = self.dynamic_heatmap_context
+        if dataset is None or context is None or dataset.frame_count == 0:
+            return
+        candidate_indices: list[int] = []
+        for offset in range(1, 7):
+            candidate_indices.append(anchor_frame_index + offset)
+        for offset in range(1, 3):
+            candidate_indices.append(anchor_frame_index - offset)
+        pending: list[int] = []
+        seen: set[int] = set()
+        for index in candidate_indices:
+            if index < 0 or index >= dataset.frame_count or index in seen:
+                continue
+            seen.add(index)
+            frame = dataset.frames[index]
+            if frame.time_index in context.cache:
+                context.cache.move_to_end(frame.time_index)
+                continue
+            pending.append(index)
+        self._pending_prefetch_frame_indices = pending
+        if pending:
+            self._playback_prefetch_timer.start(1)
+
+    def _run_playback_prefetch(self) -> None:
+        dataset = self.vehicle_playback_view.dataset
+        context = self.dynamic_heatmap_context
+        if dataset is None or context is None or not self._pending_prefetch_frame_indices:
+            return
+        next_index = self._pending_prefetch_frame_indices.pop(0)
+        if 0 <= next_index < dataset.frame_count:
+            self.result_controller.prefetch_dynamic_heatmap_frames(context, [dataset.frames[next_index]], max_frames=1)
+        if self._pending_prefetch_frame_indices:
+            self._playback_prefetch_timer.start(1)
+
+    def _refresh_playback_contribution_view(self) -> None:
+        dataset = self.vehicle_playback_view.dataset
+        if dataset is None or dataset.frame_count == 0:
+            self.vehicle_playback_view.set_selected_vehicle_receiver_contributions({})
+            return
+        self._sync_heatmap_to_playback_frame(self.vehicle_playback_view.slider.value())
 
     def _load_playback_from_result_summary(self, summary) -> None:
         trace_file = getattr(summary, 'vehicle_trace_file', None)
         if not trace_file:
             self.vehicle_playback_view.set_dataset(None)
+            self.vehicle_playback_view.set_selected_vehicle_receiver_contributions({})
             self.playback_action.setEnabled(False)
             return
         try:
@@ -456,6 +536,8 @@ class MainWindow(QMainWindow):
         self.playback_action.setEnabled(dataset.frame_count > 0)
         if dataset.frame_count > 0:
             self._sync_heatmap_to_playback_frame(self.vehicle_playback_view.slider.value())
+        else:
+            self.result_viewer_view.set_playback_cursor(None)
         self._append_log(f'[info] Loaded vehicle playback trace: {trace_file}')
 
     def _append_log(self, line: str) -> None:

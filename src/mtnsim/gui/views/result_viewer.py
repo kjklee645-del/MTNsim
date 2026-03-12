@@ -27,12 +27,29 @@ class ReceiverSeriesChart(QWidget):
         super().__init__(parent)
         self.points: list[tuple[int, float]] = []
         self.title = 'Receiver Time Series'
+        self.active_time_index: int | None = None
+        self.active_value_db: float | None = None
         self.setMinimumHeight(260)
 
     def set_series(self, receiver_id: str, points: list[tuple[int, float]]) -> None:
         self.points = points
         self.title = f'Receiver Time Series: {receiver_id}'
+        self.active_value_db = None
+        if self.active_time_index is not None:
+            self._update_active_value()
         self.update()
+
+    def set_playback_cursor(self, time_index: int | None) -> None:
+        self.active_time_index = time_index
+        self._update_active_value()
+        self.update()
+
+    def _update_active_value(self) -> None:
+        if self.active_time_index is None or not self.points:
+            self.active_value_db = None
+            return
+        closest = min(self.points, key=lambda item: abs(item[0] - self.active_time_index))
+        self.active_value_db = float(closest[1])
 
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
@@ -78,6 +95,24 @@ class ReceiverSeriesChart(QWidget):
         painter.setPen(QPen(QColor('#c2410c'), 2))
         for index in range(len(polyline) - 1):
             painter.drawLine(int(polyline[index][0]), int(polyline[index][1]), int(polyline[index + 1][0]), int(polyline[index + 1][1]))
+
+        if self.active_time_index is not None:
+            clamped_time = max(min_x, min(max_x, self.active_time_index))
+            ratio_x = (clamped_time - min_x) / (max_x - min_x)
+            cursor_x = plot_rect.left() + (plot_rect.width() * ratio_x)
+            painter.setPen(QPen(QColor('#0f766e'), 2, Qt.DashLine))
+            painter.drawLine(int(cursor_x), int(plot_rect.top()), int(cursor_x), int(plot_rect.bottom()))
+            if self.active_value_db is not None:
+                value_ratio_y = (self.active_value_db - min_y) / (max_y - min_y)
+                value_y = plot_rect.bottom() - (plot_rect.height() * value_ratio_y)
+                painter.setBrush(QColor('#0f766e'))
+                painter.setPen(QPen(QColor('#0f766e'), 1))
+                painter.drawEllipse(int(cursor_x) - 4, int(value_y) - 4, 8, 8)
+                label = f't={clamped_time}, {self.active_value_db:.1f} dB'
+                label_rect_x = min(plot_rect.right() - 118, cursor_x + 8)
+                painter.fillRect(int(label_rect_x), int(max(plot_rect.top() + 4, value_y - 22)), 114, 20, QColor(255, 255, 255, 220))
+                painter.setPen(QPen(QColor('#0f172a'), 1))
+                painter.drawText(int(label_rect_x) + 6, int(max(plot_rect.top() + 18, value_y - 8)), label)
 
 
 class ResultViewerView(QWidget):
@@ -130,9 +165,11 @@ class ResultViewerView(QWidget):
         self.scenario_label = QLabel('-')
         self.output_dir_label = QLabel('-')
         self.output_dir_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.playback_cursor_label = QLabel('-')
         summary_form.addRow('Run ID', self.run_id_label)
         summary_form.addRow('Scenario', self.scenario_label)
         summary_form.addRow('Output Dir', self.output_dir_label)
+        summary_form.addRow('Playback Cursor', self.playback_cursor_label)
         right_layout.addLayout(summary_form)
 
         self.receiver_table = QTableWidget(0, 4)
@@ -200,9 +237,20 @@ class ResultViewerView(QWidget):
             self.receiver_selector.setCurrentText(receiver_ids[0])
         else:
             self.chart_widget.set_series('none', [])
+            self.set_playback_cursor(None)
 
     def set_receiver_series(self, receiver_id: str, points: list[tuple[int, float]]) -> None:
         self.chart_widget.set_series(receiver_id, points)
+
+    def set_playback_cursor(self, time_index: int | None) -> None:
+        self.chart_widget.set_playback_cursor(time_index)
+        if time_index is None:
+            self.playback_cursor_label.setText('-')
+            return
+        if self.chart_widget.active_value_db is None:
+            self.playback_cursor_label.setText(f't={time_index}')
+            return
+        self.playback_cursor_label.setText(f't={time_index}, {self.chart_widget.active_value_db:.1f} dB')
 
     def _emit_recent_result(self, current: QListWidgetItem | None, previous: QListWidgetItem | None) -> None:  # noqa: ARG002
         if current is None:

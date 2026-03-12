@@ -47,7 +47,7 @@ Current GUI scope in Phase 3 + playback:
 - inspect receiver summary statistics and receiver time-series
 - replay recorded vehicle movement with a time slider and play/pause controls
 - zoom with the mouse wheel, pan by dragging, and inspect receivers/vehicles/lanes/grid cells with hover info
-- view a minimap inset, speed-colored vehicles, short vehicle tail trails, a playback-synchronized grid heatmap overlay, and playback-side layer/range/opacity controls
+- view a minimap inset, speed-colored vehicles, short vehicle tail trails, a playback-synchronized grid heatmap overlay, playback-side layer/range/opacity controls, a receiver-series cursor that follows playback time, nearby-frame heatmap prefetch, click-to-select vehicle details, selected-vehicle contribution-only heatmap / receiver summaries, and timeline event markers for vehicle enter/exit, speed shifts, and heading shifts
 
 
 ## 4. Important Input Files

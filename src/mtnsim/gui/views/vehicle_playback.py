@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from math import atan2, degrees
 
-from PySide6.QtCore import QTimer, Qt, Signal
+from PySide6.QtCore import QPointF, QRectF, QTimer, Qt, Signal
+from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -26,8 +27,83 @@ from mtnsim.gui.controllers.result_controller import HeatmapCell
 from mtnsim.gui.views.scene_view import SceneCanvas, VehicleGlyph
 
 
+
+
+@dataclass(frozen=True, slots=True)
+class PlaybackTimelineEvent:
+    kind: str
+    label: str
+    vehicle_ids: tuple[str, ...] = ()
+
+
+class TimelineMarkerStrip(QWidget):
+    _EVENT_COLORS = {
+        'enter': '#2e8b57',
+        'exit': '#6b7280',
+        'speed_shift': '#d97706',
+        'heading_shift': '#2563eb',
+    }
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._frame_count = 0
+        self._events_by_frame: dict[int, list[PlaybackTimelineEvent]] = {}
+        self._current_frame = 0
+        self.setMinimumHeight(24)
+        self.setMaximumHeight(24)
+        self.setToolTip('Timeline events: green enter, gray exit, amber speed shift, blue heading shift')
+
+    def set_frame_count(self, frame_count: int) -> None:
+        self._frame_count = max(0, int(frame_count))
+        self.update()
+
+    def set_events_by_frame(self, events_by_frame: dict[int, list[PlaybackTimelineEvent]]) -> None:
+        self._events_by_frame = {int(frame): list(events) for frame, events in events_by_frame.items()}
+        self.update()
+
+    def set_current_frame(self, frame_index: int) -> None:
+        self._current_frame = max(0, int(frame_index))
+        self.update()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillRect(self.rect(), QColor('#faf6ef'))
+
+        rect = self.rect().adjusted(10, 4, -10, -4)
+        painter.setPen(QPen(QColor('#d6cfc2'), 1))
+        painter.drawRoundedRect(rect, 4, 4)
+
+        if self._frame_count <= 1:
+            return
+
+        baseline_y = rect.bottom() - 3
+        painter.setPen(QPen(QColor('#b9ae9a'), 1))
+        painter.drawLine(rect.left() + 4, baseline_y, rect.right() - 4, baseline_y)
+
+        for frame_index, events in self._events_by_frame.items():
+            if not events:
+                continue
+            x = self._frame_to_x(frame_index, rect)
+            stack_top = rect.top() + 3
+            tick_width = 2 if self._frame_count > 200 else 3
+            for offset, timeline_event in enumerate(events[:3]):
+                color = QColor(self._EVENT_COLORS.get(timeline_event.kind, '#7c3aed'))
+                painter.fillRect(QRectF(x - tick_width / 2, stack_top + (offset * 5), tick_width, 4), color)
+
+        current_x = self._frame_to_x(self._current_frame, rect)
+        painter.setPen(QPen(QColor('#111827'), 2))
+        painter.drawLine(current_x, rect.top(), current_x, rect.bottom())
+
+    def _frame_to_x(self, frame_index: int, rect: QRectF) -> float:
+        usable_width = max(1.0, rect.width() - 8.0)
+        ratio = max(0.0, min(1.0, frame_index / max(1, self._frame_count - 1)))
+        return rect.left() + 4.0 + (usable_width * ratio)
+
+
 class VehiclePlaybackView(QWidget):
     playback_frame_changed = Signal(int)
+    contribution_view_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -37,6 +113,11 @@ class VehiclePlaybackView(QWidget):
         self._raw_heatmap_cells: list[HeatmapCell] = []
         self._raw_glyphs: list[VehicleGlyph] = []
         self._raw_trails: list[list[tuple[float, float]]] = []
+        self._selected_vehicle_id: str | None = None
+        self._current_frame_index: int | None = None
+        self._current_frame_vehicle_lookup: dict[str, object] = {}
+        self._selected_vehicle_receiver_contributions: dict[str, float] = {}
+        self._timeline_events_by_frame: dict[int, list[PlaybackTimelineEvent]] = {}
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._advance_frame)
         self._build_ui()
@@ -68,6 +149,9 @@ class VehiclePlaybackView(QWidget):
         controls.addWidget(self.speed_selector)
         layout.addLayout(controls)
 
+        self.timeline_strip = TimelineMarkerStrip()
+        layout.addWidget(self.timeline_strip)
+
         self.slider = QSlider(Qt.Horizontal)
         self.slider.setEnabled(False)
         self.slider.valueChanged.connect(self._on_slider_changed)
@@ -77,6 +161,7 @@ class VehiclePlaybackView(QWidget):
         layout.addWidget(splitter, 1)
 
         self.canvas = SceneCanvas()
+        self.canvas.vehicle_selected.connect(self._on_vehicle_selected)
         splitter.addWidget(self.canvas)
 
         right_panel = QWidget()
@@ -131,6 +216,9 @@ class VehiclePlaybackView(QWidget):
 
         self.heatmap_opacity_label = QLabel('70%')
         heatmap_form.addRow('Opacity Label', self.heatmap_opacity_label)
+        self.selected_vehicle_contribution_check = QCheckBox('Selected vehicle contribution only')
+        self.selected_vehicle_contribution_check.toggled.connect(self._on_contribution_mode_changed)
+        heatmap_form.addRow('Contribution', self.selected_vehicle_contribution_check)
         right_layout.addWidget(heatmap_group)
 
         self.info_box = QTextEdit()
@@ -152,6 +240,20 @@ class VehiclePlaybackView(QWidget):
 
     def _on_opacity_changed(self, value: int) -> None:
         self.heatmap_opacity_label.setText(f'{value}%')
+
+    def _on_contribution_mode_changed(self, checked: bool) -> None:
+        self.contribution_view_changed.emit()
+        self._refresh_info(current_frame=self._current_frame_index)
+
+    def is_selected_vehicle_contribution_only(self) -> bool:
+        return self.selected_vehicle_contribution_check.isChecked()
+
+    def selected_vehicle_id(self) -> str | None:
+        return self._selected_vehicle_id
+
+    def set_selected_vehicle_receiver_contributions(self, contributions: dict[str, float]) -> None:
+        self._selected_vehicle_receiver_contributions = dict(contributions)
+        self._refresh_info(current_frame=self._current_frame_index)
 
     def _update_manual_range_enabled(self, checked: bool) -> None:
         self.heatmap_min_spin.setEnabled(not checked)
@@ -184,6 +286,14 @@ class VehiclePlaybackView(QWidget):
         self.play_button.setText('Play')
         self._raw_glyphs = []
         self._raw_trails = []
+        self._selected_vehicle_id = None
+        self._current_frame_index = None
+        self._current_frame_vehicle_lookup = {}
+        self._selected_vehicle_receiver_contributions = {}
+        self._timeline_events_by_frame = {}
+        self.timeline_strip.set_events_by_frame({})
+        self.timeline_strip.set_frame_count(0)
+        self.timeline_strip.set_current_frame(0)
         if dataset is None or dataset.frame_count == 0:
             self.slider.setEnabled(False)
             self.slider.setRange(0, 0)
@@ -192,6 +302,10 @@ class VehiclePlaybackView(QWidget):
             self._apply_display_state()
             self._refresh_info()
             return
+        self._timeline_events_by_frame = self._build_timeline_events(dataset)
+        self.timeline_strip.set_frame_count(dataset.frame_count)
+        self.timeline_strip.set_events_by_frame(self._timeline_events_by_frame)
+
         self.slider.blockSignals(True)
         self.slider.setEnabled(True)
         self.slider.setRange(0, dataset.frame_count - 1)
@@ -262,6 +376,7 @@ class VehiclePlaybackView(QWidget):
                     y=vehicle.y,
                     heading_deg=heading_deg,
                     speed_mps=vehicle.speed_mps,
+                    vehicle_type=vehicle.vehicle_type,
                 )
             )
             trail = []
@@ -275,6 +390,12 @@ class VehiclePlaybackView(QWidget):
 
         self._raw_glyphs = glyphs
         self._raw_trails = trails
+        self._current_frame_index = frame.time_index
+        self._current_frame_vehicle_lookup = {vehicle.vehicle_id: vehicle for vehicle in frame.vehicles}
+        self.timeline_strip.set_current_frame(frame_index)
+        if self._selected_vehicle_id is not None and self._selected_vehicle_id not in self._current_frame_vehicle_lookup:
+            # Keep the selection pinned even when the vehicle is off-frame.
+            pass
         self._apply_display_state()
         self.frame_label.setText(f'Frame: {frame.time_index} ({frame.sim_time_seconds:.1f}s)')
         self.vehicle_label.setText(f'Vehicles: {len(frame.vehicles)}')
@@ -295,9 +416,153 @@ class VehiclePlaybackView(QWidget):
             receiver_layer=self.snapshot.receiver_layer if self.receivers_check.isChecked() else PointLayer(name=self.snapshot.receiver_layer.name),
         )
 
+    def _on_vehicle_selected(self, vehicle_id: str) -> None:
+        self._selected_vehicle_id = vehicle_id or None
+        if self._selected_vehicle_id is None:
+            self._selected_vehicle_receiver_contributions = {}
+        self._apply_display_state()
+        self._refresh_info(current_frame=self._current_frame_index)
+        self.contribution_view_changed.emit()
+
+    def _selected_vehicle_lines(self) -> list[str]:
+        contribution_mode = 'on' if self.is_selected_vehicle_contribution_only() else 'off'
+        if self._selected_vehicle_id is None:
+            return [
+                '- Selected vehicle: none',
+                f'- Contribution-only heatmap: {contribution_mode}',
+            ]
+        vehicle = self._current_frame_vehicle_lookup.get(self._selected_vehicle_id)
+        if vehicle is None:
+            return [
+                f'- Selected vehicle: {self._selected_vehicle_id}',
+                '- Status: not present in current frame',
+                f'- Contribution-only heatmap: {contribution_mode}',
+            ]
+        lines = [
+            f'- Selected vehicle: {vehicle.vehicle_id}',
+            f'- Type: {vehicle.vehicle_type}',
+            f'- Speed: {vehicle.speed_mps * 3.6:.1f} km/h',
+            f'- Position: ({vehicle.x:.1f}, {vehicle.y:.1f})',
+            f'- Frame: {self._current_frame_index}',
+            f'- Contribution-only heatmap: {contribution_mode}',
+        ]
+        if self._selected_vehicle_receiver_contributions:
+            top_items = sorted(self._selected_vehicle_receiver_contributions.items(), key=lambda item: item[1], reverse=True)[:3]
+            lines.append('- Receiver contributions:')
+            for receiver_id, value_db in top_items:
+                lines.append(f'  {receiver_id}: {value_db:.1f} dB')
+        return lines
+
+
+    def _build_timeline_events(self, dataset: PlaybackDataset) -> dict[int, list[PlaybackTimelineEvent]]:
+        events_by_frame: dict[int, list[PlaybackTimelineEvent]] = {}
+        for frame_index, frame in enumerate(dataset.frames):
+            frame_events: list[PlaybackTimelineEvent] = []
+            current_lookup = {vehicle.vehicle_id: vehicle for vehicle in frame.vehicles}
+            previous_lookup = {}
+            next_lookup = {}
+            if frame_index > 0:
+                previous_lookup = {vehicle.vehicle_id: vehicle for vehicle in dataset.frames[frame_index - 1].vehicles}
+            if frame_index + 1 < dataset.frame_count:
+                next_lookup = {vehicle.vehicle_id: vehicle for vehicle in dataset.frames[frame_index + 1].vehicles}
+
+            if previous_lookup:
+                entered = sorted(current_lookup.keys() - previous_lookup.keys())
+                exited = sorted(previous_lookup.keys() - current_lookup.keys())
+                if entered:
+                    frame_events.append(PlaybackTimelineEvent('enter', self._event_label('Enter', entered), tuple(entered[:3])))
+                if exited:
+                    frame_events.append(PlaybackTimelineEvent('exit', self._event_label('Exit', exited), tuple(exited[:3])))
+
+                speed_shift_ids: list[tuple[float, str]] = []
+                for vehicle_id in current_lookup.keys() & previous_lookup.keys():
+                    delta_kmh = abs(current_lookup[vehicle_id].speed_mps - previous_lookup[vehicle_id].speed_mps) * 3.6
+                    if delta_kmh >= 10.0:
+                        speed_shift_ids.append((delta_kmh, vehicle_id))
+                if speed_shift_ids:
+                    speed_shift_ids.sort(reverse=True)
+                    speed_ids = [vehicle_id for _, vehicle_id in speed_shift_ids]
+                    frame_events.append(
+                        PlaybackTimelineEvent(
+                            'speed_shift',
+                            f"Speed shift x{len(speed_shift_ids)} (max {speed_shift_ids[0][0]:.1f} km/h)",
+                            tuple(speed_ids[:3]),
+                        )
+                    )
+
+            if previous_lookup and next_lookup:
+                heading_shift_ids: list[tuple[float, str]] = []
+                common_ids = current_lookup.keys() & previous_lookup.keys() & next_lookup.keys()
+                for vehicle_id in common_ids:
+                    before_heading = self._heading_between(previous_lookup[vehicle_id], current_lookup[vehicle_id])
+                    after_heading = self._heading_between(current_lookup[vehicle_id], next_lookup[vehicle_id])
+                    if before_heading is None or after_heading is None:
+                        continue
+                    delta_heading = abs(self._wrapped_angle_diff(after_heading, before_heading))
+                    if delta_heading >= 18.0:
+                        heading_shift_ids.append((delta_heading, vehicle_id))
+                if heading_shift_ids:
+                    heading_shift_ids.sort(reverse=True)
+                    heading_ids = [vehicle_id for _, vehicle_id in heading_shift_ids]
+                    frame_events.append(
+                        PlaybackTimelineEvent(
+                            'heading_shift',
+                            f"Heading shift x{len(heading_shift_ids)} (max {heading_shift_ids[0][0]:.0f} deg)",
+                            tuple(heading_ids[:3]),
+                        )
+                    )
+
+            if frame_events:
+                events_by_frame[frame_index] = frame_events
+        return events_by_frame
+
+    def _event_label(self, prefix: str, vehicle_ids: list[str]) -> str:
+        sample = ', '.join(vehicle_ids[:3])
+        suffix = f' [{sample}]' if sample else ''
+        if len(vehicle_ids) > 3:
+            suffix += ' +'
+        return f'{prefix} x{len(vehicle_ids)}{suffix}'
+
+    def _heading_between(self, first, second) -> float | None:
+        dx = second.x - first.x
+        dy = second.y - first.y
+        if abs(dx) < 1e-6 and abs(dy) < 1e-6:
+            return None
+        return degrees(atan2(dy, dx))
+
+    def _wrapped_angle_diff(self, angle_a: float, angle_b: float) -> float:
+        diff = angle_a - angle_b
+        while diff > 180.0:
+            diff -= 360.0
+        while diff < -180.0:
+            diff += 360.0
+        return diff
+
+    def _timeline_event_lines(self, current_frame: int | None) -> list[str]:
+        if self.dataset is None:
+            return ['- Timeline events unavailable']
+        total_events = sum(len(events) for events in self._timeline_events_by_frame.values())
+        if total_events == 0:
+            return ['- No timeline events detected']
+        frame_index = current_frame if current_frame is not None else self.slider.value()
+        lines = [f'- Event frames: {len(self._timeline_events_by_frame)}', f'- Event count: {total_events}']
+        current_events = self._timeline_events_by_frame.get(frame_index, [])
+        if current_events:
+            lines.append('- Current frame events:')
+            for event in current_events:
+                lines.append(f'  {event.label}')
+        upcoming_frames = [index for index in sorted(self._timeline_events_by_frame) if index > frame_index][:3]
+        if upcoming_frames:
+            lines.append('- Upcoming events:')
+            for upcoming_index in upcoming_frames:
+                joined = '; '.join(event.label for event in self._timeline_events_by_frame[upcoming_index][:2])
+                lines.append(f'  @{upcoming_index}: {joined}')
+        return lines
+
     def _apply_display_state(self, *args) -> None:  # noqa: ARG002
         self.canvas.set_snapshot(self._filtered_snapshot())
         self.canvas.set_vehicle_points(self._raw_glyphs if self.vehicles_check.isChecked() else [], trails=self._raw_trails if self.trails_check.isChecked() else [])
+        self.canvas.set_selected_vehicle(self._selected_vehicle_id if self.vehicles_check.isChecked() else None)
         self.canvas.set_heatmap_cells(self._raw_heatmap_cells if self.heatmap_check.isChecked() else [])
         self.canvas.set_heatmap_settings(
             auto_range=self.heatmap_auto_range_check.isChecked(),
@@ -322,6 +587,7 @@ class VehiclePlaybackView(QWidget):
                     '- Right panel: layer toggles + heatmap controls',
                 ]
             )
+        lines.extend(['', 'Timeline Events', *self._timeline_event_lines(current_frame), '', 'Selected Vehicle', *self._selected_vehicle_lines()])
         if self.snapshot is not None:
             lines.extend(
                 [

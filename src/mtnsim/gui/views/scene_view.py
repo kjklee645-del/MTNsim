@@ -26,11 +26,13 @@ class VehicleGlyph:
     y: float
     heading_deg: float = 0.0
     speed_mps: float = 0.0
+    vehicle_type: str = 'default'
     body_color: str = '#f59e0b'
 
 
 class SceneCanvas(QWidget):
     hover_text_changed = Signal(str)
+    vehicle_selected = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -38,6 +40,7 @@ class SceneCanvas(QWidget):
         self.vehicle_glyphs: list[VehicleGlyph] = []
         self.vehicle_trails: list[list[tuple[float, float]]] = []
         self.heatmap_cells: list[HeatmapCell] = []
+        self.selected_vehicle_id: str | None = None
         self._heatmap_auto_range = True
         self._heatmap_min_db = 40.0
         self._heatmap_max_db = 80.0
@@ -57,6 +60,10 @@ class SceneCanvas(QWidget):
     def set_vehicle_points(self, vehicle_points: list[VehicleGlyph], trails: list[list[tuple[float, float]]] | None = None) -> None:
         self.vehicle_glyphs = vehicle_points
         self.vehicle_trails = trails or []
+        self.update()
+
+    def set_selected_vehicle(self, vehicle_id: str | None) -> None:
+        self.selected_vehicle_id = vehicle_id or None
         self.update()
 
     def set_heatmap_cells(self, cells: list[HeatmapCell]) -> None:
@@ -114,9 +121,19 @@ class SceneCanvas(QWidget):
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
-            self._dragging = True
-            self._last_mouse_pos = event.position()
-            self.setCursor(Qt.ClosedHandCursor)
+            selected_vehicle = self._find_vehicle_at_position(event.position())
+            if selected_vehicle is not None:
+                self.selected_vehicle_id = selected_vehicle.vehicle_id
+                self.vehicle_selected.emit(selected_vehicle.vehicle_id)
+                self.update()
+            else:
+                if self.selected_vehicle_id is not None:
+                    self.selected_vehicle_id = None
+                    self.vehicle_selected.emit('')
+                    self.update()
+                self._dragging = True
+                self._last_mouse_pos = event.position()
+                self.setCursor(Qt.ClosedHandCursor)
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802
@@ -237,6 +254,21 @@ class SceneCanvas(QWidget):
         proj = QPointF(start.x() + (t * dx), start.y() + (t * dy))
         return hypot(point.x() - proj.x(), point.y() - proj.y())
 
+
+    def _find_vehicle_at_position(self, local_pos: QPointF) -> VehicleGlyph | None:
+        if self.snapshot is None or not self.vehicle_glyphs:
+            return None
+        plot_rect, _, map_point = self._mapping_context()
+        nearest: VehicleGlyph | None = None
+        nearest_distance = 1e9
+        for glyph in self.vehicle_glyphs:
+            pos = self._transform_screen_point(map_point((glyph.x, glyph.y)), plot_rect)
+            distance = hypot(local_pos.x() - pos.x(), local_pos.y() - pos.y())
+            if distance < nearest_distance and distance <= 18:
+                nearest = glyph
+                nearest_distance = distance
+        return nearest
+
     def _speed_color(self, speed_mps: float) -> QColor:
         speed_kmh = max(0.0, speed_mps * 3.6)
         ratio = max(0.0, min(1.0, speed_kmh / 120.0))
@@ -281,7 +313,7 @@ class SceneCanvas(QWidget):
             distance = hypot(local_pos.x() - pos.x(), local_pos.y() - pos.y())
             if distance < nearest_distance and distance <= 18:
                 nearest_distance = distance
-                nearest_text = f'Vehicle {glyph.vehicle_id} | {glyph.speed_mps * 3.6:.1f} km/h | heading={glyph.heading_deg:.0f} deg'
+                nearest_text = f'Vehicle {glyph.vehicle_id} | type={glyph.vehicle_type} | {glyph.speed_mps * 3.6:.1f} km/h | heading={glyph.heading_deg:.0f} deg'
 
         for label, x, y in self.snapshot.receiver_layer.points:
             pos = self._transform_screen_point(map_point((x, y)), plot_rect)
@@ -339,6 +371,8 @@ class SceneCanvas(QWidget):
             else:
                 overlay_lines.append(f'Heatmap fixed {self._heatmap_min_db:.1f} to {self._heatmap_max_db:.1f} dB')
             overlay_lines.append(f'Heatmap opacity {int(round(self._heatmap_opacity / 255 * 100))}%')
+        if self.selected_vehicle_id:
+            overlay_lines.append(f'Selected vehicle {self.selected_vehicle_id}')
         if self._hover_text:
             overlay_lines.append(self._hover_text)
         text = '\n'.join(overlay_lines)
@@ -454,10 +488,18 @@ class SceneCanvas(QWidget):
     def _draw_vehicle_trails(self, painter: QPainter, trails: list[list[tuple[float, float]]], mapper) -> None:
         if not trails:
             return
-        painter.setPen(QPen(QColor(245, 158, 11, 130), 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         for trail in trails:
             if len(trail) < 2:
                 continue
+            selected = False
+            if self.selected_vehicle_id is not None:
+                for glyph in self.vehicle_glyphs:
+                    if glyph.vehicle_id == self.selected_vehicle_id and any(abs(glyph.x - x) < 1e-6 and abs(glyph.y - y) < 1e-6 for x, y in trail):
+                        selected = True
+                        break
+            color = QColor(245, 158, 11, 220 if selected else 90)
+            width = 3 if selected else 2
+            painter.setPen(QPen(color, width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
             for idx in range(len(trail) - 1):
                 x1, y1 = mapper(trail[idx])
                 x2, y2 = mapper(trail[idx + 1])
@@ -479,13 +521,20 @@ class SceneCanvas(QWidget):
             return
         body_length = max(12.0, 4.5 * pixels_per_meter)
         body_width = max(7.0, 2.0 * pixels_per_meter)
+        selected_exists = self.selected_vehicle_id is not None
         for glyph in glyphs:
             px, py = mapper((glyph.x, glyph.y))
             painter.save()
             painter.translate(px, py)
             painter.rotate(-glyph.heading_deg)
-            painter.setPen(QPen(QColor('#5b3414'), 1))
-            painter.setBrush(QBrush(self._speed_color(glyph.speed_mps)))
+            is_selected = glyph.vehicle_id == self.selected_vehicle_id
+            alpha = 255 if (not selected_exists or is_selected) else 95
+            outline = QColor('#0f172a' if is_selected else '#5b3414')
+            outline.setAlpha(alpha)
+            fill = self._speed_color(glyph.speed_mps)
+            fill.setAlpha(alpha)
+            painter.setPen(QPen(outline, 2 if is_selected else 1))
+            painter.setBrush(QBrush(fill))
             body = QPainterPath()
             body.moveTo(body_length * 0.55, 0)
             body.lineTo(body_length * 0.15, -body_width * 0.65)
@@ -494,7 +543,12 @@ class SceneCanvas(QWidget):
             body.lineTo(body_length * 0.15, body_width * 0.65)
             body.closeSubpath()
             painter.drawPath(body)
-            painter.setBrush(QBrush(QColor('#1f2937')))
+            if is_selected:
+                painter.setPen(QPen(QColor('#f8fafc'), 2))
+                painter.drawPath(body)
+            wheel_color = QColor('#1f2937')
+            wheel_color.setAlpha(alpha)
+            painter.setBrush(QBrush(wheel_color))
             wheel_radius = max(1.5, body_width * 0.14)
             for wheel_x, wheel_y in [(-body_length * 0.25, -body_width * 0.55), (-body_length * 0.25, body_width * 0.55), (body_length * 0.15, -body_width * 0.55), (body_length * 0.15, body_width * 0.55)]:
                 painter.drawEllipse(QPointF(wheel_x, wheel_y), wheel_radius, wheel_radius)
