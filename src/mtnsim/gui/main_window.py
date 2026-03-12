@@ -35,6 +35,7 @@ class MainWindow(QMainWindow):
         self.run_worker = None
         self.current_result_summary = None
         self.current_result_summary_path: Path | None = None
+        self.dynamic_heatmap_context = None
         self._build_ui()
         self._connect_signals()
         if manifest_path is not None:
@@ -131,6 +132,7 @@ class MainWindow(QMainWindow):
         self.run_monitor_view.back_requested.connect(self.show_project_home)
         self.result_viewer_view.recent_result_selected.connect(self.load_result_summary)
         self.result_viewer_view.receiver_selected.connect(self.load_receiver_series)
+        self.vehicle_playback_view.playback_frame_changed.connect(self._sync_heatmap_to_playback_frame)
         self.navigation_list.currentRowChanged.connect(self._handle_navigation_change)
 
     def open_project_dialog(self) -> None:
@@ -234,6 +236,8 @@ class MainWindow(QMainWindow):
             first_receiver = sorted(summary.receiver_history_files.keys())[0]
             self.result_viewer_view.receiver_selector.setCurrentText(first_receiver)
             self.load_receiver_series(first_receiver)
+        self._prepare_dynamic_heatmap_context(summary)
+        self._load_heatmap_from_result_summary(summary)
         self._load_playback_from_result_summary(summary)
         self.result_viewer_action.setEnabled(True)
         self.show_result_viewer()
@@ -377,11 +381,63 @@ class MainWindow(QMainWindow):
         if project_state.project is None or project_state.selected_scenario is None:
             self.scene_view.set_snapshot(None)
             self.vehicle_playback_view.set_snapshot(None)
+            self.dynamic_heatmap_context = None
             return
         snapshot = self.scene_controller.build_snapshot(project_state.project, project_state.selected_scenario)
         self.scene_view.set_snapshot(snapshot)
         self.vehicle_playback_view.set_snapshot(snapshot)
+        if self.current_result_summary is not None:
+            self._load_heatmap_from_result_summary(self.current_result_summary)
         self._append_log('[info] Updated scene view from selected scenario')
+
+
+    def _prepare_dynamic_heatmap_context(self, summary) -> None:
+        project_state = self.session_state.project_state
+        if project_state.project is None:
+            self.dynamic_heatmap_context = None
+            return
+        scenario = self._resolve_scenario_for_summary(summary)
+        if scenario is None:
+            self.dynamic_heatmap_context = None
+            return
+        self.dynamic_heatmap_context = self.result_controller.build_dynamic_heatmap_context(project_state.project, scenario, summary)
+
+    def _resolve_scenario_for_summary(self, summary):
+        project_state = self.session_state.project_state
+        selected = project_state.selected_scenario
+        if selected is not None and selected.scenario.name == summary.run.scenario:
+            return selected
+        for scenario_path in project_state.scenario_paths:
+            try:
+                candidate = self.project_controller.load_scenario(scenario_path)
+            except Exception:
+                continue
+            if candidate.scenario.name == summary.run.scenario or scenario_path.stem == summary.run.scenario:
+                project_state.selected_scenario_path = Path(scenario_path)
+                project_state.selected_scenario = candidate
+                self._render_scenario_details(Path(scenario_path), candidate)
+                snapshot = self.scene_controller.build_snapshot(project_state.project, candidate)
+                self.scene_view.set_snapshot(snapshot)
+                self.vehicle_playback_view.set_snapshot(snapshot)
+                return candidate
+        return selected
+
+    def _load_heatmap_from_result_summary(self, summary) -> None:
+        cells = self.result_controller.load_heatmap_cells(getattr(summary, 'final_grid_snapshot_file', None))
+        self.scene_view.canvas.set_heatmap_cells(cells)
+        self.vehicle_playback_view.set_heatmap_cells(cells)
+        if cells:
+            self._append_log(f'[info] Loaded heatmap overlay with {len(cells)} cells')
+
+    def _sync_heatmap_to_playback_frame(self, frame_index: int) -> None:
+        dataset = self.vehicle_playback_view.dataset
+        if dataset is None or self.dynamic_heatmap_context is None:
+            return
+        if frame_index < 0 or frame_index >= dataset.frame_count:
+            return
+        cells = self.result_controller.compute_dynamic_heatmap(self.dynamic_heatmap_context, dataset.frames[frame_index])
+        self.scene_view.canvas.set_heatmap_cells(cells)
+        self.vehicle_playback_view.set_heatmap_cells(cells)
 
     def _load_playback_from_result_summary(self, summary) -> None:
         trace_file = getattr(summary, 'vehicle_trace_file', None)
@@ -398,6 +454,8 @@ class MainWindow(QMainWindow):
             return
         self.vehicle_playback_view.set_dataset(dataset)
         self.playback_action.setEnabled(dataset.frame_count > 0)
+        if dataset.frame_count > 0:
+            self._sync_heatmap_to_playback_frame(self.vehicle_playback_view.slider.value())
         self._append_log(f'[info] Loaded vehicle playback trace: {trace_file}')
 
     def _append_log(self, line: str) -> None:

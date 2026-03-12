@@ -256,6 +256,7 @@ Build next:
 - record vehicle traces during GUI-triggered runs [done]
 - load a playback view on top of the 2D scene canvas [done]
 - add a time slider and play/pause controls [done]
+- add playback layer toggles and heatmap range/opacity controls [done]
 
 Goal:
 - a user can inspect vehicle movement without leaving the GUI

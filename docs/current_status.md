@@ -187,6 +187,7 @@ What it does now:
 - records vehicle trajectories during GUI-triggered runs
 - loads a vehicle playback view with a time slider, play/pause controls, and scene-overlayed vehicle positions
 - supports zoom, pan, and hover inspection on scene and playback canvases
+- renders a minimap inset, speed-colored playback vehicles, short vehicle tail trails, playback-synchronized grid heatmap overlays, and playback-side layer/heatmap controls in the GUI
 
 ## 3. Validated Scenarios and Checks
 

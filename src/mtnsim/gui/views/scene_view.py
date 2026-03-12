@@ -1,13 +1,15 @@
 ﻿from __future__ import annotations
 
-from dataclasses import dataclass
-from math import atan2, degrees, hypot
+from dataclasses import dataclass, field
+from math import hypot
+from typing import Iterable
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QBrush, QLinearGradient, QPainter, QPainterPath, QPen, QPolygonF
 from PySide6.QtWidgets import QLabel, QSplitter, QTextEdit, QToolTip, QVBoxLayout, QWidget
 
 from mtnsim.gui.controllers.scene_controller import SceneSnapshot
+from mtnsim.gui.controllers.result_controller import HeatmapCell
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +25,7 @@ class VehicleGlyph:
     x: float
     y: float
     heading_deg: float = 0.0
+    speed_mps: float = 0.0
     body_color: str = '#f59e0b'
 
 
@@ -33,6 +36,12 @@ class SceneCanvas(QWidget):
         super().__init__(parent)
         self.snapshot: SceneSnapshot | None = None
         self.vehicle_glyphs: list[VehicleGlyph] = []
+        self.vehicle_trails: list[list[tuple[float, float]]] = []
+        self.heatmap_cells: list[HeatmapCell] = []
+        self._heatmap_auto_range = True
+        self._heatmap_min_db = 40.0
+        self._heatmap_max_db = 80.0
+        self._heatmap_opacity = 96
         self._zoom = 1.0
         self._pan = QPointF(0.0, 0.0)
         self._dragging = False
@@ -45,8 +54,31 @@ class SceneCanvas(QWidget):
         self.snapshot = snapshot
         self.reset_view()
 
-    def set_vehicle_points(self, vehicle_points: list[VehicleGlyph]) -> None:
+    def set_vehicle_points(self, vehicle_points: list[VehicleGlyph], trails: list[list[tuple[float, float]]] | None = None) -> None:
         self.vehicle_glyphs = vehicle_points
+        self.vehicle_trails = trails or []
+        self.update()
+
+    def set_heatmap_cells(self, cells: list[HeatmapCell]) -> None:
+        self.heatmap_cells = cells
+        self.update()
+
+    def set_heatmap_settings(
+        self,
+        *,
+        auto_range: bool | None = None,
+        min_db: float | None = None,
+        max_db: float | None = None,
+        opacity: int | None = None,
+    ) -> None:
+        if auto_range is not None:
+            self._heatmap_auto_range = auto_range
+        if min_db is not None:
+            self._heatmap_min_db = float(min_db)
+        if max_db is not None:
+            self._heatmap_max_db = float(max(max_db, self._heatmap_min_db + 0.1))
+        if opacity is not None:
+            self._heatmap_opacity = int(max(0, min(255, opacity)))
         self.update()
 
     def reset_view(self) -> None:
@@ -139,20 +171,22 @@ class SceneCanvas(QWidget):
 
         painter.setPen(QPen(QColor('#d8cfc2'), 1))
         painter.drawRect(plot_rect)
-
         self._draw_grid(painter, plot_rect)
         self._draw_polygons(painter, self.snapshot.ground_layer.polygons, map_point, LayerStyle('#7aa65a', 1, '#cfdf9f'))
         self._draw_polygons(painter, self.snapshot.vegetation_layer.polygons, map_point, LayerStyle('#2f6b3d', 1, '#9bd18b'))
         self._draw_polygons(painter, self.snapshot.junction_layer.polygons, map_point, LayerStyle('#4b5563', 1, '#505864'))
+        self._draw_heatmap(painter, map_point, pixels_per_meter)
         self._draw_road_bands(painter, self.snapshot.road_layer.polylines, self.snapshot.road_layer.widths, map_point, pixels_per_meter)
         self._draw_polygons(painter, self.snapshot.building_layer.polygons, map_point, LayerStyle('#315a9f', 2, '#b9ccef'))
         self._draw_polylines(painter, self.snapshot.barrier_layer.polylines, map_point, LayerStyle('#cb4335', 4))
         self._draw_polylines(painter, self.snapshot.terrain_layer.polylines, map_point, LayerStyle('#7c4a21', 3))
+        self._draw_vehicle_trails(painter, self.vehicle_trails, map_point)
         self._draw_receivers(painter, self.snapshot.receiver_layer.points, map_point)
         self._draw_vehicle_glyphs(painter, self.vehicle_glyphs, map_point, pixels_per_meter)
         painter.restore()
 
         self._draw_overlay(painter)
+        self._draw_minimap(painter)
 
     def _plot_rect(self) -> QRectF:
         margin = 28
@@ -182,6 +216,17 @@ class SceneCanvas(QWidget):
             center.y() + ((base.y() - center.y()) * self._zoom) + self._pan.y(),
         )
 
+    def _screen_to_world(self, screen: QPointF, plot_rect: QRectF) -> tuple[float, float]:
+        min_x, min_y, max_x, max_y = self.snapshot.bounds
+        span_x = max(max_x - min_x, 1.0)
+        span_y = max(max_y - min_y, 1.0)
+        center = QPointF(plot_rect.center())
+        base_x = center.x() + ((screen.x() - center.x() - self._pan.x()) / self._zoom)
+        base_y = center.y() + ((screen.y() - center.y() - self._pan.y()) / self._zoom)
+        x_ratio = (base_x - plot_rect.left()) / plot_rect.width()
+        y_ratio = (plot_rect.bottom() - base_y) / plot_rect.height()
+        return (min_x + (span_x * x_ratio), min_y + (span_y * y_ratio))
+
     def _distance_to_segment(self, point: QPointF, start: QPointF, end: QPointF) -> float:
         dx = end.x() - start.x()
         dy = end.y() - start.y()
@@ -191,6 +236,37 @@ class SceneCanvas(QWidget):
         t = max(0.0, min(1.0, t))
         proj = QPointF(start.x() + (t * dx), start.y() + (t * dy))
         return hypot(point.x() - proj.x(), point.y() - proj.y())
+
+    def _speed_color(self, speed_mps: float) -> QColor:
+        speed_kmh = max(0.0, speed_mps * 3.6)
+        ratio = max(0.0, min(1.0, speed_kmh / 120.0))
+        if ratio < 0.5:
+            t = ratio / 0.5
+            r = int(39 + (245 - 39) * t)
+            g = int(174 + (158 - 174) * t)
+            b = int(96 + (11 - 96) * t)
+        else:
+            t = (ratio - 0.5) / 0.5
+            r = int(245 + (220 - 245) * t)
+            g = int(158 + (38 - 158) * t)
+            b = int(11 + (38 - 11) * t)
+        return QColor(r, g, b)
+
+    def _heatmap_color(self, value: float, min_value: float, max_value: float) -> QColor:
+        if max_value <= min_value:
+            return QColor(59, 130, 246, self._heatmap_opacity)
+        ratio = max(0.0, min(1.0, (value - min_value) / (max_value - min_value)))
+        if ratio < 0.5:
+            t = ratio / 0.5
+            r = int(37 + (234 - 37) * t)
+            g = int(99 + (179 - 99) * t)
+            b = int(235 + (8 - 235) * t)
+        else:
+            t = (ratio - 0.5) / 0.5
+            r = int(234 + (220 - 234) * t)
+            g = int(179 + (38 - 179) * t)
+            b = int(8 + (38 - 8) * t)
+        return QColor(r, g, b, self._heatmap_opacity)
 
     def _find_hover_info(self, local_pos: QPointF) -> str:
         if self.snapshot is None:
@@ -205,7 +281,7 @@ class SceneCanvas(QWidget):
             distance = hypot(local_pos.x() - pos.x(), local_pos.y() - pos.y())
             if distance < nearest_distance and distance <= 18:
                 nearest_distance = distance
-                nearest_text = f'Vehicle {glyph.vehicle_id} | x={glyph.x:.1f}, y={glyph.y:.1f}, heading={glyph.heading_deg:.0f} deg'
+                nearest_text = f'Vehicle {glyph.vehicle_id} | {glyph.speed_mps * 3.6:.1f} km/h | heading={glyph.heading_deg:.0f} deg'
 
         for label, x, y in self.snapshot.receiver_layer.points:
             pos = self._transform_screen_point(map_point((x, y)), plot_rect)
@@ -213,6 +289,13 @@ class SceneCanvas(QWidget):
             if distance < nearest_distance and distance <= 14:
                 nearest_distance = distance
                 nearest_text = f'Receiver {label} | x={x:.1f}, y={y:.1f}'
+
+        for cell in self.heatmap_cells:
+            pos = self._transform_screen_point(map_point((cell.x, cell.y)), plot_rect)
+            distance = hypot(local_pos.x() - pos.x(), local_pos.y() - pos.y())
+            if distance < nearest_distance and distance <= max(10.0, 3.0 * self._zoom):
+                nearest_distance = distance
+                nearest_text = f'Grid cell | x={cell.x:.1f}, y={cell.y:.1f} | {cell.value_db:.1f} dB'
 
         for index, (polyline, width_m) in enumerate(zip(self.snapshot.road_layer.polylines, self.snapshot.road_layer.widths), start=1):
             for seg_index in range(len(polyline) - 1):
@@ -249,15 +332,66 @@ class SceneCanvas(QWidget):
             'Drag: pan',
             'Double-click: reset',
         ]
+        if self.heatmap_cells:
+            values = [cell.value_db for cell in self.heatmap_cells]
+            if self._heatmap_auto_range:
+                overlay_lines.append(f'Heatmap auto {min(values):.1f} to {max(values):.1f} dB')
+            else:
+                overlay_lines.append(f'Heatmap fixed {self._heatmap_min_db:.1f} to {self._heatmap_max_db:.1f} dB')
+            overlay_lines.append(f'Heatmap opacity {int(round(self._heatmap_opacity / 255 * 100))}%')
         if self._hover_text:
             overlay_lines.append(self._hover_text)
         text = '\n'.join(overlay_lines)
-        box = QRectF(16, 16, min(self.width() * 0.48, 420), 86 if not self._hover_text else 112)
+        box = QRectF(16, 16, min(self.width() * 0.5, 450), 96 if not self._hover_text else 124)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(255, 255, 255, 195))
+        painter.setBrush(QColor(255, 255, 255, 200))
         painter.drawRoundedRect(box, 8, 8)
         painter.setPen(QPen(QColor('#1f2937'), 1))
         painter.drawText(box.adjusted(10, 8, -10, -8), Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap, text)
+
+    def _draw_minimap(self, painter: QPainter) -> None:
+        if self.snapshot is None:
+            return
+        box = QRectF(self.width() - 196, self.height() - 156, 180, 140)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(255, 255, 255, 205))
+        painter.drawRoundedRect(box, 8, 8)
+        painter.setPen(QPen(QColor('#475569'), 1))
+        painter.drawText(box.adjusted(8, 6, -8, -8), Qt.AlignTop | Qt.AlignLeft, 'Minimap')
+
+        inner = box.adjusted(10, 24, -10, -10)
+        min_x, min_y, max_x, max_y = self.snapshot.bounds
+        span_x = max(max_x - min_x, 1.0)
+        span_y = max(max_y - min_y, 1.0)
+
+        def mini_map(point: tuple[float, float]) -> QPointF:
+            x_ratio = (point[0] - min_x) / span_x
+            y_ratio = (point[1] - min_y) / span_y
+            return QPointF(inner.left() + (inner.width() * x_ratio), inner.bottom() - (inner.height() * y_ratio))
+
+        painter.setPen(QPen(QColor('#cbd5e1'), 1))
+        painter.drawRect(inner)
+        painter.setPen(QPen(QColor('#4b5563'), 2))
+        for polyline in self.snapshot.road_layer.polylines:
+            for idx in range(len(polyline) - 1):
+                p1 = mini_map(polyline[idx])
+                p2 = mini_map(polyline[idx + 1])
+                painter.drawLine(p1, p2)
+        painter.setPen(QPen(QColor('#0f172a'), 1))
+        painter.setBrush(QBrush(QColor('#0f172a')))
+        for _, x, y in self.snapshot.receiver_layer.points:
+            pos = mini_map((x, y))
+            painter.drawEllipse(pos, 1.8, 1.8)
+
+        plot_rect = self._plot_rect()
+        top_left_world = self._screen_to_world(plot_rect.topLeft(), plot_rect)
+        top_right_world = self._screen_to_world(plot_rect.topRight(), plot_rect)
+        bottom_right_world = self._screen_to_world(plot_rect.bottomRight(), plot_rect)
+        bottom_left_world = self._screen_to_world(plot_rect.bottomLeft(), plot_rect)
+        viewport = QPolygonF([mini_map(top_left_world), mini_map(top_right_world), mini_map(bottom_right_world), mini_map(bottom_left_world)])
+        painter.setPen(QPen(QColor('#dc2626'), 2))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawPolygon(viewport)
 
     def _draw_grid(self, painter: QPainter, plot_rect: QRectF) -> None:
         painter.setPen(QPen(QColor('#e7ddcf'), 1, Qt.DotLine))
@@ -284,6 +418,23 @@ class SceneCanvas(QWidget):
             qpolygon = QPolygonF([QPointF(*mapper(point)) for point in polygon])
             painter.drawPolygon(qpolygon)
 
+    def _draw_heatmap(self, painter: QPainter, mapper, pixels_per_meter: float) -> None:
+        if not self.heatmap_cells:
+            return
+        if self._heatmap_auto_range:
+            values = [cell.value_db for cell in self.heatmap_cells]
+            min_value = min(values)
+            max_value = max(values)
+        else:
+            min_value = self._heatmap_min_db
+            max_value = self._heatmap_max_db
+        radius = max(2.5, 2.2 * pixels_per_meter)
+        painter.setPen(Qt.NoPen)
+        for cell in self.heatmap_cells:
+            px, py = mapper((cell.x, cell.y))
+            painter.setBrush(QBrush(self._heatmap_color(cell.value_db, min_value, max_value)))
+            painter.drawEllipse(QPointF(px, py), radius, radius)
+
     def _draw_road_bands(self, painter: QPainter, polylines, widths, mapper, pixels_per_meter: float) -> None:
         for polyline, width_m in zip(polylines, widths or [3.5] * len(polylines)):
             lane_px = max(8.0, width_m * pixels_per_meter * 1.15)
@@ -299,6 +450,18 @@ class SceneCanvas(QWidget):
             painter.drawPath(path)
             painter.setPen(QPen(QColor('#e9ecef'), max(1.0, lane_px * 0.10), Qt.DashLine, Qt.RoundCap, Qt.RoundJoin))
             painter.drawPath(path)
+
+    def _draw_vehicle_trails(self, painter: QPainter, trails: list[list[tuple[float, float]]], mapper) -> None:
+        if not trails:
+            return
+        painter.setPen(QPen(QColor(245, 158, 11, 130), 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        for trail in trails:
+            if len(trail) < 2:
+                continue
+            for idx in range(len(trail) - 1):
+                x1, y1 = mapper(trail[idx])
+                x2, y2 = mapper(trail[idx + 1])
+                painter.drawLine(int(x1), int(y1), int(x2), int(y2))
 
     def _draw_receivers(self, painter: QPainter, points, mapper) -> None:
         for label, x, y in points:
@@ -322,7 +485,7 @@ class SceneCanvas(QWidget):
             painter.translate(px, py)
             painter.rotate(-glyph.heading_deg)
             painter.setPen(QPen(QColor('#5b3414'), 1))
-            painter.setBrush(QBrush(QColor(glyph.body_color)))
+            painter.setBrush(QBrush(self._speed_color(glyph.speed_mps)))
             body = QPainterPath()
             body.moveTo(body_length * 0.55, 0)
             body.lineTo(body_length * 0.15, -body_width * 0.65)
@@ -382,6 +545,7 @@ class SceneView(QWidget):
             '- Ground surfaces',
             '- Vegetation zones',
             '- Receivers',
+            '- Heatmap overlay (if loaded)',
             '',
             'Counts',
             f'- Road lanes: {len(snapshot.road_layer.polylines)}',
@@ -397,6 +561,7 @@ class SceneView(QWidget):
             '- Wheel: zoom',
             '- Drag: pan',
             '- Double-click: reset',
+            '- Hover: lane / receiver / vehicle / grid cell info',
             '',
             'Bounds',
             f'- min_x: {min_x:.1f}',
