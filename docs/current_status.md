@@ -187,7 +187,7 @@ What it does now:
 - records vehicle trajectories during GUI-triggered runs
 - loads a vehicle playback view with a time slider, play/pause controls, and scene-overlayed vehicle positions
 - supports zoom, pan, and hover inspection on scene and playback canvases
-- renders a minimap inset, speed-colored playback vehicles, short vehicle tail trails, playback-synchronized grid heatmap overlays, playback-side layer/heatmap controls, and receiver-linked playback cursors in the GUI, nearby-frame heatmap prefetch for smoother playback, click-to-select vehicle detail inspection, selected-vehicle-only contribution heatmaps and receiver contribution summaries, and timeline event markers for enter/exit, speed-shift, and heading-shift moments
+- renders a minimap inset, speed-colored playback vehicles, short vehicle tail trails, playback-synchronized grid heatmap overlays, playback-side layer/heatmap controls, receiver-linked playback cursors in the GUI, nearby-frame heatmap prefetch for smoother playback, click-to-select vehicle detail inspection, selected-vehicle-only contribution heatmaps and receiver contribution summaries, timeline event markers for enter/exit, speed-shift, and heading-shift moments, camera follow mode for selected vehicles, and playback export from the GUI as PNG sequence, animated GIF, or MP4 video
 
 ## 3. Validated Scenarios and Checks
 
@@ -247,7 +247,7 @@ These values are prototype-level engineering checks, not yet validated against m
 
 ## 5. Recommended Next Order
 
-1. extend the GUI with camera follow and export-oriented playback controls before moving into scenario comparison flow
+1. return to scenario comparison flow now that playback export is in place
 2. keep deeper validation, calibration, scene-physics, and GPU work tracked as deferred backlog while GUI MVP is under construction
 3. resume field-validation and scene-physics hardening after the GUI prototype is usable enough for feedback
 4. keep GPU follow-up selective and demand-driven unless hybrid GPU becomes a proven bottleneck

@@ -104,6 +104,9 @@ class TimelineMarkerStrip(QWidget):
 class VehiclePlaybackView(QWidget):
     playback_frame_changed = Signal(int)
     contribution_view_changed = Signal()
+    export_png_sequence_requested = Signal()
+    export_gif_requested = Signal()
+    export_mp4_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -118,6 +121,7 @@ class VehiclePlaybackView(QWidget):
         self._current_frame_vehicle_lookup: dict[str, object] = {}
         self._selected_vehicle_receiver_contributions: dict[str, float] = {}
         self._timeline_events_by_frame: dict[int, list[PlaybackTimelineEvent]] = {}
+        self._follow_selected_vehicle = False
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._advance_frame)
         self._build_ui()
@@ -147,6 +151,21 @@ class VehiclePlaybackView(QWidget):
         controls.addStretch(1)
         controls.addWidget(QLabel('Speed'))
         controls.addWidget(self.speed_selector)
+        self.follow_vehicle_check = QCheckBox('Follow selected')
+        self.follow_vehicle_check.toggled.connect(self._on_follow_mode_changed)
+        controls.addWidget(self.follow_vehicle_check)
+        self.export_png_button = QPushButton('Export PNGs')
+        self.export_png_button.setEnabled(False)
+        self.export_png_button.clicked.connect(self.export_png_sequence_requested.emit)
+        controls.addWidget(self.export_png_button)
+        self.export_gif_button = QPushButton('Export GIF')
+        self.export_gif_button.setEnabled(False)
+        self.export_gif_button.clicked.connect(self.export_gif_requested.emit)
+        controls.addWidget(self.export_gif_button)
+        self.export_mp4_button = QPushButton('Export MP4')
+        self.export_mp4_button.setEnabled(False)
+        self.export_mp4_button.clicked.connect(self.export_mp4_requested.emit)
+        controls.addWidget(self.export_mp4_button)
         layout.addLayout(controls)
 
         self.timeline_strip = TimelineMarkerStrip()
@@ -241,6 +260,12 @@ class VehiclePlaybackView(QWidget):
     def _on_opacity_changed(self, value: int) -> None:
         self.heatmap_opacity_label.setText(f'{value}%')
 
+    def _on_follow_mode_changed(self, checked: bool) -> None:
+        self._follow_selected_vehicle = checked
+        if checked:
+            self._focus_selected_vehicle()
+        self._refresh_info(current_frame=self._current_frame_index)
+
     def _on_contribution_mode_changed(self, checked: bool) -> None:
         self.contribution_view_changed.emit()
         self._refresh_info(current_frame=self._current_frame_index)
@@ -295,6 +320,9 @@ class VehiclePlaybackView(QWidget):
         self.timeline_strip.set_frame_count(0)
         self.timeline_strip.set_current_frame(0)
         if dataset is None or dataset.frame_count == 0:
+            self.export_png_button.setEnabled(False)
+            self.export_gif_button.setEnabled(False)
+            self.export_mp4_button.setEnabled(False)
             self.slider.setEnabled(False)
             self.slider.setRange(0, 0)
             self.frame_label.setText('Frame: -')
@@ -302,6 +330,9 @@ class VehiclePlaybackView(QWidget):
             self._apply_display_state()
             self._refresh_info()
             return
+        self.export_png_button.setEnabled(True)
+        self.export_gif_button.setEnabled(True)
+        self.export_mp4_button.setEnabled(True)
         self._timeline_events_by_frame = self._build_timeline_events(dataset)
         self.timeline_strip.set_frame_count(dataset.frame_count)
         self.timeline_strip.set_events_by_frame(self._timeline_events_by_frame)
@@ -313,6 +344,15 @@ class VehiclePlaybackView(QWidget):
         self.slider.blockSignals(False)
         self._render_frame(0)
         self._refresh_info()
+
+    def current_frame_index(self) -> int | None:
+        return self._current_frame_index
+
+    def set_frame_index(self, frame_index: int) -> None:
+        if self.dataset is None:
+            return
+        clamped = max(0, min(frame_index, self.slider.maximum()))
+        self.slider.setValue(clamped)
 
     def toggle_playback(self) -> None:
         if self.dataset is None or self.dataset.frame_count == 0:
@@ -393,6 +433,7 @@ class VehiclePlaybackView(QWidget):
         self._current_frame_index = frame.time_index
         self._current_frame_vehicle_lookup = {vehicle.vehicle_id: vehicle for vehicle in frame.vehicles}
         self.timeline_strip.set_current_frame(frame_index)
+        self._focus_selected_vehicle()
         if self._selected_vehicle_id is not None and self._selected_vehicle_id not in self._current_frame_vehicle_lookup:
             # Keep the selection pinned even when the vehicle is off-frame.
             pass
@@ -421,15 +462,27 @@ class VehiclePlaybackView(QWidget):
         if self._selected_vehicle_id is None:
             self._selected_vehicle_receiver_contributions = {}
         self._apply_display_state()
+        self._focus_selected_vehicle()
         self._refresh_info(current_frame=self._current_frame_index)
         self.contribution_view_changed.emit()
 
+
+    def _focus_selected_vehicle(self) -> None:
+        if not self._follow_selected_vehicle or self._selected_vehicle_id is None:
+            return
+        vehicle = self._current_frame_vehicle_lookup.get(self._selected_vehicle_id)
+        if vehicle is None:
+            return
+        self.canvas.center_on_world_point((vehicle.x, vehicle.y))
+
     def _selected_vehicle_lines(self) -> list[str]:
         contribution_mode = 'on' if self.is_selected_vehicle_contribution_only() else 'off'
+        follow_mode = 'on' if self._follow_selected_vehicle else 'off'
         if self._selected_vehicle_id is None:
             return [
                 '- Selected vehicle: none',
                 f'- Contribution-only heatmap: {contribution_mode}',
+                f'- Camera follow: {follow_mode}',
             ]
         vehicle = self._current_frame_vehicle_lookup.get(self._selected_vehicle_id)
         if vehicle is None:
@@ -437,6 +490,7 @@ class VehiclePlaybackView(QWidget):
                 f'- Selected vehicle: {self._selected_vehicle_id}',
                 '- Status: not present in current frame',
                 f'- Contribution-only heatmap: {contribution_mode}',
+                f'- Camera follow: {follow_mode}',
             ]
         lines = [
             f'- Selected vehicle: {vehicle.vehicle_id}',
@@ -445,6 +499,7 @@ class VehiclePlaybackView(QWidget):
             f'- Position: ({vehicle.x:.1f}, {vehicle.y:.1f})',
             f'- Frame: {self._current_frame_index}',
             f'- Contribution-only heatmap: {contribution_mode}',
+            f'- Camera follow: {follow_mode}',
         ]
         if self._selected_vehicle_receiver_contributions:
             top_items = sorted(self._selected_vehicle_receiver_contributions.items(), key=lambda item: item[1], reverse=True)[:3]
@@ -583,6 +638,7 @@ class VehiclePlaybackView(QWidget):
                     f'- Max vehicles/frame: {self.dataset.max_vehicle_count}',
                     f'- Current frame: {current_frame if current_frame is not None else self.slider.value()}',
                     '- Tail length: 12 frames',
+                    f"- Camera follow: {'on' if self._follow_selected_vehicle else 'off'}",
                     '- Vehicle color: speed colormap',
                     '- Right panel: layer toggles + heatmap controls',
                 ]

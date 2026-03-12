@@ -54,6 +54,19 @@ class SceneCanvas(QWidget):
         self.setMouseTracking(True)
 
     def set_snapshot(self, snapshot: SceneSnapshot | None) -> None:
+        if snapshot is None:
+            if self.snapshot is None:
+                self.update()
+                return
+            self.snapshot = None
+            self.reset_view()
+            return
+
+        if self.snapshot is not None and snapshot.bounds == self.snapshot.bounds:
+            self.snapshot = snapshot
+            self.update()
+            return
+
         self.snapshot = snapshot
         self.reset_view()
 
@@ -92,6 +105,18 @@ class SceneCanvas(QWidget):
         self._zoom = 1.0
         self._pan = QPointF(0.0, 0.0)
         self._hover_text = ''
+        self.update()
+
+    def center_on_world_point(self, world_point: tuple[float, float]) -> None:
+        if self.snapshot is None:
+            return
+        plot_rect, _, map_point = self._mapping_context()
+        center = QPointF(plot_rect.center())
+        base_x, base_y = map_point(world_point)
+        self._pan = QPointF(
+            -((base_x - center.x()) * self._zoom),
+            -((base_y - center.y()) * self._zoom),
+        )
         self.update()
 
     def wheelEvent(self, event) -> None:  # noqa: N802

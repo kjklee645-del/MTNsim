@@ -16,11 +16,11 @@
 - [x] Receiver-linked playback cursor and frame marker
 - [x] Vehicle selection and pinned vehicle detail panel
 - [x] Event markers on timeline for enter/exit, speed-shift, and heading-shift moments
-- [ ] Camera follow mode for selected vehicle
+- [x] Camera follow mode for selected vehicle
 - [ ] Playback bookmark / keyframe jump buttons
 - [ ] Loop playback for selected time range
 - [x] Background prefetch for future heatmap frames
-- [ ] Export playback as PNG sequence / GIF / video
+- [x] Export playback as PNG sequence / GIF / video
 - [ ] Side-by-side playback comparison between scenarios
 - [x] Vehicle-specific contribution heatmap mode
 - [ ] Playback performance benchmark panel
@@ -29,4 +29,4 @@
 1. Heatmap control panel + layer toggles
 2. Timeline event markers
 3. Camera follow mode
-4. Export / comparison workflows
+4. Scenario comparison and comparison-oriented playback workflows

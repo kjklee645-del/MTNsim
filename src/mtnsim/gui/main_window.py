@@ -1,8 +1,12 @@
 ﻿from __future__ import annotations
 
 from pathlib import Path
+from io import BytesIO
 
-from PySide6.QtCore import Qt, QThread, QTimer
+import imageio.v2 as imageio
+from PIL import Image
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt, QThread, QTimer
+from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import (
     QFileDialog,
     QListWidget,
@@ -138,6 +142,9 @@ class MainWindow(QMainWindow):
         self.result_viewer_view.receiver_selected.connect(self.load_receiver_series)
         self.vehicle_playback_view.playback_frame_changed.connect(self._sync_heatmap_to_playback_frame)
         self.vehicle_playback_view.contribution_view_changed.connect(self._refresh_playback_contribution_view)
+        self.vehicle_playback_view.export_png_sequence_requested.connect(self.export_playback_png_sequence)
+        self.vehicle_playback_view.export_gif_requested.connect(self.export_playback_gif)
+        self.vehicle_playback_view.export_mp4_requested.connect(self.export_playback_mp4)
         self.navigation_list.currentRowChanged.connect(self._handle_navigation_change)
 
     def open_project_dialog(self) -> None:
@@ -539,6 +546,209 @@ class MainWindow(QMainWindow):
         else:
             self.result_viewer_view.set_playback_cursor(None)
         self._append_log(f'[info] Loaded vehicle playback trace: {trace_file}')
+
+    def export_playback_png_sequence(self) -> None:
+        dataset = self.vehicle_playback_view.dataset
+        if dataset is None or dataset.frame_count == 0:
+            QMessageBox.information(self, 'Playback Export', 'Load a playback result before exporting frames.')
+            return
+
+        default_root = dataset.trace_file.parent / 'playback_png_sequence'
+        output_dir = QFileDialog.getExistingDirectory(
+            self,
+            'Select Playback PNG Export Folder',
+            str(default_root),
+        )
+        if not output_dir:
+            return
+
+        output_path = self._export_playback_png_sequence_to(Path(output_dir))
+        QMessageBox.information(self, 'Playback Export Complete', 'PNG sequence saved to:\n' + str(output_path))
+
+    def export_playback_gif(self) -> None:
+        dataset = self.vehicle_playback_view.dataset
+        if dataset is None or dataset.frame_count == 0:
+            QMessageBox.information(self, 'Playback Export', 'Load a playback result before exporting a GIF.')
+            return
+
+        default_path = dataset.trace_file.parent / 'playback.gif'
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            'Save Playback GIF',
+            str(default_path),
+            'GIF Files (*.gif)',
+        )
+        if not file_path:
+            return
+
+        output_path = self._export_playback_gif_to(Path(file_path))
+        QMessageBox.information(self, 'Playback Export Complete', 'Animated GIF saved to:\n' + str(output_path))
+
+    def export_playback_mp4(self) -> None:
+        dataset = self.vehicle_playback_view.dataset
+        if dataset is None or dataset.frame_count == 0:
+            QMessageBox.information(self, 'Playback Export', 'Load a playback result before exporting an MP4.')
+            return
+
+        default_path = dataset.trace_file.parent / 'playback.mp4'
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            'Save Playback MP4',
+            str(default_path),
+            'MP4 Files (*.mp4)',
+        )
+        if not file_path:
+            return
+
+        output_path = self._export_playback_mp4_to(Path(file_path))
+        QMessageBox.information(self, 'Playback Export Complete', 'MP4 video saved to:\n' + str(output_path))
+
+    def _export_playback_png_sequence_to(self, output_path: Path) -> Path:
+        dataset = self.vehicle_playback_view.dataset
+        if dataset is None or dataset.frame_count == 0:
+            raise RuntimeError('Playback dataset is not loaded.')
+
+        output_path.mkdir(parents=True, exist_ok=True)
+        was_playing = self.vehicle_playback_view._timer.isActive()
+        if was_playing:
+            self.vehicle_playback_view.toggle_playback()
+        original_frame = self.vehicle_playback_view.slider.value()
+
+        self.statusBar().showMessage('Exporting playback PNG sequence...')
+        self._append_log(f'[info] Exporting playback PNG sequence to {output_path}')
+
+        try:
+            for frame_index in range(dataset.frame_count):
+                self.vehicle_playback_view.set_frame_index(frame_index)
+                QApplication.processEvents()
+                image = self.vehicle_playback_view.canvas.grab().toImage()
+                frame = dataset.frames[frame_index]
+                filename = output_path / f'frame_{frame_index:04d}_t{frame.time_index:04d}.png'
+                image.save(str(filename), 'PNG')
+                if frame_index == 0 or (frame_index + 1) % 50 == 0 or frame_index == dataset.frame_count - 1:
+                    self.statusBar().showMessage(f'Exporting playback PNG sequence... {frame_index + 1}/{dataset.frame_count}')
+                    self._append_log(f'[export] Saved frame {frame_index + 1}/{dataset.frame_count}')
+        finally:
+            self.vehicle_playback_view.set_frame_index(original_frame)
+            QApplication.processEvents()
+            if was_playing:
+                self.vehicle_playback_view.toggle_playback()
+
+        self._append_log(f'[info] Playback PNG export completed: {output_path}')
+        self.statusBar().showMessage(f'Playback PNG export completed: {output_path}')
+        return output_path
+
+    def _export_playback_gif_to(self, output_path: Path) -> Path:
+        dataset = self.vehicle_playback_view.dataset
+        if dataset is None or dataset.frame_count == 0:
+            raise RuntimeError('Playback dataset is not loaded.')
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        was_playing = self.vehicle_playback_view._timer.isActive()
+        if was_playing:
+            self.vehicle_playback_view.toggle_playback()
+        original_frame = self.vehicle_playback_view.slider.value()
+        gif_frames: list[Image.Image] = []
+
+        self.statusBar().showMessage('Exporting playback GIF...')
+        self._append_log(f'[info] Exporting playback GIF to {output_path}')
+
+        try:
+            for frame_index in range(dataset.frame_count):
+                self.vehicle_playback_view.set_frame_index(frame_index)
+                QApplication.processEvents()
+                qimage = self.vehicle_playback_view.canvas.grab().toImage()
+                gif_frames.append(self._qimage_to_pil(qimage))
+                if frame_index == 0 or (frame_index + 1) % 50 == 0 or frame_index == dataset.frame_count - 1:
+                    self.statusBar().showMessage(f'Exporting playback GIF... {frame_index + 1}/{dataset.frame_count}')
+                    self._append_log(f'[export] Prepared GIF frame {frame_index + 1}/{dataset.frame_count}')
+        finally:
+            self.vehicle_playback_view.set_frame_index(original_frame)
+            QApplication.processEvents()
+            if was_playing:
+                self.vehicle_playback_view.toggle_playback()
+
+        if not gif_frames:
+            raise RuntimeError('No GIF frames were captured.')
+
+        frame_duration_ms = self._playback_frame_duration_ms(dataset)
+        gif_frames[0].save(
+            output_path,
+            save_all=True,
+            append_images=gif_frames[1:],
+            duration=frame_duration_ms,
+            loop=0,
+            optimize=False,
+            disposal=2,
+        )
+        self._append_log(f'[info] Playback GIF export completed: {output_path}')
+        self.statusBar().showMessage(f'Playback GIF export completed: {output_path}')
+        return output_path
+
+    def _export_playback_mp4_to(self, output_path: Path) -> Path:
+        dataset = self.vehicle_playback_view.dataset
+        if dataset is None or dataset.frame_count == 0:
+            raise RuntimeError('Playback dataset is not loaded.')
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        was_playing = self.vehicle_playback_view._timer.isActive()
+        if was_playing:
+            self.vehicle_playback_view.toggle_playback()
+        original_frame = self.vehicle_playback_view.slider.value()
+        fps = self._playback_fps(dataset)
+
+        self.statusBar().showMessage('Exporting playback MP4...')
+        self._append_log(f'[info] Exporting playback MP4 to {output_path}')
+
+        writer = imageio.get_writer(str(output_path), fps=fps, codec='libx264', format='FFMPEG', quality=7, pixelformat='yuv420p')
+        try:
+            for frame_index in range(dataset.frame_count):
+                self.vehicle_playback_view.set_frame_index(frame_index)
+                QApplication.processEvents()
+                qimage = self.vehicle_playback_view.canvas.grab().toImage()
+                pil_image = self._qimage_to_pil(qimage).convert('RGB')
+                writer.append_data(self._pil_to_ndarray_rgb(pil_image))
+                if frame_index == 0 or (frame_index + 1) % 50 == 0 or frame_index == dataset.frame_count - 1:
+                    self.statusBar().showMessage(f'Exporting playback MP4... {frame_index + 1}/{dataset.frame_count}')
+                    self._append_log(f'[export] Prepared MP4 frame {frame_index + 1}/{dataset.frame_count}')
+        finally:
+            writer.close()
+            self.vehicle_playback_view.set_frame_index(original_frame)
+            QApplication.processEvents()
+            if was_playing:
+                self.vehicle_playback_view.toggle_playback()
+
+        self._append_log(f'[info] Playback MP4 export completed: {output_path}')
+        self.statusBar().showMessage(f'Playback MP4 export completed: {output_path}')
+        return output_path
+
+    def _qimage_to_pil(self, qimage) -> Image.Image:
+        byte_array = QByteArray()
+        buffer = QBuffer(byte_array)
+        buffer.open(QIODevice.WriteOnly)
+        qimage.save(buffer, 'PNG')
+        buffer.close()
+        return Image.open(BytesIO(bytes(byte_array))).convert('RGBA')
+
+    def _pil_to_ndarray_rgb(self, image: Image.Image):
+        import numpy as np
+        return np.asarray(image, dtype=np.uint8)
+
+    def _playback_fps(self, dataset) -> int:
+        duration_ms = self._playback_frame_duration_ms(dataset)
+        return max(1, int(round(1000.0 / max(1, duration_ms))))
+
+    def _playback_frame_duration_ms(self, dataset) -> int:
+        if dataset.frame_count <= 1:
+            return 120
+        deltas = []
+        for index in range(1, min(dataset.frame_count, 20)):
+            delta = dataset.frames[index].sim_time_seconds - dataset.frames[index - 1].sim_time_seconds
+            if delta > 0:
+                deltas.append(delta)
+        if not deltas:
+            return 120
+        return max(40, int(round((sum(deltas) / len(deltas)) * 1000.0)))
 
     def _append_log(self, line: str) -> None:
         self.session_state.recent_log_lines.append(line)
