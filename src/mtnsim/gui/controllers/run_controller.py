@@ -64,6 +64,79 @@ class RunWorker(QObject):
         self.progress_changed.emit(percent, label)
 
 
+class CompareRunWorker(QObject):
+    progress_changed = Signal(int, str)
+    completed = Signal(dict)
+    failed = Signal(str)
+
+    def __init__(
+        self,
+        manifest_path: str | Path,
+        scenario_a_path: str | Path,
+        scenario_b_path: str | Path,
+        use_gpu: bool = True,
+        project_api: ProjectAPI | None = None,
+        simulation_api: SimulationAPI | None = None,
+    ) -> None:
+        super().__init__()
+        self.manifest_path = Path(manifest_path)
+        self.scenario_a_path = Path(scenario_a_path)
+        self.scenario_b_path = Path(scenario_b_path)
+        self.use_gpu = use_gpu
+        self.project_api = project_api or ProjectAPI()
+        self.simulation_api = simulation_api or SimulationAPI()
+
+    def run(self) -> None:
+        try:
+            project = self.project_api.load_manifest(self.manifest_path)
+            scenario_a = self.project_api.load_scenario(self.scenario_a_path)
+            scenario_b = self.project_api.load_scenario(self.scenario_b_path)
+            self.progress_changed.emit(2, 'Loading comparison scenarios')
+
+            artifacts_a = self.simulation_api.run(
+                project,
+                scenario_a,
+                use_gpu=self.use_gpu,
+                progress_callback=self._emit_progress_a,
+                record_vehicle_trace=False,
+            )
+            artifacts_b = self.simulation_api.run(
+                project,
+                scenario_b,
+                use_gpu=self.use_gpu,
+                progress_callback=self._emit_progress_b,
+                record_vehicle_trace=False,
+            )
+            comparison = self.simulation_api.compare_run_results(artifacts_a.result_summary, artifacts_b.result_summary)
+            self.completed.emit(
+                {
+                    'artifacts_a': {
+                        'run_id': artifacts_a.run_id,
+                        'result_summary_file': str(artifacts_a.result_summary_file),
+                    },
+                    'artifacts_b': {
+                        'run_id': artifacts_b.run_id,
+                        'result_summary_file': str(artifacts_b.result_summary_file),
+                    },
+                    'comparison': comparison,
+                }
+            )
+        except Exception as exc:  # pragma: no cover
+            self.failed.emit(str(exc))
+
+    def _emit_progress_a(self, progress: dict) -> None:
+        percent = int(progress.get('percent', 0))
+        label = str(progress.get('message', 'Running scenario A'))
+        mapped = min(49, max(0, percent // 2))
+        self.progress_changed.emit(mapped, f'Scenario A: {label}')
+
+    def _emit_progress_b(self, progress: dict) -> None:
+        percent = int(progress.get('percent', 0))
+        label = str(progress.get('message', 'Running scenario B'))
+        mapped = 50 + min(49, max(0, percent // 2))
+        self.progress_changed.emit(mapped, f'Scenario B: {label}')
+
+
 class RunController:
     def __init__(self, project_api: ProjectAPI | None = None, simulation_api: SimulationAPI | None = None) -> None:
         self.project_api = project_api or ProjectAPI()
@@ -81,6 +154,22 @@ class RunController:
             scenario_path=scenario_path,
             use_gpu=use_gpu,
             record_vehicle_trace=record_vehicle_trace,
+            project_api=self.project_api,
+            simulation_api=self.simulation_api,
+        )
+
+    def create_compare_worker(
+        self,
+        manifest_path: str | Path,
+        scenario_a_path: str | Path,
+        scenario_b_path: str | Path,
+        use_gpu: bool = True,
+    ) -> CompareRunWorker:
+        return CompareRunWorker(
+            manifest_path=manifest_path,
+            scenario_a_path=scenario_a_path,
+            scenario_b_path=scenario_b_path,
+            use_gpu=use_gpu,
             project_api=self.project_api,
             simulation_api=self.simulation_api,
         )

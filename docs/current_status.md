@@ -185,6 +185,7 @@ What it does now:
 - renders receiver summary statistics in a table
 - renders receiver time-series in a built-in line chart
 - records vehicle trajectories during GUI-triggered runs
+- compares two scenarios in a dedicated GUI view with configuration-diff summary, run-result comparison, receiver delta tables, and receiver overlay charts
 - loads a vehicle playback view with a time slider, play/pause controls, and scene-overlayed vehicle positions
 - supports zoom, pan, and hover inspection on scene and playback canvases
 - renders a minimap inset, speed-colored playback vehicles, short vehicle tail trails, playback-synchronized grid heatmap overlays, playback-side layer/heatmap controls, receiver-linked playback cursors in the GUI, nearby-frame heatmap prefetch for smoother playback, click-to-select vehicle detail inspection, selected-vehicle-only contribution heatmaps and receiver contribution summaries, timeline event markers for enter/exit, speed-shift, and heading-shift moments, camera follow mode for selected vehicles, and playback export from the GUI as PNG sequence, animated GIF, or MP4 video
@@ -240,14 +241,14 @@ These values are prototype-level engineering checks, not yet validated against m
 
 ### 4.3 Product Limitations
 
-- GUI can browse scenarios, inspect a 2D scene view, run scenarios, inspect results, and replay recorded vehicle motion, but scenario comparison and campaign validation are not yet wired into the desktop UI
+- GUI can browse scenarios, inspect a 2D scene view, run scenarios, inspect results, replay recorded vehicle motion, and compare two scenarios through config diff and run-result comparison; campaign validation is not yet wired into the desktop UI
 - no final report generator yet
 - campaign import standardization exists, but full production-grade GIS/CAD ingestion is still not implemented
 - AI-agent structures exist only as an architectural baseline, not as a working user-facing capability
 
 ## 5. Recommended Next Order
 
-1. return to scenario comparison flow now that playback export is in place
+1. add campaign-validation UI on top of the existing validation and reporting services
 2. keep deeper validation, calibration, scene-physics, and GPU work tracked as deferred backlog while GUI MVP is under construction
 3. resume field-validation and scene-physics hardening after the GUI prototype is usable enough for feedback
 4. keep GPU follow-up selective and demand-driven unless hybrid GPU becomes a proven bottleneck

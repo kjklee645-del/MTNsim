@@ -261,15 +261,16 @@ Build next:
 Goal:
 - a user can inspect vehicle movement without leaving the GUI
 
-### Phase 4: Scenario Comparison
+### Phase 4: Scenario Comparison [done]
 
-Build next:
+Implemented:
 - select two scenarios
 - show config diff
 - run compare flow
 - display receiver delta summary
+- display receiver overlay chart
 
-Goal:
+Goal achieved:
 - a user can compare changes without touching CLI
 
 ### Phase 5: Campaign Validation Panel
@@ -310,7 +311,7 @@ Goal:
 4. implement run worker and run monitor
 5. implement result summary table + receiver chart
 6. add vehicle playback panel [done]
-7. add comparison panel
+7. add comparison panel [done]
 8. add campaign validation panel
 9. add limited scenario editor only after read-only flows are stable
 

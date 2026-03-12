@@ -21,15 +21,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from mtnsim.gui.controllers import PlaybackController, ProjectController, ResultController, RunController, SceneController
+from mtnsim.gui.controllers import CompareController, PlaybackController, ProjectController, ResultController, RunController, SceneController
 from mtnsim.gui.state import GuiRunState, GuiSessionState
-from mtnsim.gui.views import ProjectHomeView, ResultViewerView, RunMonitorView, SceneView, VehiclePlaybackView
+from mtnsim.gui.views import ProjectHomeView, ResultViewerView, RunMonitorView, ScenarioComparisonView, SceneView, VehiclePlaybackView
 
 
 class MainWindow(QMainWindow):
     def __init__(self, manifest_path: str | Path | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.project_controller = ProjectController()
+        self.compare_controller = CompareController()
         self.run_controller = RunController()
         self.result_controller = ResultController()
         self.scene_controller = SceneController()
@@ -37,6 +38,11 @@ class MainWindow(QMainWindow):
         self.session_state = GuiSessionState()
         self.run_thread: QThread | None = None
         self.run_worker = None
+        self.compare_thread: QThread | None = None
+        self.compare_worker = None
+        self.current_compare_payload: dict | None = None
+        self.current_compare_result_a = None
+        self.current_compare_result_b = None
         self.current_result_summary = None
         self.current_result_summary_path: Path | None = None
         self.dynamic_heatmap_context = None
@@ -60,12 +66,14 @@ class MainWindow(QMainWindow):
 
         self.project_home_view = ProjectHomeView()
         self.scene_view = SceneView()
+        self.scenario_comparison_view = ScenarioComparisonView()
         self.run_monitor_view = RunMonitorView()
         self.result_viewer_view = ResultViewerView()
         self.vehicle_playback_view = VehiclePlaybackView()
         self.central_stack = QStackedWidget()
         self.central_stack.addWidget(self.project_home_view)
         self.central_stack.addWidget(self.scene_view)
+        self.central_stack.addWidget(self.scenario_comparison_view)
         self.central_stack.addWidget(self.run_monitor_view)
         self.central_stack.addWidget(self.result_viewer_view)
         self.central_stack.addWidget(self.vehicle_playback_view)
@@ -86,6 +94,9 @@ class MainWindow(QMainWindow):
         self.scene_view_action = toolbar.addAction('Scene View')
         self.scene_view_action.triggered.connect(self.show_scene_view)
         self.scene_view_action.setEnabled(False)
+        self.compare_view_action = toolbar.addAction('Compare')
+        self.compare_view_action.triggered.connect(self.show_scenario_comparison)
+        self.compare_view_action.setEnabled(False)
         self.run_monitor_action = toolbar.addAction('Run Monitor')
         self.run_monitor_action.triggered.connect(self.show_run_monitor)
         self.result_viewer_action = toolbar.addAction('Result Viewer')
@@ -100,6 +111,7 @@ class MainWindow(QMainWindow):
         self.navigation_list = QListWidget()
         self.navigation_list.addItem(QListWidgetItem('Project Home'))
         self.navigation_list.addItem(QListWidgetItem('Scene View'))
+        self.navigation_list.addItem(QListWidgetItem('Compare'))
         self.navigation_list.addItem(QListWidgetItem('Run Monitor'))
         self.navigation_list.addItem(QListWidgetItem('Result Viewer'))
         self.navigation_list.addItem(QListWidgetItem('Vehicle Playback'))
@@ -137,6 +149,9 @@ class MainWindow(QMainWindow):
         self.project_home_view.open_project_requested.connect(self.open_project_dialog)
         self.project_home_view.scenario_selected.connect(self.select_scenario)
         self.project_home_view.run_selected_requested.connect(self.run_selected_scenario)
+        self.scenario_comparison_view.compare_requested.connect(self.compare_selected_scenarios)
+        self.scenario_comparison_view.run_compare_requested.connect(self.run_compare_selected_scenarios)
+        self.scenario_comparison_view.receiver_selected.connect(self.load_comparison_receiver_series)
         self.run_monitor_view.back_requested.connect(self.show_project_home)
         self.result_viewer_view.recent_result_selected.connect(self.load_result_summary)
         self.result_viewer_view.receiver_selected.connect(self.load_receiver_series)
@@ -170,7 +185,11 @@ class MainWindow(QMainWindow):
         run_enabled = state.selected_scenario_path is not None
         self.run_selected_action.setEnabled(run_enabled)
         self.scene_view_action.setEnabled(run_enabled)
+        self.compare_view_action.setEnabled(len(state.scenario_paths) >= 2)
         self.project_home_view.set_run_enabled(run_enabled)
+        self.scenario_comparison_view.set_scenarios(state.scenario_paths, state.selected_scenario_path)
+        self.scenario_comparison_view.set_comparison(None)
+        self.scenario_comparison_view.set_run_comparison(None)
         self._append_log(f'[info] Loaded project manifest: {manifest_path}')
         if state.selected_scenario is not None:
             self._render_scenario_details(state.selected_scenario_path, state.selected_scenario)
@@ -192,7 +211,10 @@ class MainWindow(QMainWindow):
         self._update_scene_view()
         self.run_selected_action.setEnabled(True)
         self.scene_view_action.setEnabled(True)
+        self.compare_view_action.setEnabled(len(self.session_state.project_state.scenario_paths) >= 2)
         self.project_home_view.set_run_enabled(True)
+        self.scenario_comparison_view.set_scenarios(self.session_state.project_state.scenario_paths, self.session_state.project_state.selected_scenario_path)
+        self.scenario_comparison_view.set_run_comparison(None)
         self._append_log(f'[info] Selected scenario: {loaded.scenario.name}')
         self.statusBar().showMessage(f'Selected scenario: {loaded.scenario.name}')
 
@@ -278,22 +300,28 @@ class MainWindow(QMainWindow):
         self.navigation_list.setCurrentRow(1)
         self.navigation_list.blockSignals(False)
 
+    def show_scenario_comparison(self) -> None:
+        self.central_stack.setCurrentWidget(self.scenario_comparison_view)
+        self.navigation_list.blockSignals(True)
+        self.navigation_list.setCurrentRow(2)
+        self.navigation_list.blockSignals(False)
+
     def show_run_monitor(self) -> None:
         self.central_stack.setCurrentWidget(self.run_monitor_view)
         self.navigation_list.blockSignals(True)
-        self.navigation_list.setCurrentRow(2)
+        self.navigation_list.setCurrentRow(3)
         self.navigation_list.blockSignals(False)
 
     def show_result_viewer(self) -> None:
         self.central_stack.setCurrentWidget(self.result_viewer_view)
         self.navigation_list.blockSignals(True)
-        self.navigation_list.setCurrentRow(3)
+        self.navigation_list.setCurrentRow(4)
         self.navigation_list.blockSignals(False)
 
     def show_vehicle_playback(self) -> None:
         self.central_stack.setCurrentWidget(self.vehicle_playback_view)
         self.navigation_list.blockSignals(True)
-        self.navigation_list.setCurrentRow(4)
+        self.navigation_list.setCurrentRow(5)
         self.navigation_list.blockSignals(False)
 
     def _handle_navigation_change(self, row: int) -> None:
@@ -302,10 +330,12 @@ class MainWindow(QMainWindow):
         elif row == 1:
             self.central_stack.setCurrentWidget(self.scene_view)
         elif row == 2:
-            self.central_stack.setCurrentWidget(self.run_monitor_view)
+            self.central_stack.setCurrentWidget(self.scenario_comparison_view)
         elif row == 3:
-            self.central_stack.setCurrentWidget(self.result_viewer_view)
+            self.central_stack.setCurrentWidget(self.run_monitor_view)
         elif row == 4:
+            self.central_stack.setCurrentWidget(self.result_viewer_view)
+        elif row == 5:
             self.central_stack.setCurrentWidget(self.vehicle_playback_view)
 
     def _on_run_progress(self, percent: int, label: str) -> None:
@@ -368,6 +398,108 @@ class MainWindow(QMainWindow):
             self.run_worker.deleteLater()
         self.run_thread = None
         self.run_worker = None
+
+    def compare_selected_scenarios(self, scenario_path_a: str, scenario_path_b: str) -> None:
+        if scenario_path_a == scenario_path_b:
+            QMessageBox.information(self, 'Scenario Comparison', 'Select two different scenarios to compare.')
+            return
+        try:
+            comparison = self.compare_controller.load_and_compare(self.project_controller, scenario_path_a, scenario_path_b)
+        except Exception as exc:  # pragma: no cover
+            QMessageBox.critical(self, 'Scenario Comparison Failed', str(exc))
+            self._append_log(f'[error] Failed to compare scenarios: {exc}')
+            return
+        self.current_compare_payload = None
+        self.current_compare_result_a = None
+        self.current_compare_result_b = None
+        self.scenario_comparison_view.set_comparison(comparison)
+        self.scenario_comparison_view.set_status(f'Compared configs: {comparison.scenario_a} vs {comparison.scenario_b}')
+        self.scenario_comparison_view.set_run_comparison(None)
+        self._append_log(f'[info] Compared scenarios: {comparison.scenario_a} vs {comparison.scenario_b}')
+        self.statusBar().showMessage(f'Compared scenarios: {comparison.scenario_a} vs {comparison.scenario_b}')
+        self.show_scenario_comparison()
+
+    def run_compare_selected_scenarios(self, scenario_path_a: str, scenario_path_b: str, use_gpu: bool) -> None:
+        project_state = self.session_state.project_state
+        if project_state.manifest_path is None:
+            QMessageBox.information(self, 'Scenario Comparison', 'Load a project first.')
+            return
+        if scenario_path_a == scenario_path_b:
+            QMessageBox.information(self, 'Scenario Comparison', 'Select two different scenarios to compare.')
+            return
+        if (self.run_thread is not None and self.run_thread.isRunning()) or (self.compare_thread is not None and self.compare_thread.isRunning()):
+            QMessageBox.information(self, 'Comparison In Progress', 'Another simulation task is already running.')
+            return
+
+        self.scenario_comparison_view.set_status('Running scenario comparison...')
+        self._append_log(f'[info] Starting run comparison: {Path(scenario_path_a).stem} vs {Path(scenario_path_b).stem}')
+        self.statusBar().showMessage('Running scenario comparison...')
+
+        self.compare_thread = QThread(self)
+        self.compare_worker = self.run_controller.create_compare_worker(
+            project_state.manifest_path,
+            scenario_path_a,
+            scenario_path_b,
+            use_gpu=use_gpu,
+        )
+        self.compare_worker.moveToThread(self.compare_thread)
+        self.compare_thread.started.connect(self.compare_worker.run)
+        self.compare_worker.progress_changed.connect(self._on_compare_run_progress)
+        self.compare_worker.completed.connect(self._on_compare_run_completed)
+        self.compare_worker.failed.connect(self._on_compare_run_failed)
+        self.compare_worker.completed.connect(self.compare_thread.quit)
+        self.compare_worker.failed.connect(self.compare_thread.quit)
+        self.compare_thread.finished.connect(self._cleanup_compare_thread)
+        self.compare_thread.start()
+        self.show_scenario_comparison()
+
+    def _on_compare_run_progress(self, percent: int, label: str) -> None:
+        self.scenario_comparison_view.set_status(f'Run comparison {percent}% | {label}')
+        self.statusBar().showMessage(label)
+        self._append_log(f'[compare] {label}')
+
+    def _on_compare_run_completed(self, payload: dict) -> None:
+        self.current_compare_payload = payload
+        self.current_compare_result_a = self.result_controller.load_result_summary(payload['artifacts_a']['result_summary_file'])
+        self.current_compare_result_b = self.result_controller.load_result_summary(payload['artifacts_b']['result_summary_file'])
+        self.scenario_comparison_view.set_run_comparison(payload)
+        self.scenario_comparison_view.set_status('Run comparison completed')
+        if self.scenario_comparison_view.receiver_selector.count() > 0:
+            self.load_comparison_receiver_series(self.scenario_comparison_view.receiver_selector.currentText())
+        self._append_log('[info] Scenario run comparison completed')
+        self.statusBar().showMessage('Scenario run comparison completed')
+        self.show_scenario_comparison()
+
+    def _on_compare_run_failed(self, error_message: str) -> None:
+        self.scenario_comparison_view.set_status('Run comparison failed')
+        self._append_log(f'[error] {error_message}')
+        self.statusBar().showMessage('Scenario comparison failed')
+        QMessageBox.critical(self, 'Scenario Comparison Failed', error_message)
+
+    def _cleanup_compare_thread(self) -> None:
+        if self.compare_thread is not None:
+            self.compare_thread.deleteLater()
+        if self.compare_worker is not None:
+            self.compare_worker.deleteLater()
+        self.compare_thread = None
+        self.compare_worker = None
+
+    def load_comparison_receiver_series(self, receiver_id: str) -> None:
+        if not receiver_id or self.current_compare_result_a is None or self.current_compare_result_b is None or self.current_compare_payload is None:
+            return
+        csv_a = self.current_compare_result_a.receiver_history_files.get(receiver_id)
+        csv_b = self.current_compare_result_b.receiver_history_files.get(receiver_id)
+        if not csv_a or not csv_b:
+            return
+        series_a = self.result_controller.load_receiver_series(receiver_id, csv_a)
+        series_b = self.result_controller.load_receiver_series(receiver_id, csv_b)
+        self.scenario_comparison_view.set_receiver_overlay(
+            receiver_id,
+            series_a.points,
+            series_b.points,
+            self.current_compare_payload['comparison']['scenario_a'],
+            self.current_compare_payload['comparison']['scenario_b'],
+        )
 
     def _render_scenario_details(self, scenario_path: Path | None, scenario) -> None:
         receiver_lines = [f'- {receiver.id}: ({receiver.x:.1f}, {receiver.y:.1f}, {receiver.z:.1f})' for receiver in scenario.receivers]
