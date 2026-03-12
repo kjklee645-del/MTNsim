@@ -250,6 +250,16 @@ Build next:
 Goal:
 - a user can inspect what the run produced without opening files manually
 
+### Phase 3.6: Vehicle Playback
+
+Build next:
+- record vehicle traces during GUI-triggered runs [done]
+- load a playback view on top of the 2D scene canvas [done]
+- add a time slider and play/pause controls [done]
+
+Goal:
+- a user can inspect vehicle movement without leaving the GUI
+
 ### Phase 4: Scenario Comparison
 
 Build next:
@@ -298,9 +308,10 @@ Goal:
 3. implement project/scenario browser view
 4. implement run worker and run monitor
 5. implement result summary table + receiver chart
-6. add comparison panel
-7. add campaign validation panel
-8. add limited scenario editor only after read-only flows are stable
+6. add vehicle playback panel [done]
+7. add comparison panel
+8. add campaign validation panel
+9. add limited scenario editor only after read-only flows are stable
 
 ## 9. Success Criteria for the GUI MVP
 
@@ -315,7 +326,7 @@ The GUI MVP is successful if a non-developer can do all of the following without
 ## 10. After the MVP
 
 Once the GUI MVP is stable, the likely next layers are:
-- richer scene summaries and map-like views
+- richer scene summaries, playback overlays, and map-like views
 - more scenario editing coverage
 - result-report export
 - AI-assisted command entry on top of the same typed GUI actions

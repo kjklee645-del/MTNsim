@@ -35,7 +35,7 @@ Launch the current GUI shell:
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --gui
 ```
 
-Current GUI scope in Phase 3:
+Current GUI scope in Phase 3 + playback:
 - open a project manifest
 - browse discovered scenarios
 - inspect read-only scenario details
@@ -45,6 +45,7 @@ Current GUI scope in Phase 3:
 - inspect output paths after completion
 - browse recent result summaries
 - inspect receiver summary statistics and receiver time-series
+- replay recorded vehicle movement with a time slider and play/pause controls
 
 
 ## 4. Important Input Files

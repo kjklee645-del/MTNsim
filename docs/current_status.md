@@ -155,7 +155,7 @@ What it does now:
 - runs campaign-aware validation with calibration, thresholds, coverage checks, receiver-group diagnostics, structured calibration recommendations, acceptance-status classification, comparison insights, outlier diagnostics, and report generation
 - compares two campaign packages and writes field-campaign comparison JSON/Markdown reports
 
-### 2.7 GUI Phase 3 + Scene View
+### 2.7 GUI Phase 3 + Scene View + Vehicle Playback
 
 Implemented:
 - `gui/app.py`
@@ -184,6 +184,8 @@ What it does now:
 - loads recent result summaries inside the GUI
 - renders receiver summary statistics in a table
 - renders receiver time-series in a built-in line chart
+- records vehicle trajectories during GUI-triggered runs
+- loads a vehicle playback view with a time slider, play/pause controls, and scene-overlayed vehicle positions
 
 ## 3. Validated Scenarios and Checks
 
@@ -236,14 +238,14 @@ These values are prototype-level engineering checks, not yet validated against m
 
 ### 4.3 Product Limitations
 
-- GUI can browse scenarios, inspect a 2D scene view, run scenarios, and inspect results, but scenario comparison and campaign validation are not yet wired into the desktop UI
+- GUI can browse scenarios, inspect a 2D scene view, run scenarios, inspect results, and replay recorded vehicle motion, but scenario comparison and campaign validation are not yet wired into the desktop UI
 - no final report generator yet
 - campaign import standardization exists, but full production-grade GIS/CAD ingestion is still not implemented
 - AI-agent structures exist only as an architectural baseline, not as a working user-facing capability
 
 ## 5. Recommended Next Order
 
-1. extend the GUI into scenario comparison flow and, after that, vehicle playback
+1. extend the GUI into scenario comparison flow now that vehicle playback is in place
 2. keep deeper validation, calibration, scene-physics, and GPU work tracked as deferred backlog while GUI MVP is under construction
 3. resume field-validation and scene-physics hardening after the GUI prototype is usable enough for feedback
 4. keep GPU follow-up selective and demand-driven unless hybrid GPU becomes a proven bottleneck
@@ -251,4 +253,4 @@ These values are prototype-level engineering checks, not yet validated against m
 
 ## 6. Bottom Line
 
-MTNsim is now a structured simulation kernel with reproducible scenario handling, comparison capability, a runtime scene hierarchy, material-aware propagation behavior, campaign-aware validation tooling, a usable hybrid scene-aware GPU path, and a working GUI Phase 3 prototype that can launch runs and inspect receiver-level results.
+MTNsim is now a structured simulation kernel with reproducible scenario handling, comparison capability, a runtime scene hierarchy, material-aware propagation behavior, campaign-aware validation tooling, a usable hybrid scene-aware GPU path, and a working GUI prototype that can launch runs, inspect receiver-level results, view the 2D scene, and replay recorded vehicle motion.

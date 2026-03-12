@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
@@ -17,9 +17,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from mtnsim.gui.controllers import ProjectController, ResultController, RunController, SceneController
+from mtnsim.gui.controllers import PlaybackController, ProjectController, ResultController, RunController, SceneController
 from mtnsim.gui.state import GuiRunState, GuiSessionState
-from mtnsim.gui.views import ProjectHomeView, ResultViewerView, RunMonitorView, SceneView
+from mtnsim.gui.views import ProjectHomeView, ResultViewerView, RunMonitorView, SceneView, VehiclePlaybackView
 
 
 class MainWindow(QMainWindow):
@@ -29,6 +29,7 @@ class MainWindow(QMainWindow):
         self.run_controller = RunController()
         self.result_controller = ResultController()
         self.scene_controller = SceneController()
+        self.playback_controller = PlaybackController()
         self.session_state = GuiSessionState()
         self.run_thread: QThread | None = None
         self.run_worker = None
@@ -41,7 +42,7 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self) -> None:
         self.setWindowTitle('MTNsim GUI Prototype')
-        self.resize(1480, 920)
+        self.resize(1520, 940)
 
         self._build_toolbar()
         self._build_navigation_dock()
@@ -52,11 +53,13 @@ class MainWindow(QMainWindow):
         self.scene_view = SceneView()
         self.run_monitor_view = RunMonitorView()
         self.result_viewer_view = ResultViewerView()
+        self.vehicle_playback_view = VehiclePlaybackView()
         self.central_stack = QStackedWidget()
         self.central_stack.addWidget(self.project_home_view)
         self.central_stack.addWidget(self.scene_view)
         self.central_stack.addWidget(self.run_monitor_view)
         self.central_stack.addWidget(self.result_viewer_view)
+        self.central_stack.addWidget(self.vehicle_playback_view)
         self.setCentralWidget(self.central_stack)
         self.statusBar().showMessage('Ready')
 
@@ -79,6 +82,9 @@ class MainWindow(QMainWindow):
         self.result_viewer_action = toolbar.addAction('Result Viewer')
         self.result_viewer_action.triggered.connect(self.show_result_viewer)
         self.result_viewer_action.setEnabled(False)
+        self.playback_action = toolbar.addAction('Vehicle Playback')
+        self.playback_action.triggered.connect(self.show_vehicle_playback)
+        self.playback_action.setEnabled(False)
         self.addToolBar(toolbar)
 
     def _build_navigation_dock(self) -> None:
@@ -87,6 +93,7 @@ class MainWindow(QMainWindow):
         self.navigation_list.addItem(QListWidgetItem('Scene View'))
         self.navigation_list.addItem(QListWidgetItem('Run Monitor'))
         self.navigation_list.addItem(QListWidgetItem('Result Viewer'))
+        self.navigation_list.addItem(QListWidgetItem('Vehicle Playback'))
         self.navigation_list.setCurrentRow(0)
 
         dock = QDockWidget('Navigation', self)
@@ -201,6 +208,7 @@ class MainWindow(QMainWindow):
             project_state.manifest_path,
             project_state.selected_scenario_path,
             use_gpu=True,
+            record_vehicle_trace=True,
         )
         self.run_worker.moveToThread(self.run_thread)
         self.run_thread.started.connect(self.run_worker.run)
@@ -226,6 +234,7 @@ class MainWindow(QMainWindow):
             first_receiver = sorted(summary.receiver_history_files.keys())[0]
             self.result_viewer_view.receiver_selector.setCurrentText(first_receiver)
             self.load_receiver_series(first_receiver)
+        self._load_playback_from_result_summary(summary)
         self.result_viewer_action.setEnabled(True)
         self.show_result_viewer()
         self._append_log(f'[info] Loaded result summary: {result_summary_path}')
@@ -263,6 +272,12 @@ class MainWindow(QMainWindow):
         self.navigation_list.setCurrentRow(3)
         self.navigation_list.blockSignals(False)
 
+    def show_vehicle_playback(self) -> None:
+        self.central_stack.setCurrentWidget(self.vehicle_playback_view)
+        self.navigation_list.blockSignals(True)
+        self.navigation_list.setCurrentRow(4)
+        self.navigation_list.blockSignals(False)
+
     def _handle_navigation_change(self, row: int) -> None:
         if row == 0:
             self.central_stack.setCurrentWidget(self.project_home_view)
@@ -272,6 +287,8 @@ class MainWindow(QMainWindow):
             self.central_stack.setCurrentWidget(self.run_monitor_view)
         elif row == 3:
             self.central_stack.setCurrentWidget(self.result_viewer_view)
+        elif row == 4:
+            self.central_stack.setCurrentWidget(self.vehicle_playback_view)
 
     def _on_run_progress(self, percent: int, label: str) -> None:
         state = self.session_state.run_state
@@ -291,6 +308,7 @@ class MainWindow(QMainWindow):
         state.manifest_file = Path(payload['manifest_file']) if payload.get('manifest_file') else None
         state.result_summary_file = Path(payload['result_summary_file']) if payload.get('result_summary_file') else None
         state.final_grid_snapshot_file = Path(payload['final_grid_snapshot_file']) if payload.get('final_grid_snapshot_file') else None
+        state.vehicle_trace_file = Path(payload['vehicle_trace_file']) if payload.get('vehicle_trace_file') else None
         state.receiver_history_files = {
             key: Path(value)
             for key, value in payload.get('receiver_history_files', {}).items()
@@ -309,6 +327,8 @@ class MainWindow(QMainWindow):
         self._append_log(f"[info] Run completed: {state.run_id}")
         if state.result_summary_file:
             self._append_log(f"[info] Result summary: {state.result_summary_file}")
+        if state.vehicle_trace_file:
+            self._append_log(f"[info] Vehicle trace: {state.vehicle_trace_file}")
         self.statusBar().showMessage('Run completed')
 
     def _on_run_failed(self, error_message: str) -> None:
@@ -319,49 +339,69 @@ class MainWindow(QMainWindow):
         self.run_monitor_view.set_run_state(state)
         self.run_selected_action.setEnabled(self.session_state.project_state.selected_scenario_path is not None)
         self.project_home_view.set_run_enabled(self.session_state.project_state.selected_scenario_path is not None)
-        self._append_log(f'[error] Simulation failed: {error_message}')
+        self._append_log(f'[error] {error_message}')
         self.statusBar().showMessage('Run failed')
-        QMessageBox.critical(self, 'Run Failed', error_message)
-        self.show_run_monitor()
+        QMessageBox.critical(self, 'Simulation Failed', error_message)
 
     def _cleanup_run_thread(self) -> None:
-        if self.run_worker is not None:
-            self.run_worker.deleteLater()
         if self.run_thread is not None:
             self.run_thread.deleteLater()
-        self.run_worker = None
+        if self.run_worker is not None:
+            self.run_worker.deleteLater()
         self.run_thread = None
-
-    def _update_scene_view(self) -> None:
-        project = self.session_state.project_state.project
-        scenario = self.session_state.project_state.selected_scenario
-        if project is None or scenario is None:
-            self.scene_view.set_snapshot(None)
-            return
-        snapshot = self.scene_controller.build_snapshot(project, scenario)
-        self.scene_view.set_snapshot(snapshot)
+        self.run_worker = None
 
     def _render_scenario_details(self, scenario_path: Path | None, scenario) -> None:
-        scene = scenario.scene
+        receiver_lines = [f'- {receiver.id}: ({receiver.x:.1f}, {receiver.y:.1f}, {receiver.z:.1f})' for receiver in scenario.receivers]
         lines = [
             f'Scenario: {scenario.scenario.name}',
-            f'File: {scenario_path or "-"}',
-            f'Description: {scenario.scenario.description or "-"}',
+            f'Source file: {scenario_path}',
             '',
-            f'Max vehicles: {scenario.traffic.max_vehicles}',
-            f'Start speed (km/h): {scenario.traffic.start_speed_kmh}',
-            f'Lane change mode: {scenario.controls.lane_change_mode}',
-            f'Background noise (dB): {scenario.noise.background_noise_db}',
+            'Traffic',
+            f'- Max vehicles: {scenario.traffic.max_vehicles}',
+            f'- Start speed (km/h): {scenario.traffic.start_speed_kmh}',
+            f'- Vehicle interval (s): {scenario.traffic.vehicle_interval_seconds}',
             '',
-            f'Receivers: {len(scenario.receivers)}',
-            f'Noise barriers: {len(scene.noise_barriers)}',
-            f'Terrain edges: {len(scene.terrain_edges)}',
-            f'Buildings: {len(scene.buildings)}',
-            f'Ground surfaces: {len(scene.ground_surfaces)}',
-            f'Vegetation zones: {len(scene.vegetation_zones)}',
+            'Controls',
+            f'- Lane change mode: {scenario.controls.lane_change_mode}',
+            f'- Strategy: {scenario.controls.lane_change_strategy}',
+            f'- Post target speed (km/h): {scenario.controls.post_target_speed_kmh}',
+            '',
+            'Receivers',
+            *receiver_lines,
         ]
         self.details_panel.setPlainText('\n'.join(lines))
 
-    def _append_log(self, message: str) -> None:
-        self.session_state.recent_log_lines.append(message)
-        self.log_panel.appendPlainText(message)
+    def _update_scene_view(self) -> None:
+        project_state = self.session_state.project_state
+        if project_state.project is None or project_state.selected_scenario is None:
+            self.scene_view.set_snapshot(None)
+            self.vehicle_playback_view.set_snapshot(None)
+            return
+        snapshot = self.scene_controller.build_snapshot(project_state.project, project_state.selected_scenario)
+        self.scene_view.set_snapshot(snapshot)
+        self.vehicle_playback_view.set_snapshot(snapshot)
+        self._append_log('[info] Updated scene view from selected scenario')
+
+    def _load_playback_from_result_summary(self, summary) -> None:
+        trace_file = getattr(summary, 'vehicle_trace_file', None)
+        if not trace_file:
+            self.vehicle_playback_view.set_dataset(None)
+            self.playback_action.setEnabled(False)
+            return
+        try:
+            dataset = self.playback_controller.load_trace(trace_file)
+        except Exception as exc:  # pragma: no cover
+            self.playback_action.setEnabled(False)
+            self.vehicle_playback_view.set_dataset(None)
+            self._append_log(f'[error] Failed to load vehicle trace: {exc}')
+            return
+        self.vehicle_playback_view.set_dataset(dataset)
+        self.playback_action.setEnabled(dataset.frame_count > 0)
+        self._append_log(f'[info] Loaded vehicle playback trace: {trace_file}')
+
+    def _append_log(self, line: str) -> None:
+        self.session_state.recent_log_lines.append(line)
+        self.session_state.recent_log_lines = self.session_state.recent_log_lines[-200:]
+        self.log_panel.setPlainText('\n'.join(self.session_state.recent_log_lines))
+        self.log_panel.verticalScrollBar().setValue(self.log_panel.verticalScrollBar().maximum())

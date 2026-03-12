@@ -18,6 +18,7 @@ class RunWorker(QObject):
         manifest_path: str | Path,
         scenario_path: str | Path,
         use_gpu: bool = True,
+        record_vehicle_trace: bool = False,
         project_api: ProjectAPI | None = None,
         simulation_api: SimulationAPI | None = None,
     ) -> None:
@@ -25,6 +26,7 @@ class RunWorker(QObject):
         self.manifest_path = Path(manifest_path)
         self.scenario_path = Path(scenario_path)
         self.use_gpu = use_gpu
+        self.record_vehicle_trace = record_vehicle_trace
         self.project_api = project_api or ProjectAPI()
         self.simulation_api = simulation_api or SimulationAPI()
 
@@ -39,6 +41,7 @@ class RunWorker(QObject):
                 scenario,
                 use_gpu=self.use_gpu,
                 progress_callback=self._emit_progress,
+                record_vehicle_trace=self.record_vehicle_trace,
             )
             self.completed.emit(
                 {
@@ -47,6 +50,7 @@ class RunWorker(QObject):
                     'manifest_file': str(artifacts.manifest_file),
                     'result_summary_file': str(artifacts.result_summary_file),
                     'final_grid_snapshot_file': str(artifacts.final_grid_snapshot_file) if artifacts.final_grid_snapshot_file else None,
+                    'vehicle_trace_file': str(artifacts.vehicle_trace_file) if artifacts.vehicle_trace_file else None,
                     'receiver_history_files': {key: str(value) for key, value in artifacts.receiver_history_files.items()},
                     'run_summary': artifacts.run_summary.to_dict(),
                 }
@@ -65,11 +69,18 @@ class RunController:
         self.project_api = project_api or ProjectAPI()
         self.simulation_api = simulation_api or SimulationAPI()
 
-    def create_worker(self, manifest_path: str | Path, scenario_path: str | Path, use_gpu: bool = True) -> RunWorker:
+    def create_worker(
+        self,
+        manifest_path: str | Path,
+        scenario_path: str | Path,
+        use_gpu: bool = True,
+        record_vehicle_trace: bool = False,
+    ) -> RunWorker:
         return RunWorker(
             manifest_path=manifest_path,
             scenario_path=scenario_path,
             use_gpu=use_gpu,
+            record_vehicle_trace=record_vehicle_trace,
             project_api=self.project_api,
             simulation_api=self.simulation_api,
         )

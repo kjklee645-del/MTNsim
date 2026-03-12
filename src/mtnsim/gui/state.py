@@ -26,6 +26,7 @@ class GuiRunState:
     result_summary_file: Path | None = None
     manifest_file: Path | None = None
     final_grid_snapshot_file: Path | None = None
+    vehicle_trace_file: Path | None = None
     receiver_history_files: dict[str, Path] = field(default_factory=dict)
     error_message: str | None = None
 

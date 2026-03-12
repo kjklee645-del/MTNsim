@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -20,10 +20,15 @@ class SceneCanvas(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.snapshot: SceneSnapshot | None = None
+        self.vehicle_points: list[tuple[str, float, float]] = []
         self.setMinimumHeight(420)
 
     def set_snapshot(self, snapshot: SceneSnapshot | None) -> None:
         self.snapshot = snapshot
+        self.update()
+
+    def set_vehicle_points(self, vehicle_points: list[tuple[str, float, float]]) -> None:
+        self.vehicle_points = vehicle_points
         self.update()
 
     def paintEvent(self, event) -> None:  # noqa: N802
@@ -59,6 +64,7 @@ class SceneCanvas(QWidget):
         self._draw_polygons(painter, self.snapshot.vegetation_layer.polygons, map_point, LayerStyle('#166534', 1, '#bbf7d0'))
         self._draw_polygons(painter, self.snapshot.building_layer.polygons, map_point, LayerStyle('#1d4ed8', 2, '#bfdbfe'))
         self._draw_points(painter, self.snapshot.receiver_layer.points, map_point, '#0f172a')
+        self._draw_vehicle_points(painter, self.vehicle_points, map_point)
 
     def _draw_polylines(self, painter: QPainter, polylines, mapper, style: LayerStyle) -> None:
         painter.setPen(QPen(QColor(style.pen_color), style.pen_width))
@@ -87,6 +93,16 @@ class SceneCanvas(QWidget):
             px, py = mapper((x, y))
             painter.drawEllipse(int(px) - 4, int(py) - 4, 8, 8)
             painter.drawText(int(px) + 6, int(py) - 6, label)
+
+    def _draw_vehicle_points(self, painter: QPainter, points, mapper) -> None:
+        if not points:
+            return
+        painter.setPen(QPen(QColor('#b45309'), 1))
+        painter.setBrush(QBrush(QColor('#f59e0b')))
+        for vehicle_id, x, y in points:
+            px, py = mapper((x, y))
+            painter.drawEllipse(int(px) - 5, int(py) - 5, 10, 10)
+            painter.drawText(int(px) + 6, int(py) + 14, vehicle_id)
 
 
 class SceneView(QWidget):
@@ -118,6 +134,7 @@ class SceneView(QWidget):
 
     def set_snapshot(self, snapshot: SceneSnapshot | None) -> None:
         self.canvas.set_snapshot(snapshot)
+        self.canvas.set_vehicle_points([])
         if snapshot is None:
             self.legend_box.setPlainText('No scene snapshot loaded.')
             return

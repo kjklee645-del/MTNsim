@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
+import csv
 from typing import Callable
 import random
 import json
@@ -41,6 +42,7 @@ class SimulationArtifacts:
     run_summary: RunSummary
     result_summary: RunResultSummary
     final_grid_snapshot_file: Path | None = None
+    vehicle_trace_file: Path | None = None
 
 
 class RunService:
@@ -64,6 +66,7 @@ class RunService:
         context: RunContext,
         use_gpu: bool = True,
         progress_callback: Callable[[dict], None] | None = None,
+        record_vehicle_trace: bool = False,
     ) -> SimulationArtifacts:
         project_root = self._project_root(context.project)
         network_path = self._resolve_path(project_root, context.project.paths.network)
@@ -117,65 +120,96 @@ class RunService:
         sim = SumoAdapter()
         deployed_vehicles = 0
         final_grid_snapshot: dict[str, float] = {}
+        vehicle_trace_file = output_dir / 'vehicle_trace.csv' if record_vehicle_trace else None
         random.seed(context.project.simulation_defaults.random_seed)
 
         try:
             sim.start(sumo_config_path, seed=context.project.simulation_defaults.random_seed)
             self._emit_progress(progress_callback, 3, "SUMO started")
             progress_interval = max(1, context.project.simulation_defaults.max_steps // 20)
-            for time_step in range(context.project.simulation_defaults.max_steps):
-                if deployed_vehicles < context.scenario.traffic.max_vehicles:
-                    add_vehicle(sim, lane_state, deployed_vehicles, time_step, deployment_config, constant_speed=start_speed_mps)
-                    deployed_vehicles += 1
+            trace_writer = None
+            trace_handle = None
+            if vehicle_trace_file is not None:
+                trace_handle = vehicle_trace_file.open('w', newline='', encoding='utf-8')
+                trace_writer = csv.writer(trace_handle)
+                trace_writer.writerow(['time_index', 'sim_time_seconds', 'vehicle_id', 'vehicle_type', 'x', 'y', 'speed_mps'])
+            try:
+                for time_step in range(context.project.simulation_defaults.max_steps):
+                    if deployed_vehicles < context.scenario.traffic.max_vehicles:
+                        add_vehicle(sim, lane_state, deployed_vehicles, time_step, deployment_config, constant_speed=start_speed_mps)
+                        deployed_vehicles += 1
 
-                sim.simulation_step()
-                snapshots = sim.snapshots()
+                    sim.simulation_step()
+                    snapshots = sim.snapshots()
+                    sim_time_seconds = sim.simulation_time()
 
-                if context.scenario.controls.lane_change_mode == "disable":
+                    if context.scenario.controls.lane_change_mode == "disable":
+                        for snapshot in snapshots:
+                            disable_lane_change(sim, snapshot.vehicle_id)
+                    elif context.scenario.controls.lane_change_mode == "enforce":
+                        enforce_lane_change(
+                            sim,
+                            lane_state,
+                            lane_index=context.scenario.controls.target_lane_index,
+                            designated_lane=context.scenario.controls.designated_lane,
+                            min_x=min_x,
+                            max_x=max_x,
+                            min_y=min_y,
+                            max_y=max_y,
+                            check_radius=context.scenario.controls.lane_change_check_radius_meters,
+                            force_change=context.scenario.controls.lane_change_force_change,
+                            mode=context.scenario.controls.lane_change_strategy,
+                            target_positions=context.scenario.controls.lane_change_target_positions,
+                            constant_speed=lane_change_constant_speed_mps,
+                            speed_change=context.scenario.controls.lane_change_speed_change_mps,
+                            restore_time=context.scenario.controls.lane_change_restore_time_seconds,
+                        )
+                        restore_vehicle_speeds(sim, lane_state)
+
+                    vehicle_positions = {}
+                    vehicle_types = {}
+                    vehicle_speeds = {}
                     for snapshot in snapshots:
-                        disable_lane_change(sim, snapshot.vehicle_id)
-                elif context.scenario.controls.lane_change_mode == "enforce":
-                    enforce_lane_change(
-                        sim,
-                        lane_state,
-                        lane_index=context.scenario.controls.target_lane_index,
-                        designated_lane=context.scenario.controls.designated_lane,
-                        min_x=min_x,
-                        max_x=max_x,
-                        min_y=min_y,
-                        max_y=max_y,
-                        check_radius=context.scenario.controls.lane_change_check_radius_meters,
-                        force_change=context.scenario.controls.lane_change_force_change,
-                        mode=context.scenario.controls.lane_change_strategy,
-                        target_positions=context.scenario.controls.lane_change_target_positions,
-                        constant_speed=lane_change_constant_speed_mps,
-                        speed_change=context.scenario.controls.lane_change_speed_change_mps,
-                        restore_time=context.scenario.controls.lane_change_restore_time_seconds,
-                    )
-                    restore_vehicle_speeds(sim, lane_state)
+                        apply_speed_after_distance(
+                            sim,
+                            lane_state,
+                            snapshot.vehicle_id,
+                            snapshot.position,
+                            context.scenario.controls.post_distance_meters,
+                            post_target_speed_mps,
+                            enabled=context.scenario.controls.post_distance_speed_control,
+                        )
+                        vehicle_positions[snapshot.vehicle_id] = snapshot.position
+                        vehicle_types[snapshot.vehicle_id] = snapshot.vehicle_type
+                        vehicle_speeds[snapshot.vehicle_id] = snapshot.speed_mps
+                        if trace_writer is not None:
+                            trace_writer.writerow(
+                                [
+                                    time_step,
+                                    f"{sim_time_seconds:.3f}",
+                                    snapshot.vehicle_id,
+                                    snapshot.vehicle_type,
+                                    f"{snapshot.position[0]:.3f}",
+                                    f"{snapshot.position[1]:.3f}",
+                                    f"{snapshot.speed_mps:.3f}",
+                                ]
+                            )
 
-                vehicle_positions = {}
-                vehicle_types = {}
-                vehicle_speeds = {}
-                for snapshot in snapshots:
-                    apply_speed_after_distance(
-                        sim,
-                        lane_state,
-                        snapshot.vehicle_id,
-                        snapshot.position,
-                        context.scenario.controls.post_distance_meters,
-                        post_target_speed_mps,
-                        enabled=context.scenario.controls.post_distance_speed_control,
-                    )
-                    vehicle_positions[snapshot.vehicle_id] = snapshot.position
-                    vehicle_types[snapshot.vehicle_id] = snapshot.vehicle_type
-                    vehicle_speeds[snapshot.vehicle_id] = snapshot.speed_mps
-
-                engine = update_noise_grid_gpu if effective_use_gpu else update_noise_grid_cpu
-                should_compute_grid = context.project.outputs.store_grid_timeseries or (time_step == context.project.simulation_defaults.max_steps - 1)
-                if should_compute_grid:
-                    final_grid_snapshot = engine(
-                        {cell_id: (cell.x, cell.y, cell.z) for cell_id, cell in grid_domain.cells.items()},
+                    engine = update_noise_grid_gpu if effective_use_gpu else update_noise_grid_cpu
+                    should_compute_grid = context.project.outputs.store_grid_timeseries or (time_step == context.project.simulation_defaults.max_steps - 1)
+                    if should_compute_grid:
+                        final_grid_snapshot = engine(
+                            {cell_id: (cell.x, cell.y, cell.z) for cell_id, cell in grid_domain.cells.items()},
+                            vehicle_positions,
+                            vehicle_types,
+                            vehicle_speeds,
+                            coefficients,
+                            context.scenario.noise.background_noise_db,
+                            context.scenario.noise.max_area_meters,
+                            propagation_provider,
+                        )
+                    receiver_snapshot = engine(
+                        receiver_positions,
                         vehicle_positions,
                         vehicle_types,
                         vehicle_speeds,
@@ -184,26 +218,19 @@ class RunService:
                         context.scenario.noise.max_area_meters,
                         propagation_provider,
                     )
-                receiver_snapshot = engine(
-                    receiver_positions,
-                    vehicle_positions,
-                    vehicle_types,
-                    vehicle_speeds,
-                    coefficients,
-                    context.scenario.noise.background_noise_db,
-                    context.scenario.noise.max_area_meters,
-                    propagation_provider,
-                )
-                for receiver_id, value in receiver_snapshot.items():
-                    receiver_histories[receiver_id].append(value)
+                    for receiver_id, value in receiver_snapshot.items():
+                        receiver_histories[receiver_id].append(value)
 
-                if (time_step + 1) == context.project.simulation_defaults.max_steps or ((time_step + 1) % progress_interval == 0):
-                    percent = int(((time_step + 1) / context.project.simulation_defaults.max_steps) * 100)
-                    self._emit_progress(
-                        progress_callback,
-                        percent,
-                        f"Running step {time_step + 1}/{context.project.simulation_defaults.max_steps}",
-                    )
+                    if (time_step + 1) == context.project.simulation_defaults.max_steps or ((time_step + 1) % progress_interval == 0):
+                        percent = int(((time_step + 1) / context.project.simulation_defaults.max_steps) * 100)
+                        self._emit_progress(
+                            progress_callback,
+                            percent,
+                            f"Running step {time_step + 1}/{context.project.simulation_defaults.max_steps}",
+                        )
+            finally:
+                if trace_handle is not None:
+                    trace_handle.close()
         finally:
             sim.close()
 
@@ -219,6 +246,7 @@ class RunService:
             manifest_file=str(manifest_file),
             receiver_history_files={key: str(value) for key, value in receiver_files.items()},
             final_grid_snapshot_file=str(grid_snapshot_file) if grid_snapshot_file else None,
+            vehicle_trace_file=str(vehicle_trace_file) if vehicle_trace_file and vehicle_trace_file.exists() else None,
             used_gpu=effective_use_gpu,
             receiver_stats=self._build_receiver_stats(receiver_histories),
             propagation_features={
@@ -258,6 +286,7 @@ class RunService:
             run_summary=run_summary,
             result_summary=result_summary,
             final_grid_snapshot_file=grid_snapshot_file,
+            vehicle_trace_file=vehicle_trace_file if vehicle_trace_file and vehicle_trace_file.exists() else None,
         )
 
     def _emit_progress(self, callback: Callable[[dict], None] | None, percent: int, message: str, **extra) -> None:
