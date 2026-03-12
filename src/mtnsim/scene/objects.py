@@ -118,15 +118,40 @@ class GroundSurfaceObject(PolygonSceneObject):
     def to_shielding_segments(self) -> list[BarrierSegment]:
         return []
 
-    def ground_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
+    def ground_correction_db(
+        self,
+        receiver_pos: tuple[float, float] | tuple[float, float, float],
+        source_pos: tuple[float, float] | tuple[float, float, float],
+    ) -> float:
+        receiver_xyz = _normalize_point3(receiver_pos, default_z=1.5)
+        source_xyz = _normalize_point3(source_pos, default_z=0.3)
+        receiver_xy = (receiver_xyz[0], receiver_xyz[1])
+        source_xy = (source_xyz[0], source_xyz[1])
         if not _path_bbox_intersects_polygon(source_xy, receiver_xy, self.footprint):
             return 0.0
         coverage = _polygon_coverage_fraction(source_xy, receiver_xy, self.footprint)
         if coverage <= 0.0:
             return 0.0
+
+        path_length = _planar_distance(source_xy, receiver_xy)
+        if path_length <= 1e-6:
+            return 0.0
+        covered_length = path_length * coverage
+        if covered_length <= 0.5:
+            return 0.0
+
+        mean_line_height = (receiver_xyz[2] + source_xyz[2]) / 2.0
         absorption = self.material.absorption_coefficient
-        correction = ((0.28 - absorption) * 3.2) * coverage
-        return _clamp(correction, -2.3, 0.9)
+        softness = _clamp((absorption - 0.12) / 0.78, 0.0, 1.0)
+        hardness = 1.0 - softness
+        coverage_factor = _clamp(covered_length / 40.0, 0.0, 1.0)
+        distance_factor = _clamp(path_length / 60.0, 0.25, 1.0)
+        height_factor = _clamp(1.0 - (mean_line_height / 5.0), 0.15, 1.0)
+
+        soft_ground_attenuation = softness * coverage_factor * distance_factor * height_factor * 3.4
+        hard_ground_gain = hardness * coverage_factor * max(distance_factor - 0.15, 0.0) * (0.25 + ((1.0 - height_factor) * 0.55)) * 1.1
+        correction = hard_ground_gain - soft_ground_attenuation
+        return _clamp(correction, -3.2, 1.4)
 
 
 @dataclass(slots=True)
@@ -136,15 +161,35 @@ class VegetationZoneObject(PolygonSceneObject):
     def to_shielding_segments(self) -> list[BarrierSegment]:
         return []
 
-    def vegetation_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
+    def vegetation_correction_db(
+        self,
+        receiver_pos: tuple[float, float] | tuple[float, float, float],
+        source_pos: tuple[float, float] | tuple[float, float, float],
+    ) -> float:
+        receiver_xyz = _normalize_point3(receiver_pos, default_z=1.5)
+        source_xyz = _normalize_point3(source_pos, default_z=0.3)
+        receiver_xy = (receiver_xyz[0], receiver_xyz[1])
+        source_xy = (source_xyz[0], source_xyz[1])
         if not _path_bbox_intersects_polygon(source_xy, receiver_xy, self.footprint):
             return 0.0
         coverage = _polygon_coverage_fraction(source_xy, receiver_xy, self.footprint)
         if coverage <= 0.0:
             return 0.0
-        density_factor = 0.35 + (self.material.absorption_coefficient * 0.9) + min(self.height_meters / 10.0, 0.4)
-        attenuation = self.attenuation_db * coverage * density_factor
-        return -min(attenuation, 4.5)
+
+        path_length = _planar_distance(source_xy, receiver_xy)
+        if path_length <= 1e-6:
+            return 0.0
+        covered_length = path_length * coverage
+        if covered_length <= 0.5:
+            return 0.0
+
+        mean_line_height = (receiver_xyz[2] + source_xyz[2]) / 2.0
+        density_factor = 0.30 + (self.material.absorption_coefficient * 0.70) + min(self.height_meters / 12.0, 0.45)
+        path_factor = _clamp(covered_length / 25.0, 0.0, 1.6)
+        height_factor = _clamp(1.0 - (mean_line_height / max(self.height_meters + 4.0, 4.0)), 0.35, 1.0)
+        distance_factor = _clamp(path_length / 70.0, 0.35, 1.0)
+        attenuation = self.attenuation_db * density_factor * path_factor * height_factor * distance_factor
+        return -min(attenuation, 6.0)
 
 
 @dataclass(slots=True)
@@ -211,15 +256,39 @@ class SceneModel:
                 return True
         return False
 
-    def ground_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
+    def ground_correction_db(
+        self,
+        receiver_pos: tuple[float, float] | tuple[float, float, float],
+        source_pos: tuple[float, float] | tuple[float, float, float],
+    ) -> float:
+        receiver_xyz = _normalize_point3(receiver_pos, default_z=1.5)
+        source_xyz = _normalize_point3(source_pos, default_z=0.3)
+        receiver_xy = (receiver_xyz[0], receiver_xyz[1])
+        source_xy = (source_xyz[0], source_xyz[1])
         path_bbox = _segment_bbox(source_xy, receiver_xy)
-        total = sum(item.ground_correction_db(receiver_xy, source_xy) for item in self.ground_surfaces if _bbox_intersects(path_bbox, item.bbox))
-        return _clamp(total, -3.0, 1.2)
+        total = sum(
+            item.ground_correction_db(receiver_xyz, source_xyz)
+            for item in self.ground_surfaces
+            if _bbox_intersects(path_bbox, item.bbox)
+        )
+        return _clamp(total, -3.4, 1.4)
 
-    def vegetation_correction_db(self, receiver_xy: tuple[float, float], source_xy: tuple[float, float]) -> float:
+    def vegetation_correction_db(
+        self,
+        receiver_pos: tuple[float, float] | tuple[float, float, float],
+        source_pos: tuple[float, float] | tuple[float, float, float],
+    ) -> float:
+        receiver_xyz = _normalize_point3(receiver_pos, default_z=1.5)
+        source_xyz = _normalize_point3(source_pos, default_z=0.3)
+        receiver_xy = (receiver_xyz[0], receiver_xyz[1])
+        source_xy = (source_xyz[0], source_xyz[1])
         path_bbox = _segment_bbox(source_xy, receiver_xy)
-        total = sum(item.vegetation_correction_db(receiver_xy, source_xy) for item in self.vegetation_zones if _bbox_intersects(path_bbox, item.bbox))
-        return _clamp(total, -5.5, 0.0)
+        total = sum(
+            item.vegetation_correction_db(receiver_xyz, source_xyz)
+            for item in self.vegetation_zones
+            if _bbox_intersects(path_bbox, item.bbox)
+        )
+        return _clamp(total, -6.5, 0.0)
 
 
 def build_scene_model(scene_config: SceneConfig) -> SceneModel:
@@ -384,6 +453,20 @@ def _point_in_polygon(point: tuple[float, float], polygon: list[tuple[float, flo
 def _clamp(value: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(value, maximum))
 
+
+def _normalize_point3(
+    point: tuple[float, float] | tuple[float, float, float],
+    default_z: float,
+) -> tuple[float, float, float]:
+    if len(point) >= 3:
+        return (float(point[0]), float(point[1]), float(point[2]))
+    return (float(point[0]), float(point[1]), float(default_z))
+
+
+def _planar_distance(point_a: tuple[float, float], point_b: tuple[float, float]) -> float:
+    dx = point_b[0] - point_a[0]
+    dy = point_b[1] - point_a[1]
+    return ((dx * dx) + (dy * dy)) ** 0.5
 
 
 def _segment_bbox(point_a: tuple[float, float], point_b: tuple[float, float]) -> tuple[float, float, float, float]:

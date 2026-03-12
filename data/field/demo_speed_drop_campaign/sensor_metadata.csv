@@ -1,0 +1,9 @@
+sensor_id,simulation_receiver_id,enabled
+poi_500_25,poi_500_25,true
+poi_500_35,poi_500_35,true
+poi_500_45,poi_500_45,true
+poi_500_55,poi_500_55,true
+poi_500_65,poi_500_65,true
+poi_500_115,poi_500_115,true
+poi_500_165,poi_500_165,true
+poi_500_215,poi_500_215,true

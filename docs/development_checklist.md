@@ -59,12 +59,13 @@ Status legend:
 | --- | --- | --- | --- |
 | Emission | Vehicle emission module split | [x] | `acoustics/emission` |
 | Propagation | Distance module | [x] | active |
-| Propagation | Shielding module | [x] | first-pass CPU implementation |
+| Propagation | Shielding module | [x] | first-pass active implementation |
 | Propagation | Reflection module | [~] | geometry-informed specular reflection model active |
 | Propagation | Diffraction module | [~] | knife-edge-inspired path-excess diffraction model active |
 | Noise field | CPU grid/receiver updates | [x] | active |
-| Noise field | GPU free-field path | [x] | active without shielding |
-| Noise field | GPU shielding-aware path | [ ] | not implemented |
+| Noise field | GPU free-field path | [x] | active |
+| Noise field | Scene-aware hybrid GPU path | [x] | provider computes corrections, GPU handles attenuation and accumulation |
+| Noise field | Full tensorized scene-aware GPU path | [ ] | not implemented yet |
 
 ## 6. Scene and Geometry
 
@@ -76,10 +77,10 @@ Status legend:
 | Scene runtime | Dedicated runtime scene object hierarchy | [x] | `scene/objects.py` |
 | Compatibility | Legacy `scene.barriers` support | [x] | converted into `noise_barriers` |
 | Geometry | Building edge decomposition | [x] | first-pass shielding conversion |
-| Geometry | Terrain surface / edge objects | [~] | `terrain_edges` added as first-pass scene/runtime objects; terrain surfaces still not implemented |
+| Geometry | Terrain surface / edge objects | [~] | `terrain_edges` added as first-pass scene/runtime objects; richer terrain surfaces still limited |
 | Geometry | Vegetation objects | [~] | `vegetation_zones` added as first-pass scene/runtime objects |
 | Propagation model | Common propagation properties per object type | [x] | defaults + per-object overrides added |
-| Propagation model | Material-aware corrections | [~] | geometry-coupled shielding/reflection/diffraction material corrections active, plus first-pass ground and vegetation path corrections |
+| Propagation model | Material-aware corrections | [~] | geometry-coupled shielding/reflection/diffraction corrections plus path-length-aware and line-height-aware ground/vegetation corrections |
 
 ## 7. Calibration and Validation
 
@@ -87,20 +88,23 @@ Status legend:
 | --- | --- | --- | --- |
 | Calibration | Measurement import workflow | [x] | CSV measurement loader and calibration service added |
 | Calibration | Sensor alignment | [~] | sensor metadata mapping, manual offset, auto time sync, and valid window support added |
-| Calibration | Correction factor estimation | [~] | receiver/global bias recommendation with skipped/unmatched tracking added |
+| Calibration | Correction factor estimation | [~] | receiver/global bias recommendation, structured calibration recommendations, and skipped/unmatched tracking added |
 | Validation | Benchmark scenarios | [x] | expanded propagation benchmark suite, total-correction cases, runner, tuning-space, and tuned defaults added |
 | Validation | Integration tests | [~] | smoke-level validation only |
-| Validation | Field-data comparison | [~] | validation suite now covers baseline reference, shifted/outlier recovery, speed-drop, barrier, and building-default seeded reference cases; true field datasets still needed |
+| Validation | Field-data comparison | [~] | validation suite covers multiple seeded references; true field datasets still needed |
 | Validation prep | Field-data checklist and methodology docs | [x] | `docs/field_validation_data_checklist.md`, `docs/field_validation_methodology.md` |
-| Validation prep | Field-campaign import convention and quality report flow | [x] | demo/template campaigns plus `--inspect-field-campaign` added, including `traffic_metadata.json` and `scene/scene_manifest.json` checks |
-| Validation prep | Campaign-aware validation/report flow | [x] | `--validate-field-campaign` now runs simulation, calibration, thresholds, receiver coverage checks, outlier diagnostics, and reports |
+| Validation prep | Field-campaign import convention and quality report flow | [x] | demo/template campaigns plus `--inspect-field-campaign` added |
+| Validation prep | Campaign-aware validation/report flow | [x] | `--validate-field-campaign` now runs simulation, calibration, thresholds, receiver/group coverage checks, acceptance classification, diagnostics, and reports |
+| Validation prep | Multi-campaign comparison flow | [x] | `--compare-field-campaigns` validates and compares two campaign packages with JSON/Markdown output |
 
 ## 8. Product Layers
 
 | Area | Item | Status | Notes |
 | --- | --- | --- | --- |
 | Reporting | Report generation | [ ] | not started |
-| Visualization | GUI | [ ] | intentionally deferred |
+| Visualization | GUI MVP planning | [x] | `docs/gui_mvp_plan.md` |
+| Visualization | GUI Phase 1 skeleton | [x] | project loading, scenario browsing, scenario-detail preview, and status/log shell implemented in `src/mtnsim/gui` |
+| Visualization | GUI implementation | [~] | active track; next is run/result/compare flow wiring |
 | API | Local API layer | [~] | thin local layer exists |
 | Agent | Bounded command architecture baseline | [~] | early structure only |
 | Agent | Real natural-language scenario control | [ ] | not started |
@@ -110,10 +114,11 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Expand validation from seeded reference cases toward true field datasets and stronger acceptance rules | [~] | reusable validation suite now covers multiple scenarios, and campaign import contracts are standardized, but it still relies mostly on seeded references rather than field measurements |
-| 2 | Deepen calibration workflow with richer alignment and validation | [~] | campaign-aware validation now exists, but richer field-facing diagnostics and correction workflows still need expansion |
-| 3 | Continue scene/physics expansion for terrain and richer object classes | [~] | `terrain_edges`, `ground_surfaces`, and `vegetation_zones` now exist, but terrain surfaces and stronger physics are still limited |
-| 4 | Deepen reporting / GUI / richer agent control | [ ] | should come after core physics and validation |
+| 1 | Extend GUI Phase 1 into runnable flows around the current run/compare/validation engine | [~] | the shell exists; the next value comes from wiring real operator tasks into it |
+| 2 | Keep deeper validation, calibration, physics, and GPU work on the deferred backlog while GUI MVP is under construction | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the mainline focus stays clear |
+| 3 | Resume field-data validation hardening after the GUI prototype is usable | [~] | real user feedback and real datasets should shape the next round of engine refinement |
+| 4 | Add scene-aware performance benchmarking and selective GPU follow-up only where hybrid GPU becomes the bottleneck | [~] | hybrid GPU path is already usable, so more GPU work is not the immediate product priority |
+| 5 | Deepen reporting / richer agent control after GUI flows stabilize | [ ] | depends on a usable GUI shell and clearer operator workflows |
 
 ## 10. Maintenance Rule
 

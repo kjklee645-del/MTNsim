@@ -1,15 +1,15 @@
-# Field Campaign Validation Report: Demo Seeded Campaign
+# Field Campaign Validation Report: Demo Speed Drop Campaign
 
-- Campaign ID: `demo_seeded_campaign`
+- Campaign ID: `demo_speed_drop_campaign`
 - Project: `mtnsim-demo`
-- Scenario: `baseline`
+- Scenario: `speed_drop_80`
 - Inspection passed: `True`
 - Validation passed: `True`
 - Simulation executed: `True`
-- Inspection summary: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\reports\campaign_inspection_summary.json`
-- Inspection report: `D:\Codex\MTNsim\data\field\demo_seeded_campaign\reports\campaign_inspection_report.md`
-- Result summary: `D:\Codex\MTNsim\outputs\4ec66448f10d454e8ad814b400bc7f5d\run_result_summary.json`
-- Calibration summary: `D:\Codex\MTNsim\outputs\4ec66448f10d454e8ad814b400bc7f5d\calibration_summary.json`
+- Inspection summary: `D:\Codex\MTNsim\data\field\demo_speed_drop_campaign\reports\campaign_inspection_summary.json`
+- Inspection report: `D:\Codex\MTNsim\data\field\demo_speed_drop_campaign\reports\campaign_inspection_report.md`
+- Result summary: `D:\Codex\MTNsim\outputs\b53d76d3b8604bd098f638151c3cd276\run_result_summary.json`
+- Calibration summary: `D:\Codex\MTNsim\outputs\b53d76d3b8604bd098f638151c3cd276\calibration_summary.json`
 
 ## Acceptance Decision
 
@@ -18,7 +18,7 @@
 
 ## Campaign Description
 
-Synthetic campaign package that reuses seeded MTNsim reference data for workflow testing.
+Synthetic campaign package that reuses seeded speed-drop reference data for comparison workflow testing.
 
 ## Inspection Snapshot
 

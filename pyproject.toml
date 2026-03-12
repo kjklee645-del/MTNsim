@@ -16,3 +16,9 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+[project.optional-dependencies]
+gui = ["PySide6>=6.7", "pyqtgraph>=0.13"]
+
+[project.scripts]
+mtnsim = "mtnsim.app.main:main"
+mtnsim-gui = "mtnsim.gui.app:main"

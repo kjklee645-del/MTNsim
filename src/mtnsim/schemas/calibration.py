@@ -1,6 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 import json
@@ -49,6 +49,23 @@ class ReceiverCalibrationStats:
 
 
 @dataclass(slots=True)
+class CalibrationRecommendation:
+    kind: str
+    target: str
+    priority: str
+    rationale: str
+    value: float | int | None = None
+    unit: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> 'CalibrationRecommendation':
+        return cls(**data)
+
+
+@dataclass(slots=True)
 class CalibrationSummary:
     project: str
     scenario: str
@@ -69,6 +86,10 @@ class CalibrationSummary:
     effective_sensor_time_offsets: dict[str, int] | None = None
     outlier_error_threshold_db: float | None = None
     outlier_rejected_sample_count: int = 0
+    suggested_sensor_time_offset_updates: dict[str, int] = field(default_factory=dict)
+    suggested_receiver_offset_db: dict[str, float] = field(default_factory=dict)
+    high_priority_receiver_ids: list[str] = field(default_factory=list)
+    recommendations: list[CalibrationRecommendation] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -91,6 +112,10 @@ class CalibrationSummary:
             'effective_sensor_time_offsets': self.effective_sensor_time_offsets,
             'outlier_error_threshold_db': self.outlier_error_threshold_db,
             'outlier_rejected_sample_count': self.outlier_rejected_sample_count,
+            'suggested_sensor_time_offset_updates': self.suggested_sensor_time_offset_updates,
+            'suggested_receiver_offset_db': self.suggested_receiver_offset_db,
+            'high_priority_receiver_ids': self.high_priority_receiver_ids,
+            'recommendations': [item.to_dict() for item in self.recommendations],
         }
 
     @classmethod
@@ -115,6 +140,10 @@ class CalibrationSummary:
             effective_sensor_time_offsets=data.get('effective_sensor_time_offsets'),
             outlier_error_threshold_db=data.get('outlier_error_threshold_db'),
             outlier_rejected_sample_count=data.get('outlier_rejected_sample_count', 0),
+            suggested_sensor_time_offset_updates=dict(data.get('suggested_sensor_time_offset_updates', {})),
+            suggested_receiver_offset_db=dict(data.get('suggested_receiver_offset_db', {})),
+            high_priority_receiver_ids=list(data.get('high_priority_receiver_ids', [])),
+            recommendations=[CalibrationRecommendation.from_dict(item) for item in data.get('recommendations', [])],
         )
 
     @classmethod
