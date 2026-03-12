@@ -23,9 +23,21 @@ class SimulationAPI:
         context = self.create_run_context(project, scenario)
         return self.run_service.summarize(context).to_dict()
 
-    def run(self, project: ProjectManifest, scenario: ScenarioConfig, use_gpu: bool = True):
+    def run(
+        self,
+        project: ProjectManifest,
+        scenario: ScenarioConfig,
+        use_gpu: bool = True,
+        progress_callback=None,
+        record_vehicle_trace: bool = False,
+    ):
         context = self.create_run_context(project, scenario)
-        return self.run_service.run_simulation(context, use_gpu=use_gpu)
+        return self.run_service.run_simulation(
+            context,
+            use_gpu=use_gpu,
+            progress_callback=progress_callback,
+            record_vehicle_trace=record_vehicle_trace,
+        )
 
     def compare_scenarios(self, scenario_a: ScenarioConfig, scenario_b: ScenarioConfig) -> dict:
         return self.compare_service.compare_scenarios(scenario_a, scenario_b).to_dict()

@@ -19,6 +19,7 @@ from mtnsim.gui.state import GuiProjectState
 class ProjectHomeView(QWidget):
     open_project_requested = Signal()
     scenario_selected = Signal(str)
+    run_selected_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -38,6 +39,12 @@ class ProjectHomeView(QWidget):
         self.open_project_button = QPushButton('Open Project')
         self.open_project_button.clicked.connect(self.open_project_requested.emit)
         button_row.addWidget(self.open_project_button)
+
+        self.run_selected_button = QPushButton('Run Selected Scenario')
+        self.run_selected_button.clicked.connect(self.run_selected_requested.emit)
+        self.run_selected_button.setEnabled(False)
+        button_row.addWidget(self.run_selected_button)
+
         button_row.addStretch(1)
         root_layout.addLayout(button_row)
 
@@ -65,6 +72,7 @@ class ProjectHomeView(QWidget):
             self.project_path_label.setText('Manifest: -')
             self.summary_label.setText('Load a project manifest to browse scenarios.')
             self.scenario_list.clear()
+            self.run_selected_button.setEnabled(False)
             return
 
         self.project_name_label.setText(f'Project: {state.project.project.name} ({state.project.project.version})')
@@ -87,10 +95,16 @@ class ProjectHomeView(QWidget):
         if selected_row >= 0:
             self.scenario_list.setCurrentRow(selected_row)
         self.scenario_list.blockSignals(False)
+        self.run_selected_button.setEnabled(state.selected_scenario_path is not None)
+
+    def set_run_enabled(self, enabled: bool) -> None:
+        self.run_selected_button.setEnabled(enabled)
 
     def _emit_current_scenario(self, current: QListWidgetItem | None, previous: QListWidgetItem | None) -> None:  # noqa: ARG002
         if current is None:
+            self.run_selected_button.setEnabled(False)
             return
         scenario_path = current.data(Qt.UserRole)
+        self.run_selected_button.setEnabled(bool(scenario_path))
         if scenario_path:
             self.scenario_selected.emit(str(scenario_path))

@@ -218,11 +218,11 @@ Responsibilities:
 ### Phase 1: GUI Skeleton
 
 Build first:
-- application bootstrap
-- main window shell
-- sidebar navigation
-- status/log panel
-- project loading and scenario list
+- application bootstrap [done]
+- main window shell [done]
+- sidebar navigation [done]
+- status/log panel [done]
+- project loading and scenario list [done]
 
 Goal:
 - a user can open the app and see project/scenario structure
@@ -230,11 +230,11 @@ Goal:
 ### Phase 2: Run Flow
 
 Build next:
-- run button
-- background worker for simulation execution
-- progress display
-- run completion status
-- output file links
+- run button [done]
+- background worker for simulation execution [done]
+- progress display [done]
+- run completion status [done]
+- output file links [done]
 
 Goal:
 - a user can run an existing scenario from the GUI
@@ -242,13 +242,24 @@ Goal:
 ### Phase 3: Result Viewer
 
 Build next:
-- receiver summary table
-- time-series chart for one receiver at a time
-- propagation feature card
-- recent runs panel
+- receiver summary table [done]
+- time-series chart for one receiver at a time [done]
+- propagation feature card [done as metadata panel]
+- recent runs panel [done as recent result list]
 
 Goal:
 - a user can inspect what the run produced without opening files manually
+
+### Phase 3.6: Vehicle Playback
+
+Build next:
+- record vehicle traces during GUI-triggered runs [done]
+- load a playback view on top of the 2D scene canvas [done]
+- add a time slider and play/pause controls [done]
+- add playback layer toggles and heatmap range/opacity controls [done]
+
+Goal:
+- a user can inspect vehicle movement without leaving the GUI
 
 ### Phase 4: Scenario Comparison
 
@@ -298,9 +309,10 @@ Goal:
 3. implement project/scenario browser view
 4. implement run worker and run monitor
 5. implement result summary table + receiver chart
-6. add comparison panel
-7. add campaign validation panel
-8. add limited scenario editor only after read-only flows are stable
+6. add vehicle playback panel [done]
+7. add comparison panel
+8. add campaign validation panel
+9. add limited scenario editor only after read-only flows are stable
 
 ## 9. Success Criteria for the GUI MVP
 
@@ -315,7 +327,17 @@ The GUI MVP is successful if a non-developer can do all of the following without
 ## 10. After the MVP
 
 Once the GUI MVP is stable, the likely next layers are:
-- richer scene summaries and map-like views
+- richer scene summaries, playback overlays, and map-like views
 - more scenario editing coverage
 - result-report export
 - AI-assisted command entry on top of the same typed GUI actions
+
+### Phase 3.5: 2D Scene View
+
+Build next:
+- 2D road network rendering from SUMO net.xml [done]
+- receiver markers [done]
+- scenario geometry overlays for barriers, buildings, terrain, ground, and vegetation [done]
+
+Goal:
+- a user can understand the spatial layout of the scenario before moving to richer playback or comparison tools

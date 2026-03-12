@@ -41,6 +41,7 @@ class RunResultSummary:
     manifest_file: str
     receiver_history_files: dict[str, str]
     final_grid_snapshot_file: str | None
+    vehicle_trace_file: str | None
     used_gpu: bool
     receiver_stats: dict[str, ReceiverStats]
     propagation_features: dict[str, Any] | None = None
@@ -52,6 +53,7 @@ class RunResultSummary:
             'manifest_file': self.manifest_file,
             'receiver_history_files': self.receiver_history_files,
             'final_grid_snapshot_file': self.final_grid_snapshot_file,
+            'vehicle_trace_file': self.vehicle_trace_file,
             'used_gpu': self.used_gpu,
             'receiver_stats': {key: value.to_dict() for key, value in self.receiver_stats.items()},
             'propagation_features': self.propagation_features,
@@ -65,6 +67,7 @@ class RunResultSummary:
             manifest_file=data['manifest_file'],
             receiver_history_files=data['receiver_history_files'],
             final_grid_snapshot_file=data.get('final_grid_snapshot_file'),
+            vehicle_trace_file=data.get('vehicle_trace_file'),
             used_gpu=data['used_gpu'],
             receiver_stats={key: ReceiverStats.from_dict(value) for key, value in data['receiver_stats'].items()},
             propagation_features=data.get('propagation_features'),

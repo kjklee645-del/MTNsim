@@ -20,7 +20,7 @@ It should be updated whenever a major implementation milestone changes the effec
 | 9. Material-based computation | Material-aware corrections are active across multiple path types, but still first-pass and not fully field-validated | Partially completed, advanced |
 | 10. Reflection / diffraction | Active models plus benchmark/tuning workflow exist, but more physics and validation depth are still needed | Partially completed, advanced |
 | 11. Calibration | Calibration, validation suite, field-campaign inspection, and campaign-aware validation all exist, but real field data is still limited | Partially completed, advanced |
-| 12. GUI | GUI MVP planning is complete and Phase 1 desktop shell is implemented | Partially completed, active |
+| 12. GUI | GUI MVP planning is complete and the desktop prototype now supports project browsing plus background scenario execution | Partially completed, active |
 | 13. AI agent control layer | Typed configuration and bounded architecture groundwork exist, but real user-facing agent control is not implemented | Not started, groundwork improved |
 
 ## Current Interpretation
@@ -44,7 +44,7 @@ From a product-engineering perspective, the current state also strengthens Stage
 
 The current recommended order is:
 
-1. extend the GUI Phase 1 shell into real run/result/compare workflows
+1. extend the GUI prototype from run flow into result viewing and scenario comparison workflows
 2. deferred backlog tracking for deeper validation, calibration, scene physics, and GPU work
 3. return to field-facing validation and scene hardening after GUI feedback arrives
 4. selective GPU follow-up only where the hybrid path is not enough
