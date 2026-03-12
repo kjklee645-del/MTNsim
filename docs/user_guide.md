@@ -46,8 +46,9 @@ Current GUI scope in Phase 3 + playback + comparison + limited editor:
 - compare two scenario configurations in a dedicated comparison view
 - run two scenarios from the comparison view and inspect receiver delta tables plus overlay charts
 - open a field campaign package, inspect campaign quality, and validate it from the Campaign Validation view
-- edit selected high-value scenario parameters, including lane-change and post-distance settings, then save a derived scenario from the Scenario Editor view
+- edit selected high-value scenario parameters, including lane-change, noise/grid settings, and a multi-row receiver table, then save a derived scenario from the Scenario Editor view
 - jump directly into config comparison between the source and saved derived scenario
+- block invalid saves with editor-side validation checks before writing a new TOML file
 - browse recent result summaries
 - inspect receiver summary statistics and receiver time-series
 - replay recorded vehicle movement with a time slider and play/pause controls

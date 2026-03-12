@@ -19,7 +19,7 @@ Implemented in the repository today:
 - campaign-aware validation that runs simulation, calibration, and threshold checks from a campaign manifest
 - standardized campaign import contracts for traffic metadata and scene manifests
 - desktop campaign validation UI for campaign inspection and validation summaries
-- limited scenario editor for Save As creation of derived scenarios from core parameters, including lane-change and post-distance controls
+- limited scenario editor for Save As creation of derived scenarios from core parameters, including lane-change, noise/grid values, and selected receiver coordinates
 
 Supported example scenarios:
 - `baseline`
@@ -126,6 +126,7 @@ Run campaign-aware validation:
 - `docs/campaign_import_standard.md`
 - `docs/deferred_enhancement_backlog.md`
 - `docs/gui_mvp_plan.md`
+- `docs/scenario_editor_field_reference.md`
 - `paper/manuscript_draft.md`
 
 ## Recommended Next Steps

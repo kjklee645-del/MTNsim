@@ -288,6 +288,7 @@ Goal achieved:
 Implemented in first pass:
 - form-based edits for selected scenario controls
 - lane-change mode/strategy and post-distance controls in the editor
+- noise/grid fields and selected receiver coordinate editing in the editor
 - save-as behavior for derived scenarios
 - direct handoff into source-vs-derived comparison
 

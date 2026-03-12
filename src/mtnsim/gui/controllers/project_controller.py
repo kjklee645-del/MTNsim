@@ -60,6 +60,7 @@ class ProjectController:
         traffic_block = data.setdefault('traffic', {})
         controls_block = data.setdefault('controls', {})
         noise_block = data.setdefault('noise', {})
+        grid_block = data.setdefault('grid', {})
 
         scenario_block['name'] = updates.get('scenario_name') or scenario_block.get('name') or destination_path.stem
         scenario_block['description'] = updates.get('description', scenario_block.get('description', ''))
@@ -73,6 +74,21 @@ class ProjectController:
         controls_block['post_distance_speed_control'] = bool(updates['controls.post_distance_speed_control'])
         controls_block['lane_change_force_change'] = bool(updates['controls.lane_change_force_change'])
         noise_block['background_noise_db'] = float(updates['noise.background_noise_db'])
+        noise_block['max_area_meters'] = float(updates['noise.max_area_meters'])
+        noise_block['grid_size_meters'] = float(updates['noise.grid_size_meters'])
+        noise_block['receiver_height_meters'] = float(updates['noise.receiver_height_meters'])
+        grid_block['margin_x_start'] = float(updates['grid.margin_x_start'])
+        grid_block['margin_x_end'] = float(updates['grid.margin_x_end'])
+        grid_block['extra_y_extent'] = float(updates['grid.extra_y_extent'])
+        data['receivers'] = [
+            {
+                'id': str(item['id']),
+                'x': float(item['x']),
+                'y': float(item['y']),
+                'z': float(item['z']),
+            }
+            for item in updates['receivers']
+        ]
 
         destination_path.parent.mkdir(parents=True, exist_ok=True)
         destination_path.write_text(toml.dumps(data), encoding='utf-8')
