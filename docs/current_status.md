@@ -186,6 +186,7 @@ What it does now:
 - renders receiver time-series in a built-in line chart
 - records vehicle trajectories during GUI-triggered runs
 - loads a vehicle playback view with a time slider, play/pause controls, and scene-overlayed vehicle positions
+- supports zoom, pan, and hover inspection on scene and playback canvases
 
 ## 3. Validated Scenarios and Checks
 

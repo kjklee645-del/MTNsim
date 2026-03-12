@@ -46,6 +46,7 @@ Current GUI scope in Phase 3 + playback:
 - browse recent result summaries
 - inspect receiver summary statistics and receiver time-series
 - replay recorded vehicle movement with a time slider and play/pause controls
+- zoom with the mouse wheel, pan by dragging, and inspect receivers/vehicles/lanes with hover info
 
 
 ## 4. Important Input Files

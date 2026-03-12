@@ -1,5 +1,7 @@
 ﻿from __future__ import annotations
 
+from math import atan2, degrees
+
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -15,7 +17,7 @@ from PySide6.QtWidgets import (
 
 from mtnsim.gui.controllers.playback_controller import PlaybackDataset
 from mtnsim.gui.controllers.scene_controller import SceneSnapshot
-from mtnsim.gui.views.scene_view import SceneCanvas
+from mtnsim.gui.views.scene_view import SceneCanvas, VehicleGlyph
 
 
 class VehiclePlaybackView(QWidget):
@@ -136,7 +138,25 @@ class VehiclePlaybackView(QWidget):
         if self.dataset is None or frame_index < 0 or frame_index >= self.dataset.frame_count:
             return
         frame = self.dataset.frames[frame_index]
-        self.canvas.set_vehicle_points([(vehicle.vehicle_id, vehicle.x, vehicle.y) for vehicle in frame.vehicles])
+        previous_lookup = {}
+        if frame_index > 0:
+            previous_lookup = {vehicle.vehicle_id: vehicle for vehicle in self.dataset.frames[frame_index - 1].vehicles}
+        next_lookup = {}
+        if frame_index + 1 < self.dataset.frame_count:
+            next_lookup = {vehicle.vehicle_id: vehicle for vehicle in self.dataset.frames[frame_index + 1].vehicles}
+
+        glyphs: list[VehicleGlyph] = []
+        for vehicle in frame.vehicles:
+            heading_deg = 0.0
+            reference = previous_lookup.get(vehicle.vehicle_id) or next_lookup.get(vehicle.vehicle_id)
+            if reference is not None:
+                dx = vehicle.x - reference.x if vehicle.vehicle_id in previous_lookup else reference.x - vehicle.x
+                dy = vehicle.y - reference.y if vehicle.vehicle_id in previous_lookup else reference.y - vehicle.y
+                if abs(dx) > 1e-6 or abs(dy) > 1e-6:
+                    heading_deg = degrees(atan2(dy, dx))
+            glyphs.append(VehicleGlyph(vehicle_id=vehicle.vehicle_id, x=vehicle.x, y=vehicle.y, heading_deg=heading_deg))
+
+        self.canvas.set_vehicle_points(glyphs)
         self.frame_label.setText(f'Frame: {frame.time_index} ({frame.sim_time_seconds:.1f}s)')
         self.vehicle_label.setText(f'Vehicles: {len(frame.vehicles)}')
         self._refresh_info(current_frame=frame_index)
@@ -159,7 +179,8 @@ class VehiclePlaybackView(QWidget):
                 [
                     '',
                     'Scene Layers',
-                    f'- Road polylines: {len(self.snapshot.road_layer.polylines)}',
+                    f'- Road lanes: {len(self.snapshot.road_layer.polylines)}',
+                    f'- Junction polygons: {len(self.snapshot.junction_layer.polygons)}',
                     f'- Receivers: {len(self.snapshot.receiver_layer.points)}',
                     f'- Buildings: {len(self.snapshot.building_layer.polygons)}',
                     f'- Barriers: {len(self.snapshot.barrier_layer.polylines)}',
