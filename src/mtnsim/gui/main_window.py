@@ -21,15 +21,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from mtnsim.gui.controllers import CompareController, PlaybackController, ProjectController, ResultController, RunController, SceneController
+from mtnsim.gui.controllers import CampaignController, CompareController, PlaybackController, ProjectController, ResultController, RunController, SceneController
 from mtnsim.gui.state import GuiRunState, GuiSessionState
-from mtnsim.gui.views import ProjectHomeView, ResultViewerView, RunMonitorView, ScenarioComparisonView, SceneView, VehiclePlaybackView
+from mtnsim.gui.views import CampaignValidationView, ProjectHomeView, ResultViewerView, RunMonitorView, ScenarioComparisonView, ScenarioEditorView, SceneView, VehiclePlaybackView
 
 
 class MainWindow(QMainWindow):
     def __init__(self, manifest_path: str | Path | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.project_controller = ProjectController()
+        self.campaign_controller = CampaignController()
         self.compare_controller = CompareController()
         self.run_controller = RunController()
         self.result_controller = ResultController()
@@ -40,6 +41,8 @@ class MainWindow(QMainWindow):
         self.run_worker = None
         self.compare_thread: QThread | None = None
         self.compare_worker = None
+        self.campaign_thread: QThread | None = None
+        self.campaign_worker = None
         self.current_compare_payload: dict | None = None
         self.current_compare_result_a = None
         self.current_compare_result_b = None
@@ -66,14 +69,18 @@ class MainWindow(QMainWindow):
 
         self.project_home_view = ProjectHomeView()
         self.scene_view = SceneView()
+        self.scenario_editor_view = ScenarioEditorView()
         self.scenario_comparison_view = ScenarioComparisonView()
+        self.campaign_validation_view = CampaignValidationView()
         self.run_monitor_view = RunMonitorView()
         self.result_viewer_view = ResultViewerView()
         self.vehicle_playback_view = VehiclePlaybackView()
         self.central_stack = QStackedWidget()
         self.central_stack.addWidget(self.project_home_view)
         self.central_stack.addWidget(self.scene_view)
+        self.central_stack.addWidget(self.scenario_editor_view)
         self.central_stack.addWidget(self.scenario_comparison_view)
+        self.central_stack.addWidget(self.campaign_validation_view)
         self.central_stack.addWidget(self.run_monitor_view)
         self.central_stack.addWidget(self.result_viewer_view)
         self.central_stack.addWidget(self.vehicle_playback_view)
@@ -94,9 +101,15 @@ class MainWindow(QMainWindow):
         self.scene_view_action = toolbar.addAction('Scene View')
         self.scene_view_action.triggered.connect(self.show_scene_view)
         self.scene_view_action.setEnabled(False)
+        self.scenario_editor_action = toolbar.addAction('Scenario Editor')
+        self.scenario_editor_action.triggered.connect(self.show_scenario_editor)
+        self.scenario_editor_action.setEnabled(False)
         self.compare_view_action = toolbar.addAction('Compare')
         self.compare_view_action.triggered.connect(self.show_scenario_comparison)
         self.compare_view_action.setEnabled(False)
+        self.campaign_view_action = toolbar.addAction('Campaign Validation')
+        self.campaign_view_action.triggered.connect(self.show_campaign_validation)
+        self.campaign_view_action.setEnabled(False)
         self.run_monitor_action = toolbar.addAction('Run Monitor')
         self.run_monitor_action.triggered.connect(self.show_run_monitor)
         self.result_viewer_action = toolbar.addAction('Result Viewer')
@@ -111,7 +124,9 @@ class MainWindow(QMainWindow):
         self.navigation_list = QListWidget()
         self.navigation_list.addItem(QListWidgetItem('Project Home'))
         self.navigation_list.addItem(QListWidgetItem('Scene View'))
+        self.navigation_list.addItem(QListWidgetItem('Scenario Editor'))
         self.navigation_list.addItem(QListWidgetItem('Compare'))
+        self.navigation_list.addItem(QListWidgetItem('Campaign Validation'))
         self.navigation_list.addItem(QListWidgetItem('Run Monitor'))
         self.navigation_list.addItem(QListWidgetItem('Result Viewer'))
         self.navigation_list.addItem(QListWidgetItem('Vehicle Playback'))
@@ -149,9 +164,14 @@ class MainWindow(QMainWindow):
         self.project_home_view.open_project_requested.connect(self.open_project_dialog)
         self.project_home_view.scenario_selected.connect(self.select_scenario)
         self.project_home_view.run_selected_requested.connect(self.run_selected_scenario)
+        self.project_home_view.edit_selected_requested.connect(self.show_scenario_editor)
+        self.scenario_editor_view.save_as_requested.connect(self.save_scenario_variant)
         self.scenario_comparison_view.compare_requested.connect(self.compare_selected_scenarios)
         self.scenario_comparison_view.run_compare_requested.connect(self.run_compare_selected_scenarios)
         self.scenario_comparison_view.receiver_selected.connect(self.load_comparison_receiver_series)
+        self.campaign_validation_view.open_campaign_requested.connect(self.open_campaign_dialog)
+        self.campaign_validation_view.inspect_requested.connect(self.inspect_campaign)
+        self.campaign_validation_view.validate_requested.connect(self.validate_campaign)
         self.run_monitor_view.back_requested.connect(self.show_project_home)
         self.result_viewer_view.recent_result_selected.connect(self.load_result_summary)
         self.result_viewer_view.receiver_selected.connect(self.load_receiver_series)
@@ -185,7 +205,9 @@ class MainWindow(QMainWindow):
         run_enabled = state.selected_scenario_path is not None
         self.run_selected_action.setEnabled(run_enabled)
         self.scene_view_action.setEnabled(run_enabled)
+        self.scenario_editor_action.setEnabled(run_enabled)
         self.compare_view_action.setEnabled(len(state.scenario_paths) >= 2)
+        self.campaign_view_action.setEnabled(state.manifest_path is not None)
         self.project_home_view.set_run_enabled(run_enabled)
         self.scenario_comparison_view.set_scenarios(state.scenario_paths, state.selected_scenario_path)
         self.scenario_comparison_view.set_comparison(None)
@@ -193,6 +215,7 @@ class MainWindow(QMainWindow):
         self._append_log(f'[info] Loaded project manifest: {manifest_path}')
         if state.selected_scenario is not None:
             self._render_scenario_details(state.selected_scenario_path, state.selected_scenario)
+            self.scenario_editor_view.set_scenario(state.selected_scenario_path, state.selected_scenario)
             self._update_scene_view()
         self.statusBar().showMessage(f'Loaded project: {state.project.project.name}')
         self.show_project_home()
@@ -208,10 +231,13 @@ class MainWindow(QMainWindow):
         self.session_state.project_state.selected_scenario_path = Path(scenario_path)
         self.session_state.project_state.selected_scenario = loaded
         self._render_scenario_details(Path(scenario_path), loaded)
+        self.scenario_editor_view.set_scenario(Path(scenario_path), loaded)
         self._update_scene_view()
         self.run_selected_action.setEnabled(True)
         self.scene_view_action.setEnabled(True)
+        self.scenario_editor_action.setEnabled(True)
         self.compare_view_action.setEnabled(len(self.session_state.project_state.scenario_paths) >= 2)
+        self.campaign_view_action.setEnabled(self.session_state.project_state.manifest_path is not None)
         self.project_home_view.set_run_enabled(True)
         self.scenario_comparison_view.set_scenarios(self.session_state.project_state.scenario_paths, self.session_state.project_state.selected_scenario_path)
         self.scenario_comparison_view.set_run_comparison(None)
@@ -300,10 +326,22 @@ class MainWindow(QMainWindow):
         self.navigation_list.setCurrentRow(1)
         self.navigation_list.blockSignals(False)
 
+    def show_scenario_editor(self) -> None:
+        self.central_stack.setCurrentWidget(self.scenario_editor_view)
+        self.navigation_list.blockSignals(True)
+        self.navigation_list.setCurrentRow(7)
+        self.navigation_list.blockSignals(False)
+
     def show_scenario_comparison(self) -> None:
         self.central_stack.setCurrentWidget(self.scenario_comparison_view)
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(2)
+        self.navigation_list.blockSignals(False)
+
+    def show_campaign_validation(self) -> None:
+        self.central_stack.setCurrentWidget(self.campaign_validation_view)
+        self.navigation_list.blockSignals(True)
+        self.navigation_list.setCurrentRow(6)
         self.navigation_list.blockSignals(False)
 
     def show_run_monitor(self) -> None:
@@ -330,12 +368,16 @@ class MainWindow(QMainWindow):
         elif row == 1:
             self.central_stack.setCurrentWidget(self.scene_view)
         elif row == 2:
-            self.central_stack.setCurrentWidget(self.scenario_comparison_view)
+            self.central_stack.setCurrentWidget(self.scenario_editor_view)
         elif row == 3:
-            self.central_stack.setCurrentWidget(self.run_monitor_view)
+            self.central_stack.setCurrentWidget(self.scenario_comparison_view)
         elif row == 4:
-            self.central_stack.setCurrentWidget(self.result_viewer_view)
+            self.central_stack.setCurrentWidget(self.campaign_validation_view)
         elif row == 5:
+            self.central_stack.setCurrentWidget(self.run_monitor_view)
+        elif row == 6:
+            self.central_stack.setCurrentWidget(self.result_viewer_view)
+        elif row == 7:
             self.central_stack.setCurrentWidget(self.vehicle_playback_view)
 
     def _on_run_progress(self, percent: int, label: str) -> None:
@@ -500,6 +542,143 @@ class MainWindow(QMainWindow):
             self.current_compare_payload['comparison']['scenario_a'],
             self.current_compare_payload['comparison']['scenario_b'],
         )
+
+    def open_campaign_dialog(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            'Open Campaign Manifest',
+            str(Path.cwd()),
+            'JSON Files (*.json);;All Files (*)',
+        )
+        if file_path:
+            self.load_campaign(Path(file_path))
+
+    def load_campaign(self, campaign_path: Path) -> None:
+        try:
+            manifest = self.campaign_controller.load_campaign_manifest(campaign_path)
+        except Exception as exc:  # pragma: no cover
+            QMessageBox.critical(self, 'Campaign Load Failed', str(exc))
+            self._append_log(f'[error] Failed to load campaign: {exc}')
+            return
+        scenario_paths = self.session_state.project_state.scenario_paths if self.session_state.project_state.project is not None else []
+        self.campaign_validation_view.set_campaign(campaign_path, manifest, scenario_paths)
+        self.campaign_validation_view.set_status('Campaign loaded. Inspect or validate when ready.')
+        self._append_log(f'[info] Loaded campaign: {campaign_path}')
+        self.show_campaign_validation()
+
+    def inspect_campaign(self, campaign_file: str) -> None:
+        if self.campaign_thread is not None and self.campaign_thread.isRunning():
+            QMessageBox.information(self, 'Campaign Task In Progress', 'Another campaign task is already running.')
+            return
+        self.campaign_validation_view.set_status('Inspecting campaign...')
+        self.statusBar().showMessage('Inspecting campaign...')
+        self.campaign_thread = QThread(self)
+        self.campaign_worker = self.campaign_controller.create_inspect_worker(campaign_file)
+        self.campaign_worker.moveToThread(self.campaign_thread)
+        self.campaign_thread.started.connect(self.campaign_worker.run)
+        self.campaign_worker.completed.connect(self._on_campaign_inspection_completed)
+        self.campaign_worker.failed.connect(self._on_campaign_task_failed)
+        self.campaign_worker.completed.connect(self.campaign_thread.quit)
+        self.campaign_worker.failed.connect(self.campaign_thread.quit)
+        self.campaign_thread.finished.connect(self._cleanup_campaign_thread)
+        self.campaign_thread.start()
+
+    def validate_campaign(self, campaign_file: str, scenario_override_path: str, use_gpu: bool) -> None:
+        project_state = self.session_state.project_state
+        if project_state.manifest_path is None:
+            QMessageBox.information(self, 'Campaign Validation', 'Load a project first.')
+            return
+        if self.campaign_thread is not None and self.campaign_thread.isRunning():
+            QMessageBox.information(self, 'Campaign Task In Progress', 'Another campaign task is already running.')
+            return
+        scenario_override = scenario_override_path or None
+        self.campaign_validation_view.set_status('Validating campaign...')
+        self.statusBar().showMessage('Validating campaign...')
+        self.campaign_thread = QThread(self)
+        self.campaign_worker = self.campaign_controller.create_validate_worker(
+            project_state.manifest_path,
+            campaign_file,
+            scenario_override_path=scenario_override,
+            use_gpu=use_gpu,
+        )
+        self.campaign_worker.moveToThread(self.campaign_thread)
+        self.campaign_thread.started.connect(self.campaign_worker.run)
+        self.campaign_worker.completed.connect(self._on_campaign_validation_completed)
+        self.campaign_worker.failed.connect(self._on_campaign_task_failed)
+        self.campaign_worker.completed.connect(self.campaign_thread.quit)
+        self.campaign_worker.failed.connect(self.campaign_thread.quit)
+        self.campaign_thread.finished.connect(self._cleanup_campaign_thread)
+        self.campaign_thread.start()
+
+    def _on_campaign_inspection_completed(self, payload: dict) -> None:
+        self.campaign_validation_view.set_inspection_result(payload)
+        self.campaign_validation_view.set_status('Campaign inspection completed')
+        self._append_log(f"[info] Campaign inspection completed: {payload.get('summary_file')}")
+        self.statusBar().showMessage('Campaign inspection completed')
+        self.show_campaign_validation()
+
+    def _on_campaign_validation_completed(self, payload: dict) -> None:
+        self.campaign_validation_view.set_validation_result(payload)
+        self.campaign_validation_view.set_status('Campaign validation completed')
+        self._append_log(f"[info] Campaign validation completed: {payload.get('summary_file')}")
+        self.statusBar().showMessage('Campaign validation completed')
+        self.show_campaign_validation()
+
+    def _on_campaign_task_failed(self, error_message: str) -> None:
+        self.campaign_validation_view.set_status('Campaign task failed')
+        self._append_log(f'[error] {error_message}')
+        self.statusBar().showMessage('Campaign task failed')
+        QMessageBox.critical(self, 'Campaign Task Failed', error_message)
+
+    def _cleanup_campaign_thread(self) -> None:
+        if self.campaign_thread is not None:
+            self.campaign_thread.deleteLater()
+        if self.campaign_worker is not None:
+            self.campaign_worker.deleteLater()
+        self.campaign_thread = None
+        self.campaign_worker = None
+
+    def save_scenario_variant(self, payload: dict) -> None:
+        project_state = self.session_state.project_state
+        source_path = payload.get('source_path')
+        if project_state.manifest_path is None or not source_path:
+            QMessageBox.information(self, 'Scenario Editor', 'Load a project and select a scenario first.')
+            return
+        suggested_name = (payload.get('scenario_name') or Path(source_path).stem or 'scenario_variant').strip()
+        default_path = Path(source_path).resolve().parent / f'{suggested_name}.toml'
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            'Save Derived Scenario As',
+            str(default_path),
+            'TOML Files (*.toml)',
+        )
+        if not file_path:
+            return
+        try:
+            saved_path = self.project_controller.save_scenario_variant(source_path, file_path, payload)
+            reloaded = self.project_controller.load_project(project_state.manifest_path)
+            reloaded.selected_scenario_path = saved_path
+            reloaded.selected_scenario = self.project_controller.load_scenario(saved_path)
+            self.session_state.project_state = reloaded
+            self.project_home_view.set_project_state(reloaded)
+            self.scenario_comparison_view.set_scenarios(reloaded.scenario_paths, reloaded.selected_scenario_path)
+            self.scenario_comparison_view.set_selected_pair(source_path, saved_path)
+            self.run_selected_action.setEnabled(True)
+            self.scene_view_action.setEnabled(True)
+            self.scenario_editor_action.setEnabled(True)
+            self.compare_view_action.setEnabled(len(reloaded.scenario_paths) >= 2)
+            self._render_scenario_details(saved_path, reloaded.selected_scenario)
+            self.scenario_editor_view.set_scenario(saved_path, reloaded.selected_scenario)
+            self._update_scene_view()
+            self.scenario_editor_view.set_status(f'Saved derived scenario: {saved_path.name}')
+            self._append_log(f'[info] Saved derived scenario: {saved_path}')
+            self.statusBar().showMessage(f'Saved derived scenario: {saved_path.name}')
+            self.compare_selected_scenarios(str(source_path), str(saved_path))
+            self.scenario_comparison_view.set_status(f'Derived scenario saved. Comparing {Path(source_path).stem} vs {saved_path.stem}')
+            self.show_scenario_comparison()
+        except Exception as exc:  # pragma: no cover
+            QMessageBox.critical(self, 'Scenario Save Failed', str(exc))
+            self._append_log(f'[error] Failed to save scenario variant: {exc}')
 
     def _render_scenario_details(self, scenario_path: Path | None, scenario) -> None:
         receiver_lines = [f'- {receiver.id}: ({receiver.x:.1f}, {receiver.y:.1f}, {receiver.z:.1f})' for receiver in scenario.receivers]

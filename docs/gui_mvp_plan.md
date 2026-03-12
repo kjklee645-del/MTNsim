@@ -273,22 +273,28 @@ Implemented:
 Goal achieved:
 - a user can compare changes without touching CLI
 
-### Phase 5: Campaign Validation Panel
+### Phase 5: Campaign Validation Panel [done]
 
-Build next:
+Implemented:
 - open campaign manifest
 - run inspect / validate
-- show acceptance result, diagnostics, and recommendations
+- show acceptance result, threshold checks, diagnostics, and recommendations
 
-Goal:
+Goal achieved:
 - a user can use the existing validation pipeline from the GUI
 
-### Phase 6: Limited Scenario Editing
+### Phase 6: Limited Scenario Editing [started]
 
-Build after the above:
+Implemented in first pass:
 - form-based edits for selected scenario controls
+- lane-change mode/strategy and post-distance controls in the editor
 - save-as behavior for derived scenarios
-- validation of edited values against schema
+- direct handoff into source-vs-derived comparison
+
+Remaining in this phase:
+- broader field coverage
+- stronger validation of edited values against schema
+- tighter integration with compare workflows
 
 Goal:
 - a user can create and test simple scenario variations safely
@@ -312,8 +318,8 @@ Goal:
 5. implement result summary table + receiver chart
 6. add vehicle playback panel [done]
 7. add comparison panel [done]
-8. add campaign validation panel
-9. add limited scenario editor only after read-only flows are stable
+8. add campaign validation panel [done]
+9. add limited scenario editor only after read-only flows are stable [started]
 
 ## 9. Success Criteria for the GUI MVP
 

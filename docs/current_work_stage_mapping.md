@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document maps the currently implemented scene-aware propagation, validation, and hybrid GPU work to the original 13-stage MTNsim development process.
+This document maps the currently implemented scene-aware propagation, validation, hybrid GPU, and GUI workflow work to the original 13-stage MTNsim development process.
 It should be updated whenever a major implementation milestone changes the effective development priority.
 
 ## Mapping Summary
@@ -19,8 +19,8 @@ It should be updated whenever a major implementation milestone changes the effec
 | 8. Scene hierarchy clarification | Runtime scene hierarchy now includes barriers, buildings, terrain edges, ground surfaces, and vegetation zones | Partially completed, advanced |
 | 9. Material-based computation | Material-aware corrections are active across multiple path types, but still first-pass and not fully field-validated | Partially completed, advanced |
 | 10. Reflection / diffraction | Active models plus benchmark/tuning workflow exist, but more physics and validation depth are still needed | Partially completed, advanced |
-| 11. Calibration | Calibration, validation suite, field-campaign inspection, and campaign-aware validation all exist, but real field data is still limited | Partially completed, advanced |
-| 12. GUI | GUI MVP planning is complete and the desktop prototype now supports project browsing plus background scenario execution | Partially completed, active |
+| 11. Calibration | Calibration, validation suite, field-campaign inspection, campaign-aware validation, and campaign validation UI workflows all exist, but real field data is still limited | Partially completed, advanced |
+| 12. GUI | GUI MVP planning is complete and the desktop prototype now supports project browsing, run/result inspection, scenario comparison, campaign validation workflows, and limited scenario editing | Partially completed, advanced |
 | 13. AI agent control layer | Typed configuration and bounded architecture groundwork exist, but real user-facing agent control is not implemented | Not started, groundwork improved |
 
 ## Current Interpretation
@@ -31,6 +31,7 @@ It now spans three active implementation fronts:
 - Stage 10: propagation and scene-aware execution
 - Stage 11: calibration, validation, and field-campaign workflows
 - Stage 8/9: richer scene objects and material-aware scene behavior
+- Stage 11/12: campaign validation and calibration workflows surfaced through the GUI
 
 From a product-engineering perspective, the current state also strengthens Stage 2 and Stage 5 because the system now has:
 

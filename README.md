@@ -18,6 +18,8 @@ Implemented in the repository today:
 - field-campaign inspection, quality checks, and markdown/JSON campaign reports
 - campaign-aware validation that runs simulation, calibration, and threshold checks from a campaign manifest
 - standardized campaign import contracts for traffic metadata and scene manifests
+- desktop campaign validation UI for campaign inspection and validation summaries
+- limited scenario editor for Save As creation of derived scenarios from core parameters, including lane-change and post-distance controls
 
 Supported example scenarios:
 - `baseline`
@@ -110,6 +112,7 @@ Run campaign-aware validation:
 - A field-campaign inspection flow now checks campaign package completeness before real data is used for validation.
 - A desktop GUI prototype now exists with project loading, 2D scene viewing, background run execution, run-monitor output display, recent-result browsing, receiver-series viewing, vehicle playback from recorded run traces, interactive zoom/pan/hover inspection, minimap support, speed-colored vehicles, tail trails, playback-synchronized grid heatmap overlays, playback-side layer/heatmap controls, and receiver-linked playback cursors in the result chart, nearby-frame heatmap prefetch for smoother playback, and click-to-select vehicle detail inspection in playback, including selected-vehicle-only contribution heatmaps, receiver contribution summaries, timeline event markers for enter/exit, speed-shift, and heading-shift moments, camera-follow playback for selected vehicles, and playback export as PNG sequence, animated GIF, or MP4 video from the playback view.
 - The GUI comparison layer now supports both configuration diff and run-result comparison with receiver delta summaries and overlay charts.
+- The GUI now also supports campaign inspection and campaign validation summaries through a dedicated Campaign Validation screen.
 - Deeper validation, calibration, physics, and GPU work remain important, but are now tracked as deferred backlog rather than the immediate mainline focus.
 
 ## Key Documents

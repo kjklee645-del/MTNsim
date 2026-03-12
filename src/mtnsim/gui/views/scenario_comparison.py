@@ -250,6 +250,15 @@ class ScenarioComparisonView(QWidget):
     def current_selection(self) -> tuple[str | None, str | None]:
         return self.scenario_a_combo.currentData(), self.scenario_b_combo.currentData()
 
+    def set_selected_pair(self, scenario_a_path: str | Path, scenario_b_path: str | Path) -> None:
+        target_a = str(scenario_a_path)
+        target_b = str(scenario_b_path)
+        for combo, target in ((self.scenario_a_combo, target_a), (self.scenario_b_combo, target_b)):
+            for index in range(combo.count()):
+                if combo.itemData(index) == target:
+                    combo.setCurrentIndex(index)
+                    break
+
     def set_status(self, text: str) -> None:
         self.status_label.setText(text)
 
