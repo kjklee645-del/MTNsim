@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Signal, Qt
+from PySide6.QtCore import Signal, Qt, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -22,11 +22,17 @@ from PySide6.QtWidgets import (
 
 class ScenarioEditorView(QWidget):
     save_as_requested = Signal(dict)
+    preview_requested = Signal(dict)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._current_source_path = ''
+        self._suspend_preview = False
+        self._preview_timer = QTimer(self)
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.timeout.connect(self._emit_preview_if_valid)
         self._build_ui()
+        self._connect_preview_sources()
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -171,7 +177,31 @@ class ScenarioEditorView(QWidget):
         self.status_label = QLabel('Select a scenario to edit its limited parameters.')
         root.addWidget(self.status_label)
 
+    def _connect_preview_sources(self) -> None:
+        watched = [
+            self.max_vehicles_spin,
+            self.start_speed_spin,
+            self.interval_spin,
+            self.post_distance_spin,
+            self.target_speed_spin,
+            self.background_noise_spin,
+            self.max_area_spin,
+            self.grid_size_spin,
+            self.receiver_height_spin,
+            self.grid_margin_start_spin,
+            self.grid_margin_end_spin,
+            self.grid_extra_y_spin,
+        ]
+        for widget in watched:
+            widget.valueChanged.connect(self._schedule_preview)
+        self.lane_change_mode_combo.currentIndexChanged.connect(self._schedule_preview)
+        self.lane_change_strategy_combo.currentIndexChanged.connect(self._schedule_preview)
+        self.post_distance_control_check.toggled.connect(self._schedule_preview)
+        self.lane_change_force_check.toggled.connect(self._schedule_preview)
+        self.receiver_table.itemChanged.connect(self._schedule_preview)
+
     def set_scenario(self, scenario_path, scenario) -> None:
+        self._suspend_preview = True
         self._current_source_path = str(scenario_path) if scenario_path is not None else ''
         self.name_edit.setText(scenario.scenario.name)
         self.description_edit.setText(scenario.scenario.description)
@@ -192,9 +222,11 @@ class ScenarioEditorView(QWidget):
         self.post_distance_control_check.setChecked(bool(scenario.controls.post_distance_speed_control))
         self.lane_change_force_check.setChecked(bool(scenario.controls.lane_change_force_change))
 
+        self.receiver_table.blockSignals(True)
         self.receiver_table.setRowCount(0)
         for receiver in scenario.receivers:
             self._append_receiver_row(receiver.id, float(receiver.x), float(receiver.y), float(receiver.z))
+        self.receiver_table.blockSignals(False)
 
         self.info_box.setPlainText('\n'.join([
             f'Source file: {scenario_path}',
@@ -204,13 +236,20 @@ class ScenarioEditorView(QWidget):
             f'Terrain edges: {len(scenario.scene.terrain_edges)}',
             f'Vegetation zones: {len(scenario.scene.vegetation_zones)}',
         ]))
-        self.status_label.setText('Edit selected fields and use Save As to create a derived scenario.')
+        self.status_label.setText('Edit selected fields and use Save As to create a derived scenario. Preview updates the scene live when values are valid.')
         self.save_as_button.setEnabled(True)
         self.add_receiver_button.setEnabled(True)
         self.remove_receiver_button.setEnabled(True)
+        self._suspend_preview = False
+        self._emit_preview_if_valid()
 
     def set_status(self, text: str) -> None:
         self.status_label.setText(text)
+
+    def _schedule_preview(self, *args) -> None:  # noqa: ANN002
+        if self._suspend_preview:
+            return
+        self._preview_timer.start(120)
 
     def _set_combo_value(self, combo: QComboBox, value: str) -> None:
         index = combo.findData(value)
@@ -231,20 +270,24 @@ class ScenarioEditorView(QWidget):
             self.receiver_table.setItem(row, column, item)
 
     def _add_receiver_row(self) -> None:
+        self.receiver_table.blockSignals(True)
         next_index = self.receiver_table.rowCount() + 1
         self._append_receiver_row(f'receiver_{next_index}', 0.0, 0.0, 1.5)
+        self.receiver_table.blockSignals(False)
         self.receiver_table.selectRow(self.receiver_table.rowCount() - 1)
+        self._schedule_preview()
 
     def _remove_selected_receiver_rows(self) -> None:
         selected_rows = sorted({index.row() for index in self.receiver_table.selectionModel().selectedRows()}, reverse=True)
         for row in selected_rows:
             self.receiver_table.removeRow(row)
+        self._schedule_preview()
 
-    def validate_inputs(self) -> tuple[dict | None, list[str]]:
+    def _build_payload(self, strict: bool) -> tuple[dict | None, list[str]]:
         errors: list[str] = []
 
         scenario_name = self.name_edit.text().strip()
-        if not scenario_name:
+        if strict and not scenario_name:
             errors.append('Scenario name must not be empty.')
 
         if self.grid_size_spin.value() <= 0:
@@ -267,29 +310,30 @@ class ScenarioEditorView(QWidget):
             y_item = self.receiver_table.item(row, 2)
             z_item = self.receiver_table.item(row, 3)
             receiver_id = id_item.text().strip() if id_item else ''
-            if not receiver_id:
+            if strict and not receiver_id:
                 errors.append(f'Receiver row {row + 1} must have a non-empty ID.')
                 continue
-            if receiver_id in seen_ids:
-                errors.append(f'Duplicate receiver ID: {receiver_id}')
-            seen_ids.add(receiver_id)
+            if receiver_id:
+                if receiver_id in seen_ids:
+                    errors.append(f'Duplicate receiver ID: {receiver_id}')
+                seen_ids.add(receiver_id)
             try:
                 x = float(x_item.text()) if x_item else 0.0
                 y = float(y_item.text()) if y_item else 0.0
                 z = float(z_item.text()) if z_item else 0.0
             except ValueError:
-                errors.append(f'Receiver {receiver_id} has a non-numeric coordinate value.')
+                errors.append(f'Receiver row {row + 1} has a non-numeric coordinate value.')
                 continue
             if z < 0:
-                errors.append(f'Receiver {receiver_id} has a negative Z value.')
-            receivers.append({'id': receiver_id, 'x': x, 'y': y, 'z': z})
+                errors.append(f'Receiver {receiver_id or row + 1} has a negative Z value.')
+            receivers.append({'id': receiver_id or f'receiver_{row + 1}', 'x': x, 'y': y, 'z': z})
 
         if errors:
             return None, errors
 
         payload = {
             'source_path': self._current_source_path,
-            'scenario_name': scenario_name,
+            'scenario_name': scenario_name or 'preview_scenario',
             'description': self.description_edit.text().strip(),
             'traffic.max_vehicles': int(self.max_vehicles_spin.value()),
             'traffic.start_speed_kmh': float(self.start_speed_spin.value()),
@@ -310,6 +354,18 @@ class ScenarioEditorView(QWidget):
             'receivers': receivers,
         }
         return payload, []
+
+    def _emit_preview_if_valid(self) -> None:
+        if not self._current_source_path:
+            return
+        payload, errors = self._build_payload(strict=False)
+        if payload is None:
+            self.status_label.setText(f'Preview paused: {errors[0]}')
+            return
+        self.preview_requested.emit(payload)
+
+    def validate_inputs(self) -> tuple[dict | None, list[str]]:
+        return self._build_payload(strict=True)
 
     def _emit_save_as(self) -> None:
         if not self._current_source_path:

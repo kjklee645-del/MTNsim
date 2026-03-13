@@ -118,9 +118,14 @@ class ReceiverSeriesChart(QWidget):
 class ResultViewerView(QWidget):
     recent_result_selected = Signal(str)
     receiver_selected = Signal(str)
+    open_output_dir_requested = Signal()
+    open_result_summary_requested = Signal()
+    open_manifest_requested = Signal()
+    export_markdown_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._result_summary_path = ''
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -131,6 +136,26 @@ class ResultViewerView(QWidget):
         title = QLabel('Result Viewer')
         title.setStyleSheet('font-size: 22px; font-weight: 700;')
         outer.addWidget(title)
+
+        action_row = QHBoxLayout()
+        self.open_output_dir_button = QLabel('<a href="#">Open Output Folder</a>')
+        self.open_output_dir_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_output_dir_button.linkActivated.connect(lambda *_: self.open_output_dir_requested.emit())
+        action_row.addWidget(self.open_output_dir_button)
+        self.open_result_summary_button = QLabel('<a href="#">Open Result Summary</a>')
+        self.open_result_summary_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_result_summary_button.linkActivated.connect(lambda *_: self.open_result_summary_requested.emit())
+        action_row.addWidget(self.open_result_summary_button)
+        self.open_manifest_button = QLabel('<a href="#">Open Run Manifest</a>')
+        self.open_manifest_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_manifest_button.linkActivated.connect(lambda *_: self.open_manifest_requested.emit())
+        action_row.addWidget(self.open_manifest_button)
+        self.export_markdown_button = QLabel('<a href="#">Export Markdown</a>')
+        self.export_markdown_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.export_markdown_button.linkActivated.connect(lambda *_: self.export_markdown_requested.emit())
+        action_row.addWidget(self.export_markdown_button)
+        action_row.addStretch(1)
+        outer.addLayout(action_row)
 
         splitter = QSplitter()
         outer.addWidget(splitter, 1)
@@ -192,6 +217,9 @@ class ResultViewerView(QWidget):
         splitter.addWidget(right_panel)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
+
+    def set_result_summary_source(self, result_summary_path: str | Path | None) -> None:
+        self._result_summary_path = str(result_summary_path) if result_summary_path else ''
 
     def set_recent_results(self, result_paths: list[Path]) -> None:
         self.recent_results_list.blockSignals(True)

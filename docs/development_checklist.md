@@ -30,6 +30,7 @@ Status legend:
 | Schema | Result schema | [x] | `schemas/result.schema.json` |
 | Packaging | Python package skeleton | [x] | `src/mtnsim` |
 | Metadata | README and package metadata | [x] | `README.md`, `pyproject.toml` |
+| Project UX | New/import project workflow | [~] | UX design documented in `docs/new_project_import_ux_plan.md`; GUI implementation not started |
 
 ## 3. Core Execution Kernel
 
@@ -101,14 +102,14 @@ Status legend:
 
 | Area | Item | Status | Notes |
 | --- | --- | --- | --- |
-| Reporting | Report generation | [ ] | not started |
+| Reporting | Report generation | [~] | GUI-side export/open flows exist for results, comparison, and campaign artifacts; production-grade reporting still not started |
 | Visualization | GUI MVP planning | [x] | `docs/gui_mvp_plan.md` |
 | Visualization | GUI Phase 1 skeleton | [x] | project loading, scenario browsing, scenario-detail preview, and status/log shell implemented in `src/mtnsim/gui` |
 | Visualization | GUI Phase 2 run flow | [x] | background run worker, progress monitor, and output-path display implemented |
 | Visualization | GUI Phase 3 result viewer | [x] | recent results list, receiver stats table, and built-in receiver-series chart implemented |
 | Visualization | GUI Scene View | [x] | SUMO road polylines, receivers, and scenario geometry layers rendered in a 2D scene view |
 | Visualization | GUI Vehicle Playback | [x] | GUI-triggered runs now record vehicle traces and replay them with a time slider on top of the 2D scene view |
-| Visualization | GUI implementation | [~] | active track; next is scenario comparison wiring |
+| Visualization | GUI implementation | [~] | active track; core GUI flows exist; preview UX polish items are deferred in `docs/deferred_enhancement_backlog.md` |
 | API | Local API layer | [~] | thin local layer exists |
 | Agent | Bounded command architecture baseline | [~] | early structure only |
 | Agent | Real natural-language scenario control | [ ] | not started |
@@ -118,11 +119,11 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Extend GUI Phase 3 into scenario comparison flow | [~] | run execution, result inspection, scene view, and vehicle playback are wired; comparison is the next operator-facing workflow gap |
-| 2 | Keep deeper validation, calibration, physics, and GPU work on the deferred backlog while GUI MVP is under construction | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the mainline focus stays clear |
-| 3 | Resume field-data validation hardening after the GUI prototype is usable | [~] | real user feedback and real datasets should shape the next round of engine refinement |
+| 1 | Implement `New Project` / `Import SUMO Project` GUI flow | [~] | the GUI is still too dependent on the bundled `4lane` demo project; project entry is now the main usability gap |
+| 2 | Keep deeper validation, calibration, physics, and GPU work on the deferred backlog while project-entry UX is under construction | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
+| 3 | Resume field-data validation hardening after project creation/import and GUI operator flow are easier for non-developers | [~] | real external users need to bring their own cases in before validation polish becomes broadly useful |
 | 4 | Add scene-aware performance benchmarking and selective GPU follow-up only where hybrid GPU becomes the bottleneck | [~] | hybrid GPU path is already usable, so more GPU work is not the immediate product priority |
-| 5 | Deepen reporting / richer agent control after GUI flows stabilize | [ ] | depends on a usable GUI shell and clearer operator workflows |
+| 5 | Deepen reporting and richer agent control after project-entry and operator workflows stabilize | [ ] | depends on a smoother end-to-end project lifecycle |
 
 ## 10. Maintenance Rule
 

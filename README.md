@@ -18,8 +18,10 @@ Implemented in the repository today:
 - field-campaign inspection, quality checks, and markdown/JSON campaign reports
 - campaign-aware validation that runs simulation, calibration, and threshold checks from a campaign manifest
 - standardized campaign import contracts for traffic metadata and scene manifests
-- desktop campaign validation UI for campaign inspection and validation summaries
-- limited scenario editor for Save As creation of derived scenarios from core parameters, including lane-change, noise/grid values, and selected receiver coordinates
+- desktop campaign validation UI for campaign inspection and validation summaries with direct report/result file access
+- limited scenario editor for Save As creation of derived scenarios from core parameters, including lane-change, noise/grid values, a multi-row receiver table, input validation, and unsaved live preview into the scene/details view
+- GUI reporting/export actions for result summaries, scenario comparison summaries, and campaign validation artifacts
+- Project Home recent-run panel with quick-open result and latest-output shortcuts
 
 Supported example scenarios:
 - `baseline`

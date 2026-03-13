@@ -5,6 +5,10 @@
 This document explains the fields currently exposed in the MTNsim `Scenario Editor` GUI.
 The editor does not expose every schema field. It focuses on high-value scenario controls that a general user is likely to adjust first.
 
+## Live Preview
+
+When current values pass editor validation, the editor automatically updates the main `Scenario Details` panel and `Scene View` without saving. This preview is unsaved and temporary. Heatmap overlays are cleared during preview so saved run outputs are not confused with edited geometry.
+
 ## Scenario
 
 ### Scenario Name

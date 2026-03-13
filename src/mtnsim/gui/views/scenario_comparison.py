@@ -108,9 +108,15 @@ class ScenarioComparisonView(QWidget):
     compare_requested = Signal(str, str)
     run_compare_requested = Signal(str, str, bool)
     receiver_selected = Signal(str)
+    open_run_a_requested = Signal()
+    open_run_b_requested = Signal()
+    export_json_requested = Signal()
+    export_markdown_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._run_a_summary_file = ''
+        self._run_b_summary_file = ''
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -143,6 +149,26 @@ class ScenarioComparisonView(QWidget):
 
         self.status_label = QLabel('Select two scenarios to compare their configuration differences.')
         root.addWidget(self.status_label)
+
+        action_row = QHBoxLayout()
+        self.open_run_a_button = QLabel('<a href="#">Open Run A Summary</a>')
+        self.open_run_a_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_run_a_button.linkActivated.connect(lambda *_: self.open_run_a_requested.emit())
+        action_row.addWidget(self.open_run_a_button)
+        self.open_run_b_button = QLabel('<a href="#">Open Run B Summary</a>')
+        self.open_run_b_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_run_b_button.linkActivated.connect(lambda *_: self.open_run_b_requested.emit())
+        action_row.addWidget(self.open_run_b_button)
+        self.export_json_button = QLabel('<a href="#">Export JSON</a>')
+        self.export_json_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.export_json_button.linkActivated.connect(lambda *_: self.export_json_requested.emit())
+        action_row.addWidget(self.export_json_button)
+        self.export_markdown_button = QLabel('<a href="#">Export Markdown</a>')
+        self.export_markdown_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.export_markdown_button.linkActivated.connect(lambda *_: self.export_markdown_requested.emit())
+        action_row.addWidget(self.export_markdown_button)
+        action_row.addStretch(1)
+        root.addLayout(action_row)
 
         splitter = QSplitter()
         root.addWidget(splitter, 1)
@@ -294,12 +320,16 @@ class ScenarioComparisonView(QWidget):
 
     def set_run_comparison(self, comparison_payload: dict | None) -> None:
         if comparison_payload is None:
+            self._run_a_summary_file = ''
+            self._run_b_summary_file = ''
             self.receiver_delta_count_label.setText('0')
             self.delta_summary_box.setPlainText('Run-and-compare output will appear here.')
             self.receiver_delta_table.setRowCount(0)
             self.receiver_selector.clear()
             self.chart_widget.set_series('-', [], [], 'Scenario A', 'Scenario B')
             return
+        self._run_a_summary_file = comparison_payload['artifacts_a'].get('result_summary_file', '')
+        self._run_b_summary_file = comparison_payload['artifacts_b'].get('result_summary_file', '')
         comparison = comparison_payload['comparison']
         receiver_deltas = comparison['receiver_deltas']
         self.receiver_delta_count_label.setText(str(len(receiver_deltas)))

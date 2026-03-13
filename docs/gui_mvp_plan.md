@@ -82,8 +82,27 @@ Must-have controls:
 - `Run Selected Scenario`
 - `Compare Scenarios`
 - `Open Outputs Folder`
+- recent run list with quick-open result/output actions
 
-### 3.3 Screen B: Scenario Editor (MVP Scope)
+### 3.2 Screen B: Project Entry Wizard
+
+Purpose:
+- create a new MTNsim project
+- import an existing SUMO project into MTNsim structure
+- validate required files before the main workspace opens
+
+Must-have controls:
+- `New Project`
+- `Import SUMO Project`
+- project folder chooser
+- SUMO `.sumocfg` file picker
+- file validation summary
+- starter scenario generation confirmation
+
+Design note:
+- this screen should generate a valid `project.toml` and at least one starter scenario so users are not forced to edit TOML manually
+
+### 3.3 Screen C: Scenario Editor (MVP Scope)
 
 Purpose:
 - edit only the parameters that matter most for demonstration and early usage
@@ -106,7 +125,7 @@ Design note:
 - the editor should show a simplified form view backed by the existing scenario schema
 - advanced settings can remain read-only or hidden in the first cut
 
-### 3.4 Screen C: Run Monitor
+### 3.4 Screen D: Run Monitor
 
 Purpose:
 - show execution progress and output links during a run
@@ -119,7 +138,7 @@ Must-have elements:
 - output paths for summary and receiver files
 - cancel button if practical
 
-### 3.5 Screen D: Result Viewer
+### 3.5 Screen E: Result Viewer
 
 Purpose:
 - inspect the main outputs without leaving the GUI
@@ -136,7 +155,7 @@ Nice-to-have after MVP:
 - scene overlay view
 - multiple run overlays
 
-### 3.6 Screen E: Scenario Comparison View
+### 3.6 Screen F: Scenario Comparison View
 
 Purpose:
 - compare two scenarios through settings and output summaries
@@ -148,7 +167,7 @@ Must-have elements:
 - key metric cards such as mean delta and largest change
 - links to full comparison artifacts
 
-### 3.7 Screen F: Campaign Validation View
+### 3.7 Screen G: Campaign Validation View
 
 Purpose:
 - inspect campaign quality and validation outcomes
@@ -214,6 +233,19 @@ Responsibilities:
 - `models`: table models and display adapters for schemas/results
 
 ## 6. MVP Implementation Order
+
+### Phase 0.5: New Project / Import Project
+
+Build next:
+- `New Project` action
+- `Import SUMO Project` action
+- project creation/import dialog
+- manifest generation
+- starter scenario generation
+- auto-open newly created project
+
+Goal:
+- a user can start from their own SUMO case instead of being limited to the bundled demo project
 
 ### Phase 1: GUI Skeleton
 

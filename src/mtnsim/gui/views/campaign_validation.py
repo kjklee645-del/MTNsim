@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -22,9 +22,18 @@ class CampaignValidationView(QWidget):
     open_campaign_requested = Signal()
     inspect_requested = Signal(str)
     validate_requested = Signal(str, str, bool)
+    open_output_dir_requested = Signal()
+    open_summary_requested = Signal()
+    open_report_requested = Signal()
+    open_result_summary_requested = Signal()
+    open_calibration_summary_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._summary_file = ''
+        self._report_file = ''
+        self._result_summary_file = ''
+        self._calibration_summary_file = ''
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -59,6 +68,30 @@ class CampaignValidationView(QWidget):
 
         self.status_label = QLabel('Open a campaign manifest to inspect or validate it.')
         root.addWidget(self.status_label)
+
+        action_row = QHBoxLayout()
+        self.open_output_dir_button = QLabel('<a href="#">Open Output Folder</a>')
+        self.open_output_dir_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_output_dir_button.linkActivated.connect(lambda *_: self.open_output_dir_requested.emit())
+        action_row.addWidget(self.open_output_dir_button)
+        self.open_summary_button = QLabel('<a href="#">Open Summary JSON</a>')
+        self.open_summary_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_summary_button.linkActivated.connect(lambda *_: self.open_summary_requested.emit())
+        action_row.addWidget(self.open_summary_button)
+        self.open_report_button = QLabel('<a href="#">Open Report</a>')
+        self.open_report_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_report_button.linkActivated.connect(lambda *_: self.open_report_requested.emit())
+        action_row.addWidget(self.open_report_button)
+        self.open_result_summary_button = QLabel('<a href="#">Open Result Summary</a>')
+        self.open_result_summary_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_result_summary_button.linkActivated.connect(lambda *_: self.open_result_summary_requested.emit())
+        action_row.addWidget(self.open_result_summary_button)
+        self.open_calibration_summary_button = QLabel('<a href="#">Open Calibration Summary</a>')
+        self.open_calibration_summary_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_calibration_summary_button.linkActivated.connect(lambda *_: self.open_calibration_summary_requested.emit())
+        action_row.addWidget(self.open_calibration_summary_button)
+        action_row.addStretch(1)
+        root.addLayout(action_row)
 
         summary_form = QFormLayout()
         self.campaign_file_label = QLabel('-')
@@ -96,6 +129,10 @@ class CampaignValidationView(QWidget):
         self.scenario_label.setText(str(campaign_manifest.scenario_file or '-'))
         self.acceptance_label.setText('-')
         self.output_dir_label.setText('-')
+        self._summary_file = ''
+        self._report_file = ''
+        self._result_summary_file = ''
+        self._calibration_summary_file = ''
         self.summary_box.setPlainText(campaign_manifest.description or 'No campaign description provided.')
         self.recommendation_box.clear()
         self.threshold_table.setRowCount(0)
@@ -116,6 +153,10 @@ class CampaignValidationView(QWidget):
         summary = payload['summary']
         self.acceptance_label.setText('inspect ok' if summary.get('passed') else 'inspect failed')
         self.output_dir_label.setText(payload.get('output_dir', '-'))
+        self._summary_file = str(payload.get('summary_file') or '')
+        self._report_file = str(payload.get('report_file') or '')
+        self._result_summary_file = ''
+        self._calibration_summary_file = ''
         checks = summary.get('checks', [])
         self.summary_box.setPlainText(
             '\n'.join([
@@ -135,6 +176,10 @@ class CampaignValidationView(QWidget):
     def set_validation_result(self, payload: dict) -> None:
         summary = payload['summary']
         self.acceptance_label.setText(str(summary.get('acceptance_status', '-')))
+        self._summary_file = str(payload.get('summary_file') or '')
+        self._report_file = str(payload.get('report_file') or '')
+        self._result_summary_file = str(payload.get('result_summary_file') or '')
+        self._calibration_summary_file = str(payload.get('calibration_summary_file') or '')
         report_lines = [
             f"Validation passed: {summary.get('validation_passed')}",
             f"Acceptance status: {summary.get('acceptance_status')}",
