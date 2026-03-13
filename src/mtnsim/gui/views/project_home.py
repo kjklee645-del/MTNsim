@@ -19,6 +19,9 @@ from mtnsim.gui.state import GuiProjectState, GuiRunState
 
 class ProjectHomeView(QWidget):
     open_project_requested = Signal()
+    new_project_requested = Signal()
+    import_project_requested = Signal()
+    attach_sumo_requested = Signal()
     scenario_selected = Signal(str)
     run_selected_requested = Signal()
     edit_selected_requested = Signal()
@@ -44,6 +47,19 @@ class ProjectHomeView(QWidget):
         self.open_project_button = QPushButton('Open Project')
         self.open_project_button.clicked.connect(self.open_project_requested.emit)
         button_row.addWidget(self.open_project_button)
+
+        self.new_project_button = QPushButton('New Project')
+        self.new_project_button.clicked.connect(self.new_project_requested.emit)
+        button_row.addWidget(self.new_project_button)
+
+        self.import_project_button = QPushButton('Import SUMO Project')
+        self.import_project_button.clicked.connect(self.import_project_requested.emit)
+        button_row.addWidget(self.import_project_button)
+
+        self.attach_sumo_button = QPushButton('Attach SUMO To Project')
+        self.attach_sumo_button.clicked.connect(self.attach_sumo_requested.emit)
+        self.attach_sumo_button.setEnabled(False)
+        button_row.addWidget(self.attach_sumo_button)
 
         self.run_selected_button = QPushButton('Run Selected Scenario')
         self.run_selected_button.clicked.connect(self.run_selected_requested.emit)
@@ -80,7 +96,7 @@ class ProjectHomeView(QWidget):
         self.scenario_list.currentItemChanged.connect(self._emit_current_scenario)
         scenarios_layout.addWidget(self.scenario_list, 1)
 
-        self.summary_label = QLabel('Load a project manifest to browse scenarios.')
+        self.summary_label = QLabel('Load a project manifest or create/import a project to browse scenarios.')
         self.summary_label.setWordWrap(True)
         scenarios_layout.addWidget(self.summary_label)
 
@@ -127,10 +143,11 @@ class ProjectHomeView(QWidget):
         if state.project is None or state.manifest_path is None:
             self.project_name_label.setText('Project: not loaded')
             self.project_path_label.setText('Manifest: -')
-            self.summary_label.setText('Load a project manifest to browse scenarios.')
+            self.summary_label.setText('Load a project manifest or create/import a project to browse scenarios.')
             self.scenario_list.clear()
             self.run_selected_button.setEnabled(False)
             self.edit_selected_button.setEnabled(False)
+            self.attach_sumo_button.setEnabled(False)
             return
 
         self.project_name_label.setText(f'Project: {state.project.project.name} ({state.project.project.version})')
@@ -156,10 +173,10 @@ class ProjectHomeView(QWidget):
         enabled = state.selected_scenario_path is not None
         self.run_selected_button.setEnabled(enabled)
         self.edit_selected_button.setEnabled(enabled)
+        self.attach_sumo_button.setEnabled(state.manifest_path is not None)
 
     def set_run_enabled(self, enabled: bool) -> None:
         self.run_selected_button.setEnabled(enabled)
-        self.edit_selected_button.setEnabled(enabled)
 
     def set_recent_results(self, result_paths: list[Path]) -> None:
         self.recent_results_list.blockSignals(True)
@@ -209,6 +226,7 @@ class ProjectHomeView(QWidget):
         if current is None:
             self.run_selected_button.setEnabled(False)
             self.edit_selected_button.setEnabled(False)
+            self.attach_sumo_button.setEnabled(False)
             return
         scenario_path = current.data(Qt.UserRole)
         enabled = bool(scenario_path)

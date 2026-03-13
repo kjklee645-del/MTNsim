@@ -185,6 +185,7 @@ Must-have elements:
 ### 4.1 Must Have
 
 - open project manifest
+- create or import a project from a SUMO `.sumocfg` file
 - browse bundled scenarios
 - edit a limited set of scenario controls
 - run scenario from GUI
@@ -237,12 +238,16 @@ Responsibilities:
 ### Phase 0.5: New Project / Import Project
 
 Build next:
-- `New Project` action
-- `Import SUMO Project` action
-- project creation/import dialog
-- manifest generation
-- starter scenario generation
-- auto-open newly created project
+- `New Project` action [done]
+- `Import SUMO Project` action [done]
+- project creation/import dialog [done]
+- manifest generation [done]
+- starter scenario generation [done]
+- auto-open newly created project [done]
+
+Current limitation:
+- fully empty projects without SUMO attachment are still deferred
+- the wizard is still a first-pass form, not a multi-step polished flow
 
 Goal:
 - a user can start from their own SUMO case instead of being limited to the bundled demo project

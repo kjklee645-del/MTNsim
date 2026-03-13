@@ -44,8 +44,12 @@ class SceneSnapshot:
 class SceneController:
     def build_snapshot(self, project: ProjectManifest, scenario: ScenarioConfig) -> SceneSnapshot:
         network_path = self._resolve_path(project, project.paths.network)
-        network_bounds = read_network_bounds(network_path)
-        road_polylines, road_widths, junction_polygons = self._load_network_geometry(network_path)
+        if network_path is not None and network_path.exists():
+            network_bounds = read_network_bounds(network_path)
+            road_polylines, road_widths, junction_polygons = self._load_network_geometry(network_path)
+        else:
+            network_bounds = self._receiver_bounds(scenario)
+            road_polylines, road_widths, junction_polygons = [], [], []
         scene_model = build_scene_model(scenario.scene)
 
         road_layer = PolylineLayer(name='Road Network', polylines=road_polylines, widths=road_widths)
@@ -99,7 +103,9 @@ class SceneController:
             receiver_layer=receiver_layer,
         )
 
-    def _resolve_path(self, project: ProjectManifest, raw_path: str) -> Path:
+    def _resolve_path(self, project: ProjectManifest, raw_path: str) -> Path | None:
+        if not raw_path:
+            return None
         path = Path(raw_path)
         if path.is_absolute():
             return path
@@ -140,6 +146,19 @@ class SceneController:
             x_str, y_str = pair.split(',')
             points.append((float(x_str), float(y_str)))
         return points
+
+    def _receiver_bounds(self, scenario: ScenarioConfig) -> tuple[float, float, float, float]:
+        if not scenario.receivers:
+            return (0.0, 0.0, 100.0, 100.0)
+        xs = [receiver.x for receiver in scenario.receivers]
+        ys = [receiver.y for receiver in scenario.receivers]
+        min_x = min(xs)
+        max_x = max(xs)
+        min_y = min(ys)
+        max_y = max(ys)
+        span_x = max(max_x - min_x, 10.0)
+        span_y = max(max_y - min_y, 10.0)
+        return (min_x - span_x * 0.25, min_y - span_y * 0.25, max_x + span_x * 0.25, max_y + span_y * 0.25)
 
     def _compose_display_bounds(
         self,

@@ -233,8 +233,7 @@ Do first:
 - auto-open project in GUI
 
 Defer:
-- fully empty project with no SUMO paths at all
-- drag-and-drop import
+- drag-and-drop SUMO import
 - project templates beyond one baseline
 - scene/measurement import wizard
 - automatic receiver placement from scene rules more advanced than a safe placeholder layout
