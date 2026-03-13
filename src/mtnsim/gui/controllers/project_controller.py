@@ -134,6 +134,9 @@ class ProjectController:
         default_scenario: str = 'baseline',
         copy_sumo_files: bool = True,
         overwrite_existing: bool = False,
+        scene_path: str | Path | None = None,
+        measurements_path: str | Path | None = None,
+        measurement_metadata_path: str | Path | None = None,
     ) -> ProjectCreationResult:
         project_root = Path(project_root).resolve()
         inspection = self.inspect_sumo_project(sumo_config_path)
@@ -160,6 +163,15 @@ class ProjectController:
         (project_root / 'outputs').mkdir(parents=True, exist_ok=True)
 
         asset_paths = self._materialize_sumo_assets(project_root, inspection, copy_sumo_files=copy_sumo_files)
+        asset_paths.update(
+            self._materialize_optional_project_assets(
+                project_root,
+                scene_path=scene_path,
+                measurements_path=measurements_path,
+                measurement_metadata_path=measurement_metadata_path,
+                copy_external_files=copy_sumo_files,
+            )
+        )
         manifest_data = self._build_project_manifest_data(
             project_name=project_name,
             description=description,
@@ -188,6 +200,14 @@ class ProjectController:
         copy_sumo_files: bool = True,
         overwrite_existing: bool = True,
         scenario_path: str | Path | None = None,
+        refresh_selected_scenario_only: bool = True,
+        update_traffic_metadata: bool = True,
+        update_vehicle_coefficients: bool = True,
+        replace_placeholder_receivers: bool = True,
+        update_lane_change_targets: bool = True,
+        scene_path: str | Path | None = None,
+        measurements_path: str | Path | None = None,
+        measurement_metadata_path: str | Path | None = None,
     ) -> ProjectCreationResult:
         manifest_path = Path(manifest_path).resolve()
         if not manifest_path.exists():
@@ -206,10 +226,25 @@ class ProjectController:
         with manifest_path.open('rb') as handle:
             manifest_data = tomllib.load(handle)
         asset_paths = self._materialize_sumo_assets(project_root, inspection, copy_sumo_files=copy_sumo_files)
+        asset_paths.update(
+            self._materialize_optional_project_assets(
+                project_root,
+                scene_path=scene_path,
+                measurements_path=measurements_path,
+                measurement_metadata_path=measurement_metadata_path,
+                copy_external_files=copy_sumo_files,
+            )
+        )
         manifest_paths = manifest_data.setdefault('paths', {})
         manifest_paths['network'] = asset_paths['network']
         manifest_paths['route'] = asset_paths['route']
         manifest_paths['sumo_config'] = asset_paths['sumo_config']
+        if asset_paths.get('scene'):
+            manifest_paths['scene'] = asset_paths['scene']
+        if asset_paths.get('measurements'):
+            manifest_paths['measurements'] = asset_paths['measurements']
+        if asset_paths.get('measurement_metadata'):
+            manifest_paths['measurement_metadata'] = asset_paths['measurement_metadata']
         manifest_path.write_text(toml.dumps(manifest_data), encoding='utf-8')
 
         target_scenario_path = self._resolve_attach_target_scenario_path(
@@ -217,7 +252,20 @@ class ProjectController:
             manifest_data=manifest_data,
             scenario_path=scenario_path,
         )
-        self._refresh_scenario_for_attached_sumo(target_scenario_path, inspection)
+        scenario_targets = [target_scenario_path]
+        if not refresh_selected_scenario_only:
+            discovered = self.discover_scenarios(manifest_path)
+            if discovered:
+                scenario_targets = discovered
+        for candidate in scenario_targets:
+            self._refresh_scenario_for_attached_sumo(
+                candidate,
+                inspection,
+                update_traffic_metadata=update_traffic_metadata,
+                update_vehicle_coefficients=update_vehicle_coefficients,
+                replace_placeholder_receivers=replace_placeholder_receivers,
+                update_lane_change_targets=update_lane_change_targets,
+            )
         return ProjectCreationResult(
             manifest_path=manifest_path,
             scenario_path=target_scenario_path,
@@ -232,6 +280,10 @@ class ProjectController:
         description: str,
         default_scenario: str = 'baseline',
         overwrite_existing: bool = False,
+        scene_path: str | Path | None = None,
+        measurements_path: str | Path | None = None,
+        measurement_metadata_path: str | Path | None = None,
+        copy_external_files: bool = True,
     ) -> ProjectCreationResult:
         project_root = Path(project_root).resolve()
         manifest_path = project_root / 'project.toml'
@@ -248,11 +300,21 @@ class ProjectController:
         scenario_dir.mkdir(parents=True, exist_ok=True)
         (project_root / 'outputs').mkdir(parents=True, exist_ok=True)
 
+        asset_paths = {'network': '', 'route': '', 'sumo_config': ''}
+        asset_paths.update(
+            self._materialize_optional_project_assets(
+                project_root,
+                scene_path=scene_path,
+                measurements_path=measurements_path,
+                measurement_metadata_path=measurement_metadata_path,
+                copy_external_files=copy_external_files,
+            )
+        )
         manifest_data = self._build_project_manifest_data(
             project_name=project_name,
             description=description,
             default_scenario=default_scenario,
-            asset_paths={'network': '', 'route': '', 'sumo_config': ''},
+            asset_paths=asset_paths,
         )
         scenario_data = self._build_empty_starter_scenario_data(
             project_name=project_name,
@@ -307,6 +369,41 @@ class ProjectController:
         destination_path.write_text(toml.dumps(data), encoding='utf-8')
         return destination_path
 
+    def _materialize_optional_project_assets(
+        self,
+        project_root: Path,
+        *,
+        scene_path: str | Path | None,
+        measurements_path: str | Path | None,
+        measurement_metadata_path: str | Path | None,
+        copy_external_files: bool,
+    ) -> dict[str, str]:
+        assets = {
+            'scene': 'data/scene/scene.geojson',
+            'measurements': 'data/measurements/sensors.csv',
+            'measurement_metadata': 'data/measurements/sensor_metadata.csv',
+        }
+        mapping = [
+            ('scene', scene_path, project_root / 'data' / 'scene'),
+            ('measurements', measurements_path, project_root / 'data' / 'measurements'),
+            ('measurement_metadata', measurement_metadata_path, project_root / 'data' / 'measurements'),
+        ]
+        for key, raw_path, target_dir in mapping:
+            if raw_path is None or str(raw_path).strip() == '':
+                continue
+            source = Path(raw_path).expanduser().resolve()
+            if not source.exists():
+                raise FileNotFoundError(f'Imported support file not found: {source}')
+            if copy_external_files:
+                target_dir.mkdir(parents=True, exist_ok=True)
+                destination = target_dir / source.name
+                if source != destination:
+                    shutil.copy2(source, destination)
+                assets[key] = str(destination.relative_to(project_root))
+            else:
+                assets[key] = str(source)
+        return assets
+
     def _resolve_attach_target_scenario_path(
         self,
         *,
@@ -338,7 +435,16 @@ class ProjectController:
             )
         return fallback.resolve()
 
-    def _refresh_scenario_for_attached_sumo(self, scenario_path: Path, inspection: SumoProjectInspection) -> None:
+    def _refresh_scenario_for_attached_sumo(
+        self,
+        scenario_path: Path,
+        inspection: SumoProjectInspection,
+        *,
+        update_traffic_metadata: bool,
+        update_vehicle_coefficients: bool,
+        replace_placeholder_receivers: bool,
+        update_lane_change_targets: bool,
+    ) -> None:
         with scenario_path.open('rb') as handle:
             scenario_data = tomllib.load(handle)
 
@@ -348,25 +454,27 @@ class ProjectController:
         receivers_block = scenario_data.setdefault('receivers', [])
 
         vehicle_types = inspection.vehicle_types or ['DEFAULT_VEHTYPE']
-        traffic_block['vehicle_types'] = vehicle_types
-        traffic_block['vehicle_weights'] = [round(100 / len(vehicle_types), 2)] * len(vehicle_types)
-        traffic_block['route_types'] = inspection.route_ids
+        if update_traffic_metadata:
+            traffic_block['vehicle_types'] = vehicle_types
+            traffic_block['vehicle_weights'] = [round(100 / len(vehicle_types), 2)] * len(vehicle_types)
+            traffic_block['route_types'] = inspection.route_ids
 
         noise_block.setdefault('background_noise_db', 40.0)
         noise_block.setdefault('max_area_meters', 400.0)
         noise_block.setdefault('grid_size_meters', 5.0)
         noise_block.setdefault('receiver_height_meters', 1.5)
-        noise_block['vehicle_coefficients'] = {
-            vehicle_type: {'a': 44.4 + (index * 3.0), 'b': 31.5}
-            for index, vehicle_type in enumerate(vehicle_types)
-        }
+        if update_vehicle_coefficients:
+            noise_block['vehicle_coefficients'] = {
+                vehicle_type: {'a': 44.4 + (index * 3.0), 'b': 31.5}
+                for index, vehicle_type in enumerate(vehicle_types)
+            }
 
         refreshed_receivers = self._build_starter_receivers(inspection.bounds)
-        if self._should_replace_placeholder_receivers(receivers_block):
+        if replace_placeholder_receivers and self._should_replace_placeholder_receivers(receivers_block):
             scenario_data['receivers'] = refreshed_receivers
             receivers_block = scenario_data['receivers']
 
-        if receivers_block:
+        if update_lane_change_targets and receivers_block:
             first_receiver = receivers_block[0]
             controls_block['lane_change_target_positions'] = [[float(first_receiver.get('x', 100.0)), 0.0]]
 
@@ -539,9 +647,9 @@ class ProjectController:
                 'network': asset_paths['network'],
                 'route': asset_paths['route'],
                 'sumo_config': asset_paths['sumo_config'],
-                'scene': 'data/scene/scene.geojson',
-                'measurements': 'data/measurements/sensors.csv',
-                'measurement_metadata': 'data/measurements/sensor_metadata.csv',
+                'scene': asset_paths.get('scene', 'data/scene/scene.geojson'),
+                'measurements': asset_paths.get('measurements', 'data/measurements/sensors.csv'),
+                'measurement_metadata': asset_paths.get('measurement_metadata', 'data/measurements/sensor_metadata.csv'),
                 'outputs': 'outputs',
             },
             'simulation_defaults': {

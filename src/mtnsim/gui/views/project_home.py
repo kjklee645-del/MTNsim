@@ -77,8 +77,14 @@ class ProjectHomeView(QWidget):
         self.project_name_label = QLabel('Project: not loaded')
         self.project_path_label = QLabel('Manifest: -')
         self.project_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.project_status_label = QLabel('Status: not loaded')
+        self.project_status_label.setStyleSheet('font-weight: 700; color: #9a3412;')
+        self.readiness_label = QLabel('Readiness: load or create a project to see what is missing before a run.')
+        self.readiness_label.setWordWrap(True)
         root_layout.addWidget(self.project_name_label)
         root_layout.addWidget(self.project_path_label)
+        root_layout.addWidget(self.project_status_label)
+        root_layout.addWidget(self.readiness_label)
 
         splitter = QSplitter()
         root_layout.addWidget(splitter, 1)
@@ -144,6 +150,9 @@ class ProjectHomeView(QWidget):
             self.project_name_label.setText('Project: not loaded')
             self.project_path_label.setText('Manifest: -')
             self.summary_label.setText('Load a project manifest or create/import a project to browse scenarios.')
+            self.project_status_label.setText('Status: not loaded')
+            self.project_status_label.setStyleSheet('font-weight: 700; color: #9a3412;')
+            self.readiness_label.setText('Readiness: load or create a project to see what is missing before a run.')
             self.scenario_list.clear()
             self.run_selected_button.setEnabled(False)
             self.edit_selected_button.setEnabled(False)
@@ -174,6 +183,12 @@ class ProjectHomeView(QWidget):
         self.run_selected_button.setEnabled(enabled)
         self.edit_selected_button.setEnabled(enabled)
         self.attach_sumo_button.setEnabled(state.manifest_path is not None)
+
+
+    def set_project_readiness(self, *, status_title: str, status_color: str, summary: str) -> None:
+        self.project_status_label.setText(status_title)
+        self.project_status_label.setStyleSheet(f'font-weight: 700; color: {status_color};')
+        self.readiness_label.setText(summary)
 
     def set_run_enabled(self, enabled: bool) -> None:
         self.run_selected_button.setEnabled(enabled)

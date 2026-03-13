@@ -30,7 +30,8 @@ Status legend:
 | Schema | Result schema | [x] | `schemas/result.schema.json` |
 | Packaging | Python package skeleton | [x] | `src/mtnsim` |
 | Metadata | README and package metadata | [x] | `README.md`, `pyproject.toml` |
-| Project UX | New/import/attach project workflow | [~] | first-pass GUI creation/import flow implemented with validation summary, overwrite handling, first-run guidance, empty-project mode, and later attach-SUMO support; deeper wizard polish still remains |
+| GUI UX | Project/run/result operator polish | [~] | readiness guidance, completion summaries, and clearer result cards implemented; further history/session polish remains |
+| Project UX | New/import/attach project workflow | [~] | first-pass GUI creation/import flow implemented with validation summary, overwrite handling, first-run guidance, empty-project mode, later attach-SUMO support, selectable attach refresh scope, and optional scene/measurement import; deeper wizard polish still remains |
 
 ## 3. Core Execution Kernel
 

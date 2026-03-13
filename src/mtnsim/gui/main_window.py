@@ -202,6 +202,7 @@ class MainWindow(QMainWindow):
         self.campaign_validation_view.open_result_summary_requested.connect(self.open_campaign_result_summary_file)
         self.campaign_validation_view.open_calibration_summary_requested.connect(self.open_campaign_calibration_summary_file)
         self.run_monitor_view.back_requested.connect(self.show_project_home)
+        self.run_monitor_view.open_result_requested.connect(self.show_result_viewer)
         self.result_viewer_view.recent_result_selected.connect(self.load_result_summary)
         self.result_viewer_view.receiver_selected.connect(self.load_receiver_series)
         self.result_viewer_view.open_output_dir_requested.connect(self.open_current_result_output_dir)
@@ -292,6 +293,10 @@ class MainWindow(QMainWindow):
                     description=payload['description'],
                     default_scenario=payload['default_scenario'],
                     overwrite_existing=overwrite_existing,
+                    scene_path=payload['scene_path'] or None,
+                    measurements_path=payload['measurements_path'] or None,
+                    measurement_metadata_path=payload['measurement_metadata_path'] or None,
+                    copy_external_files=payload['copy_sumo_files'],
                 )
             elif mode == 'attach':
                 current_state = self.session_state.project_state
@@ -302,6 +307,14 @@ class MainWindow(QMainWindow):
                     copy_sumo_files=payload['copy_sumo_files'],
                     overwrite_existing=overwrite_existing,
                     scenario_path=target_scenario_path,
+                    refresh_selected_scenario_only=payload['attach_refresh_selected_only'],
+                    update_traffic_metadata=payload['attach_update_traffic_metadata'],
+                    update_vehicle_coefficients=payload['attach_update_vehicle_coefficients'],
+                    replace_placeholder_receivers=payload['attach_replace_placeholder_receivers'],
+                    update_lane_change_targets=payload['attach_update_lane_targets'],
+                    scene_path=payload['scene_path'] or None,
+                    measurements_path=payload['measurements_path'] or None,
+                    measurement_metadata_path=payload['measurement_metadata_path'] or None,
                 )
             else:
                 result = self.project_controller.create_project_from_sumo(
@@ -312,6 +325,9 @@ class MainWindow(QMainWindow):
                     default_scenario=payload['default_scenario'],
                     copy_sumo_files=payload['copy_sumo_files'],
                     overwrite_existing=overwrite_existing,
+                    scene_path=payload['scene_path'] or None,
+                    measurements_path=payload['measurements_path'] or None,
+                    measurement_metadata_path=payload['measurement_metadata_path'] or None,
                 )
         except Exception as exc:  # pragma: no cover
             QMessageBox.critical(self, 'Project Creation Failed', str(exc))
@@ -384,6 +400,45 @@ class MainWindow(QMainWindow):
         project_root = source_parent.parent if source_parent.name == 'examples' else source_parent
         return project_root / path
 
+    def _build_project_readiness(self) -> tuple[str, str, str]:
+        project_state = self.session_state.project_state
+        if project_state.project is None or project_state.manifest_path is None:
+            return (
+                'Status: no project loaded',
+                '#9a3412',
+                'Readiness: load, create, or import a project to start editing and running scenarios.',
+            )
+        issues: list[str] = []
+        next_actions: list[str] = []
+        if project_state.selected_scenario_path is None:
+            issues.append('No scenario is selected.')
+            next_actions.append('Choose a scenario from Project Home.')
+        if not self._project_has_runnable_sumo(project_state.project):
+            issues.append('SUMO network/config is not attached or cannot be resolved.')
+            next_actions.append('Use Attach SUMO to Project before running.')
+        if project_state.selected_scenario is not None and not project_state.selected_scenario.receivers:
+            issues.append('The selected scenario has no receivers.')
+            next_actions.append('Add receivers in Scenario Editor before running.')
+        if not issues:
+            return (
+                'Status: ready to run',
+                '#166534',
+                'Readiness: this project has a selected scenario, valid SUMO paths, and can be run now.',
+            )
+        return (
+            'Status: setup still needed',
+            '#9a3412',
+            'Readiness: ' + ' '.join(issues + next_actions),
+        )
+
+    def _refresh_project_home_readiness(self) -> None:
+        status_title, status_color, summary = self._build_project_readiness()
+        self.project_home_view.set_project_readiness(
+            status_title=status_title,
+            status_color=status_color,
+            summary=summary,
+        )
+
     def _update_run_enablement(self) -> None:
         project_state = self.session_state.project_state
         run_enabled = (
@@ -393,6 +448,7 @@ class MainWindow(QMainWindow):
         )
         self.run_selected_action.setEnabled(run_enabled)
         self.project_home_view.set_run_enabled(run_enabled)
+        self._refresh_project_home_readiness()
 
     def load_project(self, manifest_path: Path) -> None:
         try:
@@ -467,10 +523,15 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, 'Run In Progress', 'A simulation run is already in progress.')
             return
 
+        readiness_summary = self._build_project_readiness()[2]
         self.session_state.run_state = GuiRunState(
             is_running=True,
             progress_percent=0,
             progress_label=f'Preparing run for {project_state.selected_scenario_path.stem}',
+            project_name=project_state.project.project.name if project_state.project is not None else None,
+            scenario_name=project_state.selected_scenario_path.stem,
+            requested_use_gpu=True,
+            readiness_summary=readiness_summary,
         )
         self.run_monitor_view.set_run_state(self.session_state.run_state)
         self.show_run_monitor()
@@ -630,6 +691,8 @@ class MainWindow(QMainWindow):
             for key, value in payload.get('receiver_history_files', {}).items()
         }
         state.error_message = None
+        state.receiver_count = len(state.receiver_history_files)
+        state.used_gpu = None
         self.run_monitor_view.set_run_state(state)
 
         if state.result_summary_file is not None:
@@ -638,6 +701,14 @@ class MainWindow(QMainWindow):
             self.result_viewer_view.set_recent_results(self.session_state.recent_result_summaries)
             self.project_home_view.set_recent_results(self.session_state.recent_result_summaries)
             self.load_result_summary(state.result_summary_file)
+            if self.current_result_summary is not None:
+                state.used_gpu = self.current_result_summary.used_gpu
+                state.receiver_count = len(self.current_result_summary.receiver_stats)
+                state.readiness_summary = (
+                    f"Run finished for {self.current_result_summary.run.scenario}. "
+                    f"Used {'GPU' if self.current_result_summary.used_gpu else 'CPU'} and produced {len(self.current_result_summary.receiver_stats)} receiver summaries."
+                )
+                self.run_monitor_view.set_run_state(state)
 
         self._update_run_enablement()
         self.project_home_view.set_last_run(state)
@@ -653,6 +724,7 @@ class MainWindow(QMainWindow):
         state.is_running = False
         state.progress_label = 'Simulation failed'
         state.error_message = error_message
+        state.readiness_summary = 'Run failed before a valid result summary could be produced.'
         self.run_monitor_view.set_run_state(state)
         self._update_run_enablement()
         self._append_log(f'[error] {error_message}')

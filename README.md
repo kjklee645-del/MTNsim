@@ -21,8 +21,8 @@ Implemented in the repository today:
 - desktop campaign validation UI for campaign inspection and validation summaries with direct report/result file access
 - limited scenario editor for Save As creation of derived scenarios from core parameters, including lane-change, noise/grid values, a multi-row receiver table, input validation, and unsaved live preview into the scene/details view
 - GUI reporting/export actions for result summaries, scenario comparison summaries, and campaign validation artifacts
-- Project Home recent-run panel with quick-open result and latest-output shortcuts
-- first-pass `New Project` / `Import SUMO Project` / `Attach SUMO` GUI flow that can generate either an empty MTNsim project shell, import a SUMO-backed project, or attach SUMO later to an existing empty project
+- Project Home recent-run panel with quick-open result and latest-output shortcuts, plus project readiness/status guidance
+- first-pass `New Project` / `Import SUMO Project` / `Attach SUMO` GUI flow that can generate either an empty MTNsim project shell, import a SUMO-backed project, or attach SUMO later to an existing empty project with selectable scenario-refresh scope and optional scene/measurement file import
 
 Supported example scenarios:
 - `baseline`

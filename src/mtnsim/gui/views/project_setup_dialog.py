@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -118,7 +119,59 @@ class ProjectSetupDialog(QDialog):
         self.overwrite_checkbox.setChecked(False)
         form.addRow('Overwrite', self.overwrite_checkbox)
 
+        self.scene_path_edit = QLineEdit()
+        scene_row = QHBoxLayout()
+        scene_row.addWidget(self.scene_path_edit, 1)
+        browse_scene = QPushButton('Browse...')
+        browse_scene.clicked.connect(self._choose_scene_file)
+        scene_row.addWidget(browse_scene)
+        scene_widget = QWidget()
+        scene_widget.setLayout(scene_row)
+        form.addRow('Scene file (optional)', scene_widget)
+
+        self.measurements_path_edit = QLineEdit()
+        measurements_row = QHBoxLayout()
+        measurements_row.addWidget(self.measurements_path_edit, 1)
+        browse_measurements = QPushButton('Browse...')
+        browse_measurements.clicked.connect(self._choose_measurements_file)
+        measurements_row.addWidget(browse_measurements)
+        measurements_widget = QWidget()
+        measurements_widget.setLayout(measurements_row)
+        form.addRow('Measurements file (optional)', measurements_widget)
+
+        self.measurement_metadata_path_edit = QLineEdit()
+        metadata_row = QHBoxLayout()
+        metadata_row.addWidget(self.measurement_metadata_path_edit, 1)
+        browse_metadata = QPushButton('Browse...')
+        browse_metadata.clicked.connect(self._choose_measurement_metadata_file)
+        metadata_row.addWidget(browse_metadata)
+        metadata_widget = QWidget()
+        metadata_widget.setLayout(metadata_row)
+        form.addRow('Measurement metadata (optional)', metadata_widget)
+
         root.addLayout(form)
+
+        self.attach_refresh_group = QGroupBox('Attach Refresh Scope')
+        attach_layout = QVBoxLayout(self.attach_refresh_group)
+        attach_layout.setContentsMargins(10, 10, 10, 10)
+        attach_layout.setSpacing(6)
+        self.attach_selected_only_checkbox = QCheckBox('Refresh only the selected/default scenario')
+        self.attach_selected_only_checkbox.setChecked(True)
+        attach_layout.addWidget(self.attach_selected_only_checkbox)
+        self.attach_update_traffic_checkbox = QCheckBox('Update route types and vehicle types')
+        self.attach_update_traffic_checkbox.setChecked(True)
+        attach_layout.addWidget(self.attach_update_traffic_checkbox)
+        self.attach_update_coefficients_checkbox = QCheckBox('Rebuild vehicle noise coefficients')
+        self.attach_update_coefficients_checkbox.setChecked(True)
+        attach_layout.addWidget(self.attach_update_coefficients_checkbox)
+        self.attach_replace_receivers_checkbox = QCheckBox('Replace placeholder receivers when still unused')
+        self.attach_replace_receivers_checkbox.setChecked(True)
+        attach_layout.addWidget(self.attach_replace_receivers_checkbox)
+        self.attach_update_lane_targets_checkbox = QCheckBox('Refresh lane-change target positions from receivers')
+        self.attach_update_lane_targets_checkbox.setChecked(True)
+        attach_layout.addWidget(self.attach_update_lane_targets_checkbox)
+        self.attach_refresh_group.setVisible(self.mode == 'attach')
+        root.addWidget(self.attach_refresh_group)
 
         inspect_row = QHBoxLayout()
         self.inspect_button = QPushButton('Inspect SUMO Files')
@@ -154,11 +207,19 @@ class ProjectSetupDialog(QDialog):
             self.default_scenario_edit,
             self.project_folder_edit,
             self.sumo_config_edit,
+            self.scene_path_edit,
+            self.measurements_path_edit,
+            self.measurement_metadata_path_edit,
         ]:
             widget.textChanged.connect(self._refresh_validation_summary)
         self.attach_sumo_checkbox.toggled.connect(self._toggle_sumo_mode)
         self.copy_files_checkbox.toggled.connect(self._refresh_validation_summary)
         self.overwrite_checkbox.toggled.connect(self._refresh_validation_summary)
+        self.attach_selected_only_checkbox.toggled.connect(self._refresh_validation_summary)
+        self.attach_update_traffic_checkbox.toggled.connect(self._refresh_validation_summary)
+        self.attach_update_coefficients_checkbox.toggled.connect(self._refresh_validation_summary)
+        self.attach_replace_receivers_checkbox.toggled.connect(self._refresh_validation_summary)
+        self.attach_update_lane_targets_checkbox.toggled.connect(self._refresh_validation_summary)
         self.sumo_config_edit.textChanged.connect(self._autofill_from_sumo)
         if self.mode == 'attach':
             self.project_name_edit.setEnabled(False)
@@ -172,6 +233,36 @@ class ProjectSetupDialog(QDialog):
             self.project_folder_edit.setText(folder)
             if not self.project_name_edit.text().strip():
                 self.project_name_edit.setText(Path(folder).name)
+
+    def _choose_scene_file(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            'Choose Scene File',
+            str(Path.cwd()),
+            'Scene Files (*.geojson *.json *.csv *.txt);;All Files (*)',
+        )
+        if file_path:
+            self.scene_path_edit.setText(file_path)
+
+    def _choose_measurements_file(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            'Choose Measurements File',
+            str(Path.cwd()),
+            'Measurement Files (*.csv *.json *.txt);;All Files (*)',
+        )
+        if file_path:
+            self.measurements_path_edit.setText(file_path)
+
+    def _choose_measurement_metadata_file(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            'Choose Measurement Metadata File',
+            str(Path.cwd()),
+            'Metadata Files (*.csv *.json *.txt);;All Files (*)',
+        )
+        if file_path:
+            self.measurement_metadata_path_edit.setText(file_path)
 
     def _choose_sumo_config(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
@@ -227,6 +318,14 @@ class ProjectSetupDialog(QDialog):
             'sumo_config_path': self.sumo_config_edit.text().strip(),
             'copy_sumo_files': self.copy_files_checkbox.isChecked(),
             'overwrite_existing': self.overwrite_checkbox.isChecked(),
+            'scene_path': self.scene_path_edit.text().strip(),
+            'measurements_path': self.measurements_path_edit.text().strip(),
+            'measurement_metadata_path': self.measurement_metadata_path_edit.text().strip(),
+            'attach_refresh_selected_only': self.attach_selected_only_checkbox.isChecked(),
+            'attach_update_traffic_metadata': self.attach_update_traffic_checkbox.isChecked(),
+            'attach_update_vehicle_coefficients': self.attach_update_coefficients_checkbox.isChecked(),
+            'attach_replace_placeholder_receivers': self.attach_replace_receivers_checkbox.isChecked(),
+            'attach_update_lane_targets': self.attach_update_lane_targets_checkbox.isChecked(),
         }
 
     def _refresh_validation_summary(self) -> None:
@@ -250,8 +349,11 @@ class ProjectSetupDialog(QDialog):
         lines.append(f"Starter scenario: {payload['default_scenario']}")
         lines.append(f"SUMO attached now: {'yes' if payload['attach_sumo_now'] else 'no'}")
         lines.append(f"SUMO config: {payload['sumo_config_path'] or '-'}")
-        lines.append(f"SUMO handling: {'copy into project' if payload['copy_sumo_files'] else 'reference in place'}")
+        lines.append(f"Import handling: {'copy into project' if payload['copy_sumo_files'] else 'reference in place'}")
         lines.append(f"Overwrite existing outputs: {'yes' if payload['overwrite_existing'] else 'no'}")
+        lines.append(f"Scene file: {payload['scene_path'] or '-'}")
+        lines.append(f"Measurements file: {payload['measurements_path'] or '-'}")
+        lines.append(f"Measurement metadata: {payload['measurement_metadata_path'] or '-'}")
 
         if not payload['project_name']:
             problems.append('Project name is required.')
@@ -264,7 +366,23 @@ class ProjectSetupDialog(QDialog):
         if self.mode == 'new' and not payload['attach_sumo_now']:
             warnings.append('This will create an empty project shell. Run actions stay disabled until SUMO is attached later.')
         if self.mode == 'attach':
+            refresh_scope = 'selected/default scenario only' if payload['attach_refresh_selected_only'] else 'all discovered scenarios'
             lines.append('Attach target: current project manifest and selected/default scenario will be refreshed.')
+            lines.append(f'Attach refresh scope: {refresh_scope}')
+            lines.append(f"- update traffic metadata: {'yes' if payload['attach_update_traffic_metadata'] else 'no'}")
+            lines.append(f"- rebuild vehicle coefficients: {'yes' if payload['attach_update_vehicle_coefficients'] else 'no'}")
+            lines.append(f"- replace placeholder receivers: {'yes' if payload['attach_replace_placeholder_receivers'] else 'no'}")
+            lines.append(f"- update lane-change targets: {'yes' if payload['attach_update_lane_targets'] else 'no'}")
+
+        for label, raw_path in [
+            ('scene file', payload['scene_path']),
+            ('measurements file', payload['measurements_path']),
+            ('measurement metadata file', payload['measurement_metadata_path']),
+        ]:
+            if raw_path and not Path(raw_path).expanduser().exists():
+                problems.append(f'{label.capitalize()} does not exist: {raw_path}')
+        if payload['measurement_metadata_path'] and not payload['measurements_path']:
+            warnings.append('Measurement metadata was provided without a measurements file.')
 
         if manifest_path is not None:
             lines.append(f'Manifest target: {manifest_path}')

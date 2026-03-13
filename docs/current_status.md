@@ -174,12 +174,13 @@ What it does now:
 - launches a PySide6 desktop shell
 - uses Project Home as an operator start screen with scenario browsing, recent runs, quick-open output shortcuts, and first-pass `New Project` / `Import SUMO Project` actions
 - opens a project manifest
-- creates an empty MTNsim project shell, imports a project from a SUMO `.sumocfg` file, or attaches SUMO later to an already created project through the project setup dialog
+- creates an empty MTNsim project shell, imports a project from a SUMO `.sumocfg` file, or attaches SUMO later to an already created project through the project setup dialog with selectable scenario-refresh scope and optional scene/measurement file import
 - validates detected SUMO assets and target output paths before creation/import
 - supports overwrite confirmation for existing manifest/scenario targets
 - generates a new `project.toml` and starter `scenarios/baseline.toml` for empty or imported projects
 - keeps Scene View and Scenario Editor usable for empty projects while Run stays disabled until SUMO is attached, then re-enables Run after the attach flow refreshes manifest/scenario paths
 - shows first-run guidance after a project is created/imported
+- shows project readiness/status guidance on Project Home, richer Run Monitor completion summaries, and clearer result summary cards
 - discovers bundled scenarios
 - selects the default scenario automatically
 - shows basic scenario details in a read-only panel
