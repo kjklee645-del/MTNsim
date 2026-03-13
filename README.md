@@ -18,6 +18,10 @@ Implemented in the repository today:
 - field-campaign inspection, quality checks, and markdown/JSON campaign reports
 - campaign-aware validation that runs simulation, calibration, and threshold checks from a campaign manifest
 - standardized campaign import contracts for traffic metadata and scene manifests
+- desktop campaign validation UI for campaign inspection and validation summaries with direct report/result file access
+- limited scenario editor for Save As creation of derived scenarios from core parameters, including lane-change, noise/grid values, a multi-row receiver table, input validation, and unsaved live preview into the scene/details view
+- GUI reporting/export actions for result summaries, scenario comparison summaries, and campaign validation artifacts
+- Project Home recent-run panel with quick-open result and latest-output shortcuts
 
 Supported example scenarios:
 - `baseline`
@@ -109,7 +113,8 @@ Run campaign-aware validation:
 - Validation now covers baseline reference measurements, shifted/outlier calibration recovery, speed control, barrier shielding, and building shielding default cases.
 - A field-campaign inspection flow now checks campaign package completeness before real data is used for validation.
 - A desktop GUI prototype now exists with project loading, 2D scene viewing, background run execution, run-monitor output display, recent-result browsing, receiver-series viewing, vehicle playback from recorded run traces, interactive zoom/pan/hover inspection, minimap support, speed-colored vehicles, tail trails, playback-synchronized grid heatmap overlays, playback-side layer/heatmap controls, and receiver-linked playback cursors in the result chart, nearby-frame heatmap prefetch for smoother playback, and click-to-select vehicle detail inspection in playback, including selected-vehicle-only contribution heatmaps, receiver contribution summaries, timeline event markers for enter/exit, speed-shift, and heading-shift moments, camera-follow playback for selected vehicles, and playback export as PNG sequence, animated GIF, or MP4 video from the playback view.
-- The next active product step is to deepen export/comparison workflows around the GUI playback and inspection layer, with vehicle playback now available as an operator-facing preview tool.
+- The GUI comparison layer now supports both configuration diff and run-result comparison with receiver delta summaries and overlay charts.
+- The GUI now also supports campaign inspection and campaign validation summaries through a dedicated Campaign Validation screen.
 - Deeper validation, calibration, physics, and GPU work remain important, but are now tracked as deferred backlog rather than the immediate mainline focus.
 
 ## Key Documents
@@ -123,10 +128,11 @@ Run campaign-aware validation:
 - `docs/campaign_import_standard.md`
 - `docs/deferred_enhancement_backlog.md`
 - `docs/gui_mvp_plan.md`
+- `docs/scenario_editor_field_reference.md`
 - `paper/manuscript_draft.md`
 
 ## Recommended Next Steps
 
-1. Build the desktop GUI MVP so non-developer users can run, compare, and inspect MTNsim flows.
+1. Continue the desktop GUI so non-developer users can run, compare, inspect, and validate MTNsim flows.
 2. Keep deferred validation, calibration, physics, and GPU work tracked in `docs/deferred_enhancement_backlog.md`.
 3. Return to deeper engine and field-validation work after the GUI prototype is usable.

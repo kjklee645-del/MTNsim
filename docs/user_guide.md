@@ -35,15 +35,22 @@ Launch the current GUI shell:
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --gui
 ```
 
-Current GUI scope in Phase 3 + playback:
+Current GUI scope in Phase 3 + playback + comparison + limited editor:
 - open a project manifest
+- use the Project Home recent-run panel to reopen recent result summaries or jump to the latest output folder
 - browse discovered scenarios
 - inspect read-only scenario details
 - run the selected scenario in the background
 - watch run progress in a run-monitor view
 - inspect a 2D scene view with road geometry, receivers, and scenario objects
 - inspect output paths after completion
-- browse recent result summaries
+- compare two scenario configurations in a dedicated comparison view and export comparison summaries as JSON or Markdown
+- run two scenarios from the comparison view and inspect receiver delta tables plus overlay charts
+- open a field campaign package, inspect campaign quality, validate it from the Campaign Validation view, and open generated summary/report/result files directly
+- edit selected high-value scenario parameters, including lane-change, noise/grid settings, and a multi-row receiver table, preview valid unsaved changes live in the scene/details view, then save a derived scenario from the Scenario Editor view
+- jump directly into config comparison between the source and saved derived scenario
+- block invalid saves with editor-side validation checks before writing a new TOML file
+- browse recent result summaries and open/export the current result summary artifacts
 - inspect receiver summary statistics and receiver time-series
 - replay recorded vehicle movement with a time slider and play/pause controls
 - zoom with the mouse wheel, pan by dragging, and inspect receivers/vehicles/lanes/grid cells with hover info

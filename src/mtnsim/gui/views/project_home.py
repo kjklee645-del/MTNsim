@@ -9,17 +9,22 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSplitter,
     QVBoxLayout,
     QWidget,
 )
 
-from mtnsim.gui.state import GuiProjectState
+from mtnsim.gui.state import GuiProjectState, GuiRunState
 
 
 class ProjectHomeView(QWidget):
     open_project_requested = Signal()
     scenario_selected = Signal(str)
     run_selected_requested = Signal()
+    edit_selected_requested = Signal()
+    recent_result_selected = Signal(str)
+    open_recent_result_requested = Signal(str)
+    open_latest_output_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -45,6 +50,11 @@ class ProjectHomeView(QWidget):
         self.run_selected_button.setEnabled(False)
         button_row.addWidget(self.run_selected_button)
 
+        self.edit_selected_button = QPushButton('Edit Selected Scenario')
+        self.edit_selected_button.clicked.connect(self.edit_selected_requested.emit)
+        self.edit_selected_button.setEnabled(False)
+        button_row.addWidget(self.edit_selected_button)
+
         button_row.addStretch(1)
         root_layout.addLayout(button_row)
 
@@ -54,17 +64,64 @@ class ProjectHomeView(QWidget):
         root_layout.addWidget(self.project_name_label)
         root_layout.addWidget(self.project_path_label)
 
+        splitter = QSplitter()
+        root_layout.addWidget(splitter, 1)
+
+        scenarios_panel = QWidget()
+        scenarios_layout = QVBoxLayout(scenarios_panel)
+        scenarios_layout.setContentsMargins(0, 0, 0, 0)
+        scenarios_layout.setSpacing(8)
+
         scenarios_label = QLabel('Available Scenarios')
         scenarios_label.setStyleSheet('font-size: 15px; font-weight: 600; margin-top: 8px;')
-        root_layout.addWidget(scenarios_label)
+        scenarios_layout.addWidget(scenarios_label)
 
         self.scenario_list = QListWidget()
         self.scenario_list.currentItemChanged.connect(self._emit_current_scenario)
-        root_layout.addWidget(self.scenario_list, 1)
+        scenarios_layout.addWidget(self.scenario_list, 1)
 
         self.summary_label = QLabel('Load a project manifest to browse scenarios.')
         self.summary_label.setWordWrap(True)
-        root_layout.addWidget(self.summary_label)
+        scenarios_layout.addWidget(self.summary_label)
+
+        splitter.addWidget(scenarios_panel)
+
+        recent_panel = QWidget()
+        recent_layout = QVBoxLayout(recent_panel)
+        recent_layout.setContentsMargins(0, 0, 0, 0)
+        recent_layout.setSpacing(8)
+
+        recent_label = QLabel('Recent Runs')
+        recent_label.setStyleSheet('font-size: 15px; font-weight: 600; margin-top: 8px;')
+        recent_layout.addWidget(recent_label)
+
+        self.latest_run_label = QLabel('Latest run: -')
+        self.latest_run_label.setWordWrap(True)
+        recent_layout.addWidget(self.latest_run_label)
+
+        recent_button_row = QHBoxLayout()
+        self.open_recent_result_button = QPushButton('Open Selected Result')
+        self.open_recent_result_button.setEnabled(False)
+        self.open_recent_result_button.clicked.connect(self._emit_open_recent_result)
+        recent_button_row.addWidget(self.open_recent_result_button)
+        self.open_latest_output_button = QPushButton('Open Latest Output Folder')
+        self.open_latest_output_button.setEnabled(False)
+        self.open_latest_output_button.clicked.connect(self.open_latest_output_requested.emit)
+        recent_button_row.addWidget(self.open_latest_output_button)
+        recent_layout.addLayout(recent_button_row)
+
+        self.recent_results_list = QListWidget()
+        self.recent_results_list.currentItemChanged.connect(self._handle_recent_result_changed)
+        self.recent_results_list.itemDoubleClicked.connect(lambda item: self._emit_open_recent_result())
+        recent_layout.addWidget(self.recent_results_list, 1)
+
+        self.recent_summary_label = QLabel('No recent run selected.')
+        self.recent_summary_label.setWordWrap(True)
+        recent_layout.addWidget(self.recent_summary_label)
+
+        splitter.addWidget(recent_panel)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
 
     def set_project_state(self, state: GuiProjectState) -> None:
         if state.project is None or state.manifest_path is None:
@@ -73,6 +130,7 @@ class ProjectHomeView(QWidget):
             self.summary_label.setText('Load a project manifest to browse scenarios.')
             self.scenario_list.clear()
             self.run_selected_button.setEnabled(False)
+            self.edit_selected_button.setEnabled(False)
             return
 
         self.project_name_label.setText(f'Project: {state.project.project.name} ({state.project.project.version})')
@@ -95,16 +153,66 @@ class ProjectHomeView(QWidget):
         if selected_row >= 0:
             self.scenario_list.setCurrentRow(selected_row)
         self.scenario_list.blockSignals(False)
-        self.run_selected_button.setEnabled(state.selected_scenario_path is not None)
+        enabled = state.selected_scenario_path is not None
+        self.run_selected_button.setEnabled(enabled)
+        self.edit_selected_button.setEnabled(enabled)
 
     def set_run_enabled(self, enabled: bool) -> None:
         self.run_selected_button.setEnabled(enabled)
+        self.edit_selected_button.setEnabled(enabled)
+
+    def set_recent_results(self, result_paths: list[Path]) -> None:
+        self.recent_results_list.blockSignals(True)
+        self.recent_results_list.clear()
+        for path in result_paths:
+            item = QListWidgetItem(path.parent.name)
+            item.setData(Qt.UserRole, str(path))
+            item.setToolTip(str(path))
+            self.recent_results_list.addItem(item)
+        if result_paths:
+            self.recent_results_list.setCurrentRow(0)
+            self.open_recent_result_button.setEnabled(True)
+        else:
+            self.open_recent_result_button.setEnabled(False)
+            self.recent_summary_label.setText('No recent results yet.')
+        self.recent_results_list.blockSignals(False)
+
+    def set_last_run(self, state: GuiRunState) -> None:
+        if state.run_id is None:
+            self.latest_run_label.setText('Latest run: -')
+            self.open_latest_output_button.setEnabled(False)
+            return
+        output_dir = state.output_dir if state.output_dir is not None else '-'
+        self.latest_run_label.setText(f'Latest run: {state.run_id}\nOutput: {output_dir}')
+        self.open_latest_output_button.setEnabled(state.output_dir is not None)
+
+    def _handle_recent_result_changed(self, current: QListWidgetItem | None, previous: QListWidgetItem | None) -> None:  # noqa: ARG002
+        if current is None:
+            self.open_recent_result_button.setEnabled(False)
+            self.recent_summary_label.setText('No recent run selected.')
+            return
+        result_path = current.data(Qt.UserRole)
+        self.open_recent_result_button.setEnabled(bool(result_path))
+        self.recent_summary_label.setText(f'Selected result summary:\n{result_path}')
+        if result_path:
+            self.recent_result_selected.emit(str(result_path))
+
+    def _emit_open_recent_result(self) -> None:
+        current = self.recent_results_list.currentItem()
+        if current is None:
+            return
+        result_path = current.data(Qt.UserRole)
+        if result_path:
+            self.open_recent_result_requested.emit(str(result_path))
 
     def _emit_current_scenario(self, current: QListWidgetItem | None, previous: QListWidgetItem | None) -> None:  # noqa: ARG002
         if current is None:
             self.run_selected_button.setEnabled(False)
+            self.edit_selected_button.setEnabled(False)
             return
         scenario_path = current.data(Qt.UserRole)
-        self.run_selected_button.setEnabled(bool(scenario_path))
+        enabled = bool(scenario_path)
+        self.run_selected_button.setEnabled(enabled)
+        self.edit_selected_button.setEnabled(enabled)
         if scenario_path:
             self.scenario_selected.emit(str(scenario_path))

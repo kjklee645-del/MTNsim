@@ -82,8 +82,27 @@ Must-have controls:
 - `Run Selected Scenario`
 - `Compare Scenarios`
 - `Open Outputs Folder`
+- recent run list with quick-open result/output actions
 
-### 3.3 Screen B: Scenario Editor (MVP Scope)
+### 3.2 Screen B: Project Entry Wizard
+
+Purpose:
+- create a new MTNsim project
+- import an existing SUMO project into MTNsim structure
+- validate required files before the main workspace opens
+
+Must-have controls:
+- `New Project`
+- `Import SUMO Project`
+- project folder chooser
+- SUMO `.sumocfg` file picker
+- file validation summary
+- starter scenario generation confirmation
+
+Design note:
+- this screen should generate a valid `project.toml` and at least one starter scenario so users are not forced to edit TOML manually
+
+### 3.3 Screen C: Scenario Editor (MVP Scope)
 
 Purpose:
 - edit only the parameters that matter most for demonstration and early usage
@@ -106,7 +125,7 @@ Design note:
 - the editor should show a simplified form view backed by the existing scenario schema
 - advanced settings can remain read-only or hidden in the first cut
 
-### 3.4 Screen C: Run Monitor
+### 3.4 Screen D: Run Monitor
 
 Purpose:
 - show execution progress and output links during a run
@@ -119,7 +138,7 @@ Must-have elements:
 - output paths for summary and receiver files
 - cancel button if practical
 
-### 3.5 Screen D: Result Viewer
+### 3.5 Screen E: Result Viewer
 
 Purpose:
 - inspect the main outputs without leaving the GUI
@@ -136,7 +155,7 @@ Nice-to-have after MVP:
 - scene overlay view
 - multiple run overlays
 
-### 3.6 Screen E: Scenario Comparison View
+### 3.6 Screen F: Scenario Comparison View
 
 Purpose:
 - compare two scenarios through settings and output summaries
@@ -148,7 +167,7 @@ Must-have elements:
 - key metric cards such as mean delta and largest change
 - links to full comparison artifacts
 
-### 3.7 Screen F: Campaign Validation View
+### 3.7 Screen G: Campaign Validation View
 
 Purpose:
 - inspect campaign quality and validation outcomes
@@ -215,6 +234,19 @@ Responsibilities:
 
 ## 6. MVP Implementation Order
 
+### Phase 0.5: New Project / Import Project
+
+Build next:
+- `New Project` action
+- `Import SUMO Project` action
+- project creation/import dialog
+- manifest generation
+- starter scenario generation
+- auto-open newly created project
+
+Goal:
+- a user can start from their own SUMO case instead of being limited to the bundled demo project
+
 ### Phase 1: GUI Skeleton
 
 Build first:
@@ -261,33 +293,41 @@ Build next:
 Goal:
 - a user can inspect vehicle movement without leaving the GUI
 
-### Phase 4: Scenario Comparison
+### Phase 4: Scenario Comparison [done]
 
-Build next:
+Implemented:
 - select two scenarios
 - show config diff
 - run compare flow
 - display receiver delta summary
+- display receiver overlay chart
 
-Goal:
+Goal achieved:
 - a user can compare changes without touching CLI
 
-### Phase 5: Campaign Validation Panel
+### Phase 5: Campaign Validation Panel [done]
 
-Build next:
+Implemented:
 - open campaign manifest
 - run inspect / validate
-- show acceptance result, diagnostics, and recommendations
+- show acceptance result, threshold checks, diagnostics, and recommendations
 
-Goal:
+Goal achieved:
 - a user can use the existing validation pipeline from the GUI
 
-### Phase 6: Limited Scenario Editing
+### Phase 6: Limited Scenario Editing [started]
 
-Build after the above:
+Implemented in first pass:
 - form-based edits for selected scenario controls
+- lane-change mode/strategy and post-distance controls in the editor
+- noise/grid fields and selected receiver coordinate editing in the editor
 - save-as behavior for derived scenarios
-- validation of edited values against schema
+- direct handoff into source-vs-derived comparison
+
+Remaining in this phase:
+- broader field coverage
+- stronger validation of edited values against schema
+- tighter integration with compare workflows
 
 Goal:
 - a user can create and test simple scenario variations safely
@@ -310,9 +350,9 @@ Goal:
 4. implement run worker and run monitor
 5. implement result summary table + receiver chart
 6. add vehicle playback panel [done]
-7. add comparison panel
-8. add campaign validation panel
-9. add limited scenario editor only after read-only flows are stable
+7. add comparison panel [done]
+8. add campaign validation panel [done]
+9. add limited scenario editor only after read-only flows are stable [started]
 
 ## 9. Success Criteria for the GUI MVP
 

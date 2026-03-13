@@ -4,12 +4,12 @@
   "project": "mtnsim-demo",
   "scenario": "baseline",
   "inspection_passed": true,
-  "validation_passed": true,
+  "validation_passed": false,
   "simulation_executed": true,
   "inspection_summary_file": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\reports\\campaign_inspection_summary.json",
   "inspection_report_file": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\reports\\campaign_inspection_report.md",
-  "result_summary_file": "D:\\Codex\\MTNsim\\outputs\\4ec66448f10d454e8ad814b400bc7f5d\\run_result_summary.json",
-  "calibration_summary_file": "D:\\Codex\\MTNsim\\outputs\\4ec66448f10d454e8ad814b400bc7f5d\\calibration_summary.json",
+  "result_summary_file": "D:\\Codex\\MTNsim\\outputs\\2cc19feadf78471c9d2d75aba83146d6\\run_result_summary.json",
+  "calibration_summary_file": "D:\\Codex\\MTNsim\\outputs\\2cc19feadf78471c9d2d75aba83146d6\\calibration_summary.json",
   "campaign_validation_report_file": "D:\\Codex\\MTNsim\\data\\field\\demo_seeded_campaign\\reports\\campaign_validation_report.md",
   "threshold_checks": {
     "min_aligned_sample_count": {
@@ -18,13 +18,13 @@
       "expected_min": 4800
     },
     "max_overall_rmse_db": {
-      "passed": true,
-      "actual": 0.0,
+      "passed": false,
+      "actual": 0.045506492461568133,
       "expected_max": 1e-06
     },
     "max_abs_overall_mean_bias_db": {
-      "passed": true,
-      "actual": 0.0,
+      "passed": false,
+      "actual": 0.030021278000172694,
       "expected_max": 1e-06
     },
     "max_unmatched_sensor_count": {
@@ -43,18 +43,36 @@
       "expected_min": 1.0
     },
     "max_receiver_rmse_db": {
-      "passed": true,
-      "actual_failed_receivers": [],
+      "passed": false,
+      "actual_failed_receivers": [
+        "poi_500_215",
+        "poi_500_165",
+        "poi_500_115",
+        "poi_500_65",
+        "poi_500_55",
+        "poi_500_45",
+        "poi_500_35",
+        "poi_500_25"
+      ],
       "expected_max": 1e-06
     },
     "max_receiver_abs_mean_bias_db": {
-      "passed": true,
-      "actual_failed_receivers": [],
+      "passed": false,
+      "actual_failed_receivers": [
+        "poi_500_215",
+        "poi_500_165",
+        "poi_500_115",
+        "poi_500_65",
+        "poi_500_55",
+        "poi_500_45",
+        "poi_500_35",
+        "poi_500_25"
+      ],
       "expected_max": 1e-06
     },
     "max_worst_receiver_rmse_db": {
-      "passed": true,
-      "actual": 0.0,
+      "passed": false,
+      "actual": 0.08191882501541355,
       "expected_max": 1e-06
     },
     "max_outlier_rejected_sample_count": {
@@ -80,13 +98,13 @@
   },
   "receiver_diagnostics": [
     {
-      "receiver_id": "poi_500_115",
+      "receiver_id": "poi_500_215",
       "sample_count": 600,
       "expected_sample_count": 600,
       "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
+      "mean_bias_db": 0.07469766977004678,
+      "mae_db": 0.07469766977004678,
+      "rmse_db": 0.08191882501541355,
       "rejected_outlier_count": 0
     },
     {
@@ -94,59 +112,19 @@
       "sample_count": 600,
       "expected_sample_count": 600,
       "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
+      "mean_bias_db": 0.05230894789182847,
+      "mae_db": 0.05230894789182847,
+      "rmse_db": 0.05973273391901331,
       "rejected_outlier_count": 0
     },
     {
-      "receiver_id": "poi_500_215",
+      "receiver_id": "poi_500_115",
       "sample_count": 600,
       "expected_sample_count": 600,
       "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
-      "rejected_outlier_count": 0
-    },
-    {
-      "receiver_id": "poi_500_25",
-      "sample_count": 600,
-      "expected_sample_count": 600,
-      "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
-      "rejected_outlier_count": 0
-    },
-    {
-      "receiver_id": "poi_500_35",
-      "sample_count": 600,
-      "expected_sample_count": 600,
-      "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
-      "rejected_outlier_count": 0
-    },
-    {
-      "receiver_id": "poi_500_45",
-      "sample_count": 600,
-      "expected_sample_count": 600,
-      "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
-      "rejected_outlier_count": 0
-    },
-    {
-      "receiver_id": "poi_500_55",
-      "sample_count": 600,
-      "expected_sample_count": 600,
-      "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
+      "mean_bias_db": 0.03469400054759407,
+      "mae_db": 0.03469400054759407,
+      "rmse_db": 0.04415712671218167,
       "rejected_outlier_count": 0
     },
     {
@@ -154,9 +132,49 @@
       "sample_count": 600,
       "expected_sample_count": 600,
       "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
+      "mean_bias_db": 0.020210156877911,
+      "mae_db": 0.020210156877911,
+      "rmse_db": 0.03215780287115269,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_55",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.017700014312220073,
+      "mae_db": 0.017700014312220073,
+      "rmse_db": 0.030459149168551893,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_45",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.015397061493944323,
+      "mae_db": 0.015397061493944323,
+      "rmse_db": 0.029069241290235897,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_35",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.01338131669847262,
+      "mae_db": 0.01338131669847262,
+      "rmse_db": 0.028018484590171523,
+      "rejected_outlier_count": 0
+    },
+    {
+      "receiver_id": "poi_500_25",
+      "sample_count": 600,
+      "expected_sample_count": 600,
+      "coverage_ratio": 1.0,
+      "mean_bias_db": 0.011781056409364202,
+      "mae_db": 0.011781056409364202,
+      "rmse_db": 0.027317417427808896,
       "rejected_outlier_count": 0
     }
   ],
@@ -171,9 +189,9 @@
       "sample_count": 1200,
       "expected_sample_count": 1200,
       "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
+      "mean_bias_db": 0.06350330883093762,
+      "mae_db": 0.06350330883093762,
+      "rmse_db": 0.07168923696534085,
       "rejected_outlier_count": 0
     },
     {
@@ -186,9 +204,9 @@
       "sample_count": 1200,
       "expected_sample_count": 1200,
       "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
+      "mean_bias_db": 0.027452078712752535,
+      "mae_db": 0.027452078712752535,
+      "rmse_db": 0.03862626130610873,
       "rejected_outlier_count": 0
     },
     {
@@ -203,47 +221,60 @@
       "sample_count": 2400,
       "expected_sample_count": 2400,
       "coverage_ratio": 1.0,
-      "mean_bias_db": 0.0,
-      "mae_db": 0.0,
-      "rmse_db": 0.0,
+      "mean_bias_db": 0.014564862228500305,
+      "mae_db": 0.014564862228500305,
+      "rmse_db": 0.028740465075033524,
       "rejected_outlier_count": 0
     }
   ],
-  "high_error_receiver_ids": [],
+  "high_error_receiver_ids": [
+    "poi_500_215",
+    "poi_500_165",
+    "poi_500_115",
+    "poi_500_65",
+    "poi_500_55",
+    "poi_500_45",
+    "poi_500_35",
+    "poi_500_25"
+  ],
   "high_error_receiver_group_ids": [],
   "low_coverage_receiver_ids": [],
   "low_coverage_receiver_group_ids": [],
   "calibration_recommendations": [],
   "calibration_high_priority_receiver_ids": [],
-  "recommended_global_offset_db": -0.0,
+  "recommended_global_offset_db": -0.030021278000172694,
   "suggested_sensor_time_offset_updates": {},
   "suggested_receiver_offset_db": {
-    "poi_500_115": -0.0,
-    "poi_500_165": -0.0,
-    "poi_500_215": -0.0,
-    "poi_500_25": -0.0,
-    "poi_500_35": -0.0,
-    "poi_500_45": -0.0,
-    "poi_500_55": -0.0,
-    "poi_500_65": -0.0
+    "poi_500_115": -0.03469400054759407,
+    "poi_500_165": -0.05230894789182847,
+    "poi_500_215": -0.07469766977004678,
+    "poi_500_25": -0.011781056409364202,
+    "poi_500_35": -0.01338131669847262,
+    "poi_500_45": -0.015397061493944323,
+    "poi_500_55": -0.017700014312220073,
+    "poi_500_65": -0.020210156877911
   },
-  "acceptance_status": "accepted",
+  "acceptance_status": "conditional",
   "acceptance_reasons": [
-    "All declared campaign validation checks passed."
+    "Failed validation check: max_overall_rmse_db",
+    "Failed validation check: max_abs_overall_mean_bias_db",
+    "Failed validation check: max_receiver_rmse_db",
+    "Failed validation check: max_receiver_abs_mean_bias_db",
+    "Failed validation check: max_worst_receiver_rmse_db"
   ],
   "comparison_insights": [
-    "Worst receiver is poi_500_65 with RMSE 0.000 dB and mean bias 0.000 dB.",
-    "Worst receiver group is near_field with RMSE 0.000 dB and mean bias 0.000 dB.",
-    "Near/far RMSE split: near_field 0.000 dB vs far_field 0.000 dB.",
-    "Near/far mean-bias split: near_field 0.000 dB vs far_field 0.000 dB."
+    "Worst receiver is poi_500_215 with RMSE 0.082 dB and mean bias 0.075 dB.",
+    "Worst receiver group is far_field with RMSE 0.072 dB and mean bias 0.064 dB.",
+    "Near/far RMSE split: near_field 0.029 dB vs far_field 0.072 dB.",
+    "Near/far mean-bias split: near_field 0.015 dB vs far_field 0.064 dB."
   ],
   "recommended_next_actions": [
-    "Freeze this campaign package as a reusable validation baseline."
+    "Inspect geometry, traffic inputs, and local scene assumptions for the highest-error receivers or groups."
   ],
-  "worst_receiver_id": "poi_500_65",
-  "worst_receiver_group_id": "near_field",
-  "overall_mean_bias_db": 0.0,
-  "overall_rmse_db": 0.0,
+  "worst_receiver_id": "poi_500_215",
+  "worst_receiver_group_id": "far_field",
+  "overall_mean_bias_db": 0.030021278000172694,
+  "overall_rmse_db": 0.045506492461568133,
   "aligned_sample_count": 4800,
   "unmatched_sensor_count": 0,
   "coverage_ratio": 1.0,

@@ -1,0 +1,247 @@
+{
+  "campaign_id": "template_campaign",
+  "name": "Template Campaign",
+  "passed": false,
+  "measurement_row_count": 0,
+  "measurement_sensor_count": 0,
+  "metadata_sensor_count": 0,
+  "traffic_row_count": 0,
+  "checks": [
+    {
+      "check_id": "measurement_required_columns",
+      "passed": false,
+      "severity": "error",
+      "message": "Measurements need sensor, time, and value columns.",
+      "details": {
+        "columns": []
+      }
+    },
+    {
+      "check_id": "measurement_preferred_time_column_present",
+      "passed": false,
+      "severity": "warning",
+      "message": "Measurement file should include the preferred time column declared in the campaign manifest.",
+      "details": {
+        "preferred_time_column": "timestamp",
+        "columns": []
+      }
+    },
+    {
+      "check_id": "measurement_rows_present",
+      "passed": false,
+      "severity": "error",
+      "message": "Measurement file should contain at least one row.",
+      "details": {
+        "row_count": 0
+      }
+    },
+    {
+      "check_id": "measurement_duplicate_sensor_time_keys",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurement file should not contain duplicate sensor/time pairs.",
+      "details": {
+        "duplicate_key_count": 0
+      }
+    },
+    {
+      "check_id": "measurement_missing_sensor_ids",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurement rows should include sensor identifiers.",
+      "details": {
+        "missing_sensor_count": 0
+      }
+    },
+    {
+      "check_id": "measurement_missing_time_values",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurement rows should include time values.",
+      "details": {
+        "missing_time_count": 0
+      }
+    },
+    {
+      "check_id": "measurement_missing_value_db",
+      "passed": true,
+      "severity": "error",
+      "message": "Measurement rows should include dB values.",
+      "details": {
+        "missing_value_count": 0
+      }
+    },
+    {
+      "check_id": "measurement_plausible_db_range",
+      "passed": true,
+      "severity": "warning",
+      "message": "Measurement dB values should stay in a plausible range.",
+      "details": {
+        "impossible_db_count": 0
+      }
+    },
+    {
+      "check_id": "metadata_required_columns",
+      "passed": false,
+      "severity": "error",
+      "message": "Metadata should include sensor_id and either simulation_receiver_id or x/y/z coordinates.",
+      "details": {
+        "columns": []
+      }
+    },
+    {
+      "check_id": "metadata_rows_present",
+      "passed": false,
+      "severity": "error",
+      "message": "Sensor metadata should contain at least one row.",
+      "details": {
+        "row_count": 0
+      }
+    },
+    {
+      "check_id": "metadata_duplicate_sensor_ids",
+      "passed": true,
+      "severity": "error",
+      "message": "Sensor metadata should not contain duplicate sensor IDs.",
+      "details": {
+        "duplicate_sensor_id_count": 0
+      }
+    },
+    {
+      "check_id": "metadata_mapping_available",
+      "passed": true,
+      "severity": "error",
+      "message": "Each metadata row should map to a receiver or coordinates.",
+      "details": {
+        "missing_mapping_count": 0
+      }
+    },
+    {
+      "check_id": "traffic_rows_present",
+      "passed": false,
+      "severity": "warning",
+      "message": "Traffic file should contain at least one row.",
+      "details": {
+        "row_count": 0
+      }
+    },
+    {
+      "check_id": "traffic_minimum_columns",
+      "passed": false,
+      "severity": "warning",
+      "message": "Traffic file should include time, flow, and speed information.",
+      "details": {
+        "columns": []
+      }
+    },
+    {
+      "check_id": "traffic_heavy_vehicle_share_column",
+      "passed": false,
+      "severity": "warning",
+      "message": "Traffic file should include heavy-vehicle share if available.",
+      "details": {
+        "columns": []
+      }
+    },
+    {
+      "check_id": "traffic_metadata_required_fields",
+      "passed": true,
+      "severity": "warning",
+      "message": "Traffic metadata should include time_zone, time_column, and speed_unit.",
+      "details": {
+        "keys": [
+          "data_type",
+          "flow_unit",
+          "sampling_interval_seconds",
+          "speed_unit",
+          "time_column",
+          "time_zone"
+        ]
+      }
+    },
+    {
+      "check_id": "traffic_metadata_expected_time_zone",
+      "passed": true,
+      "severity": "warning",
+      "message": "Traffic metadata time zone should match the campaign manifest.",
+      "details": {
+        "expected_time_zone": "Asia/Seoul",
+        "actual_time_zone": "Asia/Seoul"
+      }
+    },
+    {
+      "check_id": "scene_path_exists",
+      "passed": true,
+      "severity": "warning",
+      "message": "scene_path_exists should point to an existing dir.",
+      "details": {
+        "path": "D:\\Codex\\MTNsim\\data\\field\\template_campaign\\scene"
+      }
+    },
+    {
+      "check_id": "scene_manifest_required_fields",
+      "passed": true,
+      "severity": "warning",
+      "message": "Scene manifest should include coordinate_system and layers.",
+      "details": {
+        "keys": [
+          "coordinate_system",
+          "layers",
+          "notes"
+        ]
+      }
+    },
+    {
+      "check_id": "scene_manifest_coordinate_system_match",
+      "passed": true,
+      "severity": "warning",
+      "message": "Scene manifest coordinate system should match the campaign manifest.",
+      "details": {
+        "expected_coordinate_system": "EPSG:5186",
+        "actual_coordinate_system": "EPSG:5186"
+      }
+    },
+    {
+      "check_id": "scene_manifest_has_relevant_layer",
+      "passed": true,
+      "severity": "warning",
+      "message": "Scene manifest should reference at least one relevant scene layer.",
+      "details": {
+        "layer_keys": [
+          "barriers",
+          "buildings",
+          "ground_surfaces",
+          "terrain",
+          "vegetation"
+        ]
+      }
+    },
+    {
+      "check_id": "scene_manifest_layer_files_exist",
+      "passed": true,
+      "severity": "warning",
+      "message": "Scene manifest referenced files should exist inside or relative to the scene bundle.",
+      "details": {
+        "missing_files": []
+      }
+    },
+    {
+      "check_id": "notes_file_exists",
+      "passed": true,
+      "severity": "warning",
+      "message": "notes_file_exists should point to an existing file.",
+      "details": {
+        "path": "D:\\Codex\\MTNsim\\data\\field\\template_campaign\\notes.md"
+      }
+    },
+    {
+      "check_id": "measurement_sensors_mapped_in_metadata",
+      "passed": true,
+      "severity": "error",
+      "message": "All measurement sensor IDs should exist in sensor metadata.",
+      "details": {
+        "missing_sensor_ids": []
+      }
+    }
+  ]
+}

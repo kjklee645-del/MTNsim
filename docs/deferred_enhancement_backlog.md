@@ -104,6 +104,22 @@ Why deferred:
 - the GUI MVP should stabilize user flow first
 - agent control is easier to build once GUI commands and user tasks are clearer
 
+### 2.8 GUI Preview and Editing Polish
+
+Keep for a later phase:
+- highlight receivers or geometry changed by unsaved scenario-editor preview values
+- preview reset / revert controls in the Scenario Editor
+- warnings for receivers moved outside practical scene bounds
+- stronger live preview hints for invalid versus valid unsaved edits
+- richer preview overlays that show what changed before saving
+- Project Home expansion with recent comparison history and recent campaign-validation history
+- clearer run-monitor <-> Project Home handoff for in-progress versus completed work
+
+Why deferred:
+- live unsaved preview now works for scene/details updates
+- these are polish improvements rather than immediate workflow blockers
+
+
 ## 3. Re-Entry Conditions
 
 Resume one of the deferred tracks when at least one of these becomes true:
