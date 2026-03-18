@@ -30,7 +30,8 @@ Status legend:
 | Schema | Result schema | [x] | `schemas/result.schema.json` |
 | Packaging | Python package skeleton | [x] | `src/mtnsim` |
 | Metadata | README and package metadata | [x] | `README.md`, `pyproject.toml` |
-| Project UX | New/import project workflow | [~] | UX design documented in `docs/new_project_import_ux_plan.md`; GUI implementation not started |
+| GUI UX | Project/run/result operator polish | [~] | readiness guidance, completion summaries, and clearer result cards implemented; further history/session polish remains |
+| Project UX | New/import/attach project workflow | [~] | first-pass GUI creation/import flow implemented with validation summary, overwrite handling, first-run guidance, empty-project mode, later attach-SUMO support, selectable attach refresh scope, and optional scene/measurement import; deeper wizard polish still remains |
 
 ## 3. Core Execution Kernel
 
@@ -119,9 +120,9 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Implement `New Project` / `Import SUMO Project` GUI flow | [~] | the GUI is still too dependent on the bundled `4lane` demo project; project entry is now the main usability gap |
-| 2 | Keep deeper validation, calibration, physics, and GPU work on the deferred backlog while project-entry UX is under construction | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
-| 3 | Resume field-data validation hardening after project creation/import and GUI operator flow are easier for non-developers | [~] | real external users need to bring their own cases in before validation polish becomes broadly useful |
+| 1 | Polish the first-pass `New Project` / `Import SUMO Project` flow | [~] | project entry is now implemented, but wizard validation, overwrite handling, and empty-project support still need work |
+| 2 | Keep deeper validation, calibration, physics, and GPU work on the deferred backlog while project-entry UX is being stabilized | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
+| 3 | Resume field-data validation hardening after project creation/import and GUI operator flow are easier for non-developers | [~] | real external users now need to bring their own cases in before validation polish becomes broadly useful |
 | 4 | Add scene-aware performance benchmarking and selective GPU follow-up only where hybrid GPU becomes the bottleneck | [~] | hybrid GPU path is already usable, so more GPU work is not the immediate product priority |
 | 5 | Deepen reporting and richer agent control after project-entry and operator workflows stabilize | [ ] | depends on a smoother end-to-end project lifecycle |
 

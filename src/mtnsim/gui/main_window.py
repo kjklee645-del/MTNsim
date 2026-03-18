@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QListWidget,
     QListWidgetItem,
+    QDialog,
     QDockWidget,
     QMainWindow,
     QMessageBox,
@@ -26,7 +27,7 @@ from PySide6.QtWidgets import (
 
 from mtnsim.gui.controllers import CampaignController, CompareController, PlaybackController, ProjectController, ResultController, RunController, SceneController
 from mtnsim.gui.state import GuiRunState, GuiSessionState
-from mtnsim.gui.views import CampaignValidationView, ProjectHomeView, ResultViewerView, RunMonitorView, ScenarioComparisonView, ScenarioEditorView, SceneView, VehiclePlaybackView
+from mtnsim.gui.views import CampaignValidationView, ProjectHomeView, ProjectSetupDialog, ResultViewerView, RunMonitorView, ScenarioComparisonView, ScenarioEditorView, SceneView, VehiclePlaybackView
 from mtnsim.schemas.scenario import Receiver
 
 
@@ -98,6 +99,13 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.open_project_action = toolbar.addAction('Open Project')
         self.open_project_action.triggered.connect(self.open_project_dialog)
+        self.new_project_action = toolbar.addAction('New Project')
+        self.new_project_action.triggered.connect(self.open_new_project_dialog)
+        self.import_project_action = toolbar.addAction('Import SUMO Project')
+        self.import_project_action.triggered.connect(self.open_import_project_dialog)
+        self.attach_sumo_action = toolbar.addAction('Attach SUMO')
+        self.attach_sumo_action.triggered.connect(self.open_attach_sumo_dialog)
+        self.attach_sumo_action.setEnabled(False)
         self.run_selected_action = toolbar.addAction('Run Selected')
         self.run_selected_action.triggered.connect(self.run_selected_scenario)
         self.run_selected_action.setEnabled(False)
@@ -168,6 +176,9 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self) -> None:
         self.project_home_view.open_project_requested.connect(self.open_project_dialog)
+        self.project_home_view.new_project_requested.connect(self.open_new_project_dialog)
+        self.project_home_view.import_project_requested.connect(self.open_import_project_dialog)
+        self.project_home_view.attach_sumo_requested.connect(self.open_attach_sumo_dialog)
         self.project_home_view.scenario_selected.connect(self.select_scenario)
         self.project_home_view.run_selected_requested.connect(self.run_selected_scenario)
         self.project_home_view.edit_selected_requested.connect(self.show_scenario_editor)
@@ -192,6 +203,7 @@ class MainWindow(QMainWindow):
         self.campaign_validation_view.open_result_summary_requested.connect(self.open_campaign_result_summary_file)
         self.campaign_validation_view.open_calibration_summary_requested.connect(self.open_campaign_calibration_summary_file)
         self.run_monitor_view.back_requested.connect(self.show_project_home)
+        self.run_monitor_view.open_result_requested.connect(self.show_result_viewer)
         self.result_viewer_view.recent_result_selected.connect(self.load_result_summary)
         self.result_viewer_view.receiver_selected.connect(self.load_receiver_series)
         self.result_viewer_view.open_output_dir_requested.connect(self.open_current_result_output_dir)
@@ -215,6 +227,230 @@ class MainWindow(QMainWindow):
         if file_path:
             self.load_project(Path(file_path))
 
+    def open_new_project_dialog(self) -> None:
+        self._open_project_setup_dialog(mode='new')
+
+    def open_import_project_dialog(self) -> None:
+        self._open_project_setup_dialog(mode='import')
+
+    def open_attach_sumo_dialog(self) -> None:
+        project_state = self.session_state.project_state
+        if project_state.manifest_path is None or project_state.project is None:
+            QMessageBox.information(self, 'Attach SUMO', 'Load or create a project first.')
+            return
+        selected_name = project_state.selected_scenario_path.stem if project_state.selected_scenario_path is not None else project_state.project.project.default_scenario
+        self._open_project_setup_dialog(
+            mode='attach',
+            initial_project_root=str(self.project_controller._project_root(project_state.manifest_path)),
+            initial_project_name=project_state.project.project.name,
+            initial_description=project_state.project.project.description,
+            initial_scenario_name=selected_name,
+        )
+
+    def _open_project_setup_dialog(
+        self,
+        *,
+        mode: str,
+        initial_project_root: str = '',
+        initial_project_name: str = '',
+        initial_description: str = '',
+        initial_scenario_name: str = 'baseline',
+    ) -> None:
+        dialog = ProjectSetupDialog(
+            self.project_controller,
+            mode=mode,
+            initial_project_root=initial_project_root,
+            initial_project_name=initial_project_name,
+            initial_description=initial_description,
+            initial_scenario_name=initial_scenario_name,
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        payload = dialog.payload()
+        project_root = Path(payload['project_root']).resolve()
+        manifest_path = project_root / 'project.toml'
+        scenario_path = project_root / 'scenarios' / f"{payload['default_scenario']}.toml"
+        overwrite_existing = bool(payload.get('overwrite_existing'))
+        conflicts = [path for path in [manifest_path, scenario_path] if path.exists()] if mode != 'attach' else []
+        if conflicts and not overwrite_existing:
+            paths = '\n'.join(str(path) for path in conflicts)
+            answer = QMessageBox.question(
+                self,
+                'Overwrite Existing Project Files?',
+                'The following files already exist:\n\n'
+                f'{paths}\n\n'
+                'Do you want to overwrite them and continue?',
+            )
+            if answer != QMessageBox.Yes:
+                self._append_log('[info] Project creation/import cancelled because existing files were not overwritten.')
+                return
+            overwrite_existing = True
+        try:
+            if mode == 'new' and not payload.get('attach_sumo_now', True):
+                result = self.project_controller.create_empty_project(
+                    project_root=payload['project_root'],
+                    project_name=payload['project_name'],
+                    description=payload['description'],
+                    default_scenario=payload['default_scenario'],
+                    overwrite_existing=overwrite_existing,
+                    scene_path=payload['scene_path'] or None,
+                    measurements_path=payload['measurements_path'] or None,
+                    measurement_metadata_path=payload['measurement_metadata_path'] or None,
+                    copy_external_files=payload['copy_sumo_files'],
+                )
+            elif mode == 'attach':
+                current_state = self.session_state.project_state
+                target_scenario_path = current_state.selected_scenario_path
+                result = self.project_controller.attach_sumo_to_project(
+                    manifest_path=current_state.manifest_path,
+                    sumo_config_path=payload['sumo_config_path'],
+                    copy_sumo_files=payload['copy_sumo_files'],
+                    overwrite_existing=overwrite_existing,
+                    scenario_path=target_scenario_path,
+                    refresh_selected_scenario_only=payload['attach_refresh_selected_only'],
+                    update_traffic_metadata=payload['attach_update_traffic_metadata'],
+                    update_vehicle_coefficients=payload['attach_update_vehicle_coefficients'],
+                    replace_placeholder_receivers=payload['attach_replace_placeholder_receivers'],
+                    update_lane_change_targets=payload['attach_update_lane_targets'],
+                    scene_path=payload['scene_path'] or None,
+                    measurements_path=payload['measurements_path'] or None,
+                    measurement_metadata_path=payload['measurement_metadata_path'] or None,
+                )
+            else:
+                result = self.project_controller.create_project_from_sumo(
+                    project_root=payload['project_root'],
+                    project_name=payload['project_name'],
+                    description=payload['description'],
+                    sumo_config_path=payload['sumo_config_path'],
+                    default_scenario=payload['default_scenario'],
+                    copy_sumo_files=payload['copy_sumo_files'],
+                    overwrite_existing=overwrite_existing,
+                    scene_path=payload['scene_path'] or None,
+                    measurements_path=payload['measurements_path'] or None,
+                    measurement_metadata_path=payload['measurement_metadata_path'] or None,
+                )
+        except Exception as exc:  # pragma: no cover
+            QMessageBox.critical(self, 'Project Creation Failed', str(exc))
+            self._append_log(f'[error] Failed to create/import project: {exc}')
+            return
+        if mode == 'attach':
+            self._append_log(f'[info] Updated project manifest with attached SUMO assets: {result.manifest_path}')
+            self._append_log(f'[info] Refreshed target scenario for SUMO attachment: {result.scenario_path}')
+        else:
+            self._append_log(f'[info] Created project manifest: {result.manifest_path}')
+            self._append_log(f'[info] Created starter scenario: {result.scenario_path}')
+        if result.inspection is not None and result.inspection.warnings:
+            for warning in result.inspection.warnings:
+                self._append_log(f'[warn] {warning}')
+        self.statusBar().showMessage(f'Project ready: {result.manifest_path.parent.name}')
+        self.load_project(result.manifest_path)
+        self._show_project_creation_guidance(result, mode=mode)
+
+
+    def _show_project_creation_guidance(self, result, *, mode: str) -> None:
+        note_lines = [
+            f'Project manifest: {result.manifest_path}',
+            f'Target scenario: {result.scenario_path.name}',
+        ]
+        if mode == 'attach':
+            note_lines.extend([
+                'SUMO is now attached to this project.',
+                'Next recommended steps:',
+                '- Review the refreshed starter scenario in Scenario Editor.',
+                '- Inspect the imported network in Scene View.',
+                '- Run the scenario to confirm the project is now runnable.',
+            ])
+        elif result.inspection is None:
+            note_lines.extend([
+                'This project was created as an empty MTNsim shell.',
+                'Next recommended steps:',
+                '- Use Scenario Editor to shape the starter scenario.',
+                '- Attach SUMO later when the network files are ready.',
+                '- Scene View stays available, but Run remains disabled until SUMO is attached.',
+            ])
+        else:
+            note_lines.extend([
+                'Next recommended steps:',
+                '- Review starter receivers in Scenario Editor.',
+                '- Inspect the imported network in Scene View.',
+                '- Run the starter baseline once before deeper edits.',
+            ])
+        if result.inspection is not None and result.inspection.warnings:
+            note_lines.append('')
+            note_lines.append('Import warnings:')
+            note_lines.extend(f'- {warning}' for warning in result.inspection.warnings[:5])
+        QMessageBox.information(self, 'Project Ready', '\n'.join(note_lines))
+
+    def _project_has_runnable_sumo(self, project) -> bool:
+        if project is None:
+            return False
+        network_raw = (project.paths.network or '').strip()
+        sumo_raw = (project.paths.sumo_config or '').strip()
+        if not network_raw or not sumo_raw:
+            return False
+        return self._resolve_project_path(project, network_raw).exists() and self._resolve_project_path(project, sumo_raw).exists()
+
+    def _resolve_project_path(self, project, raw_path: str) -> Path:
+        path = Path(raw_path)
+        if path.is_absolute():
+            return path
+        if project.source_path is None:
+            return Path.cwd() / path
+        source_parent = project.source_path.parent
+        project_root = source_parent.parent if source_parent.name == 'examples' else source_parent
+        return project_root / path
+
+    def _build_project_readiness(self) -> tuple[str, str, str]:
+        project_state = self.session_state.project_state
+        if project_state.project is None or project_state.manifest_path is None:
+            return (
+                'Status: no project loaded',
+                '#9a3412',
+                'Readiness: load, create, or import a project to start editing and running scenarios.',
+            )
+        issues: list[str] = []
+        next_actions: list[str] = []
+        if project_state.selected_scenario_path is None:
+            issues.append('No scenario is selected.')
+            next_actions.append('Choose a scenario from Project Home.')
+        if not self._project_has_runnable_sumo(project_state.project):
+            issues.append('SUMO network/config is not attached or cannot be resolved.')
+            next_actions.append('Use Attach SUMO to Project before running.')
+        if project_state.selected_scenario is not None and not project_state.selected_scenario.receivers:
+            issues.append('The selected scenario has no receivers.')
+            next_actions.append('Add receivers in Scenario Editor before running.')
+        if not issues:
+            return (
+                'Status: ready to run',
+                '#166534',
+                'Readiness: this project has a selected scenario, valid SUMO paths, and can be run now.',
+            )
+        return (
+            'Status: setup still needed',
+            '#9a3412',
+            'Readiness: ' + ' '.join(issues + next_actions),
+        )
+
+    def _refresh_project_home_readiness(self) -> None:
+        status_title, status_color, summary = self._build_project_readiness()
+        self.project_home_view.set_project_readiness(
+            status_title=status_title,
+            status_color=status_color,
+            summary=summary,
+        )
+
+    def _update_run_enablement(self) -> None:
+        project_state = self.session_state.project_state
+        run_enabled = (
+            project_state.selected_scenario_path is not None
+            and project_state.project is not None
+            and self._project_has_runnable_sumo(project_state.project)
+        )
+        self.run_selected_action.setEnabled(run_enabled)
+        self.project_home_view.set_run_enabled(run_enabled)
+        self._refresh_project_home_readiness()
+
     def load_project(self, manifest_path: Path) -> None:
         try:
             state = self.project_controller.load_project(manifest_path)
@@ -230,13 +466,13 @@ class MainWindow(QMainWindow):
         self.project_home_view.set_project_state(state)
         self.project_home_view.set_recent_results(self.session_state.recent_result_summaries)
         self.project_home_view.set_last_run(self.session_state.run_state)
+        self.attach_sumo_action.setEnabled(state.manifest_path is not None)
         run_enabled = state.selected_scenario_path is not None
-        self.run_selected_action.setEnabled(run_enabled)
         self.scene_view_action.setEnabled(run_enabled)
         self.scenario_editor_action.setEnabled(run_enabled)
         self.compare_view_action.setEnabled(len(state.scenario_paths) >= 2)
         self.campaign_view_action.setEnabled(state.manifest_path is not None)
-        self.project_home_view.set_run_enabled(run_enabled)
+        self._update_run_enablement()
         self.scenario_comparison_view.set_scenarios(state.scenario_paths, state.selected_scenario_path)
         self.scenario_comparison_view.set_comparison(None)
         self.scenario_comparison_view.set_run_comparison(None)
@@ -266,12 +502,11 @@ class MainWindow(QMainWindow):
         self._render_scenario_details(Path(scenario_path), loaded)
         self.scenario_editor_view.set_scenario(Path(scenario_path), loaded)
         self._update_scene_view()
-        self.run_selected_action.setEnabled(True)
         self.scene_view_action.setEnabled(True)
         self.scenario_editor_action.setEnabled(True)
         self.compare_view_action.setEnabled(len(self.session_state.project_state.scenario_paths) >= 2)
         self.campaign_view_action.setEnabled(self.session_state.project_state.manifest_path is not None)
-        self.project_home_view.set_run_enabled(True)
+        self._update_run_enablement()
         self.scenario_comparison_view.set_scenarios(self.session_state.project_state.scenario_paths, self.session_state.project_state.selected_scenario_path)
         self.scenario_comparison_view.set_run_comparison(None)
         self._append_log(f'[info] Selected scenario: {loaded.scenario.name}')
@@ -282,14 +517,22 @@ class MainWindow(QMainWindow):
         if project_state.manifest_path is None or project_state.selected_scenario_path is None:
             QMessageBox.information(self, 'Run Unavailable', 'Load a project and select a scenario first.')
             return
+        if project_state.project is None or not self._project_has_runnable_sumo(project_state.project):
+            QMessageBox.information(self, 'Run Unavailable', 'Attach a valid SUMO config and network before running this project.')
+            return
         if self.run_thread is not None and self.run_thread.isRunning():
             QMessageBox.information(self, 'Run In Progress', 'A simulation run is already in progress.')
             return
 
+        readiness_summary = self._build_project_readiness()[2]
         self.session_state.run_state = GuiRunState(
             is_running=True,
             progress_percent=0,
             progress_label=f'Preparing run for {project_state.selected_scenario_path.stem}',
+            project_name=project_state.project.project.name if project_state.project is not None else None,
+            scenario_name=project_state.selected_scenario_path.stem,
+            requested_use_gpu=True,
+            readiness_summary=readiness_summary,
         )
         self.run_monitor_view.set_run_state(self.session_state.run_state)
         self.show_run_monitor()
@@ -449,6 +692,8 @@ class MainWindow(QMainWindow):
             for key, value in payload.get('receiver_history_files', {}).items()
         }
         state.error_message = None
+        state.receiver_count = len(state.receiver_history_files)
+        state.used_gpu = None
         self.run_monitor_view.set_run_state(state)
 
         if state.result_summary_file is not None:
@@ -457,9 +702,16 @@ class MainWindow(QMainWindow):
             self.result_viewer_view.set_recent_results(self.session_state.recent_result_summaries)
             self.project_home_view.set_recent_results(self.session_state.recent_result_summaries)
             self.load_result_summary(state.result_summary_file)
+            if self.current_result_summary is not None:
+                state.used_gpu = self.current_result_summary.used_gpu
+                state.receiver_count = len(self.current_result_summary.receiver_stats)
+                state.readiness_summary = (
+                    f"Run finished for {self.current_result_summary.run.scenario}. "
+                    f"Used {'GPU' if self.current_result_summary.used_gpu else 'CPU'} and produced {len(self.current_result_summary.receiver_stats)} receiver summaries."
+                )
+                self.run_monitor_view.set_run_state(state)
 
-        self.run_selected_action.setEnabled(self.session_state.project_state.selected_scenario_path is not None)
-        self.project_home_view.set_run_enabled(self.session_state.project_state.selected_scenario_path is not None)
+        self._update_run_enablement()
         self.project_home_view.set_last_run(state)
         self._append_log(f"[info] Run completed: {state.run_id}")
         if state.result_summary_file:
@@ -473,9 +725,9 @@ class MainWindow(QMainWindow):
         state.is_running = False
         state.progress_label = 'Simulation failed'
         state.error_message = error_message
+        state.readiness_summary = 'Run failed before a valid result summary could be produced.'
         self.run_monitor_view.set_run_state(state)
-        self.run_selected_action.setEnabled(self.session_state.project_state.selected_scenario_path is not None)
-        self.project_home_view.set_run_enabled(self.session_state.project_state.selected_scenario_path is not None)
+        self._update_run_enablement()
         self._append_log(f'[error] {error_message}')
         self.statusBar().showMessage('Run failed')
         QMessageBox.critical(self, 'Simulation Failed', error_message)
@@ -750,7 +1002,7 @@ class MainWindow(QMainWindow):
             self.project_home_view.set_project_state(reloaded)
             self.scenario_comparison_view.set_scenarios(reloaded.scenario_paths, reloaded.selected_scenario_path)
             self.scenario_comparison_view.set_selected_pair(source_path, saved_path)
-            self.run_selected_action.setEnabled(True)
+            self._update_run_enablement()
             self.scene_view_action.setEnabled(True)
             self.scenario_editor_action.setEnabled(True)
             self.compare_view_action.setEnabled(len(reloaded.scenario_paths) >= 2)
@@ -769,10 +1021,13 @@ class MainWindow(QMainWindow):
 
     def _render_scenario_details(self, scenario_path: Path | None, scenario, is_preview: bool = False) -> None:
         receiver_lines = [f'- {receiver.id}: ({receiver.x:.1f}, {receiver.y:.1f}, {receiver.z:.1f})' for receiver in scenario.receivers]
+        project = self.session_state.project_state.project
+        sumo_ready = self._project_has_runnable_sumo(project) if project is not None else False
         lines = [
             f'Scenario: {scenario.scenario.name}',
             '- Preview: unsaved editor values' if is_preview else '- Preview: saved scenario values',
             f'Source file: {scenario_path}',
+            f'SUMO attached: {'yes' if sumo_ready else 'no'}',
             '',
             'Traffic',
             f'- Max vehicles: {scenario.traffic.max_vehicles}',

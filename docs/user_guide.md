@@ -36,8 +36,14 @@ Launch the current GUI shell:
 ```
 
 Current GUI scope in Phase 3 + playback + comparison + limited editor:
-- open a project manifest
+- open an existing project manifest
+- create a new empty MTNsim project shell
+- create a new MTNsim project from a SUMO `.sumocfg` file
+- import an existing SUMO case into a new MTNsim project folder
+- attach SUMO later to an already created empty project
 - use the Project Home recent-run panel to reopen recent result summaries or jump to the latest output folder
+- review project readiness/status hints on Project Home before running
+- use the Run Monitor completion summary and direct Result Viewer shortcut after a run
 - browse discovered scenarios
 - inspect read-only scenario details
 - run the selected scenario in the background
@@ -56,6 +62,29 @@ Current GUI scope in Phase 3 + playback + comparison + limited editor:
 - zoom with the mouse wheel, pan by dragging, and inspect receivers/vehicles/lanes/grid cells with hover info
 - view a minimap inset, speed-colored vehicles, short vehicle tail trails, a playback-synchronized grid heatmap overlay, playback-side layer/range/opacity controls, a receiver-series cursor that follows playback time, nearby-frame heatmap prefetch, click-to-select vehicle details, selected-vehicle contribution-only heatmap / receiver summaries, timeline event markers for vehicle enter/exit, speed shifts, and heading shifts, camera follow mode for a selected vehicle, and export the current playback as a PNG frame sequence, animated GIF, or MP4 video
 
+
+### 3.1 Create or Import a Project
+
+From `Project Home` or the main toolbar you can now use:
+- `New Project`
+- `Import SUMO Project`
+- `Attach SUMO To Project`
+
+Current first-pass behavior:
+- choose a project folder
+- optionally leave `Attach SUMO now` off to create an empty project shell
+- or choose a SUMO `.sumocfg` and inspect detected network, route, additional files, route IDs, and vehicle types
+- review a pre-creation validation summary including target manifest/scenario paths
+- choose whether existing manifest/scenario files may be overwritten
+- generate a new `project.toml`
+- generate a starter `scenarios/baseline.toml`
+- auto-open the new project in the GUI and show a first-run guidance note
+
+Current behavior:
+- empty projects open in Scene/Editor mode with `Run` disabled
+- use `Attach SUMO To Project` later to make the project runnable without manually editing `project.toml`
+- optionally attach a scene file, measurements file, and measurement metadata file during new/import/attach flows
+- in attach mode you can now choose whether to refresh only the selected scenario or all scenarios, and whether traffic metadata, vehicle coefficients, placeholder receivers, and lane-change targets should be updated automatically
 
 ## 4. Important Input Files
 

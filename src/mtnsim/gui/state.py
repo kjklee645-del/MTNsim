@@ -21,6 +21,10 @@ class GuiRunState:
     is_running: bool = False
     progress_percent: int = 0
     progress_label: str = 'Idle'
+    project_name: str | None = None
+    scenario_name: str | None = None
+    requested_use_gpu: bool = True
+    readiness_summary: str = ''
     run_id: str | None = None
     output_dir: Path | None = None
     result_summary_file: Path | None = None
@@ -28,6 +32,8 @@ class GuiRunState:
     final_grid_snapshot_file: Path | None = None
     vehicle_trace_file: Path | None = None
     receiver_history_files: dict[str, Path] = field(default_factory=dict)
+    receiver_count: int | None = None
+    used_gpu: bool | None = None
     error_message: str | None = None
 
 

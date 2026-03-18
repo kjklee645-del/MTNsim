@@ -190,10 +190,14 @@ class ResultViewerView(QWidget):
         self.scenario_label = QLabel('-')
         self.output_dir_label = QLabel('-')
         self.output_dir_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.execution_label = QLabel('-')
+        self.receiver_count_label = QLabel('-')
         self.playback_cursor_label = QLabel('-')
         summary_form.addRow('Run ID', self.run_id_label)
         summary_form.addRow('Scenario', self.scenario_label)
         summary_form.addRow('Output Dir', self.output_dir_label)
+        summary_form.addRow('Execution', self.execution_label)
+        summary_form.addRow('Receivers', self.receiver_count_label)
         summary_form.addRow('Playback Cursor', self.playback_cursor_label)
         right_layout.addLayout(summary_form)
 
@@ -237,9 +241,12 @@ class ResultViewerView(QWidget):
         self.run_id_label.setText(summary.run.run_id)
         self.scenario_label.setText(summary.run.scenario)
         self.output_dir_label.setText(summary.output_dir)
+        self.execution_label.setText('GPU used' if summary.used_gpu else 'CPU used')
+        self.receiver_count_label.setText(str(len(summary.receiver_stats)))
         metadata_lines = [
             f'Project: {summary.run.project}',
             f'Used GPU: {summary.used_gpu}',
+            f'Receiver count: {len(summary.receiver_stats)}',
         ]
         if summary.propagation_features:
             metadata_lines.append('')

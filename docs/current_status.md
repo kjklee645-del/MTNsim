@@ -172,8 +172,15 @@ Implemented:
 
 What it does now:
 - launches a PySide6 desktop shell
-- uses Project Home as an operator start screen with scenario browsing, recent runs, and quick-open output shortcuts
+- uses Project Home as an operator start screen with scenario browsing, recent runs, quick-open output shortcuts, and first-pass `New Project` / `Import SUMO Project` actions
 - opens a project manifest
+- creates an empty MTNsim project shell, imports a project from a SUMO `.sumocfg` file, or attaches SUMO later to an already created project through the project setup dialog with selectable scenario-refresh scope and optional scene/measurement file import
+- validates detected SUMO assets and target output paths before creation/import
+- supports overwrite confirmation for existing manifest/scenario targets
+- generates a new `project.toml` and starter `scenarios/baseline.toml` for empty or imported projects
+- keeps Scene View and Scenario Editor usable for empty projects while Run stays disabled until SUMO is attached, then re-enables Run after the attach flow refreshes manifest/scenario paths
+- shows first-run guidance after a project is created/imported
+- shows project readiness/status guidance on Project Home, richer Run Monitor completion summaries, and clearer result summary cards
 - discovers bundled scenarios
 - selects the default scenario automatically
 - shows basic scenario details in a read-only panel
@@ -252,14 +259,11 @@ These values are prototype-level engineering checks, not yet validated against m
 
 ## 5. Recommended Next Order
 
-1. continue widening the limited editor or pivot to richer comparison/validation polish depending on user feedback
-2. keep deeper validation, calibration, scene-physics, and GPU work tracked as deferred backlog while GUI MVP is under construction
-3. resume field-validation and scene-physics hardening after the GUI prototype is usable enough for feedback
+1. polish the project-entry workflow further now that `New Project`, `Import SUMO Project`, and `Attach SUMO` are all available
+2. keep deeper validation, calibration, scene-physics, and GPU work tracked as deferred backlog while project-entry UX is stabilizing
+3. resume field-validation and scene-physics hardening after outside users can bring their own SUMO cases into the GUI more easily
 4. keep GPU follow-up selective and demand-driven unless hybrid GPU becomes a proven bottleneck
-5. design and implement `New Project` / `Import SUMO Project` so users can start from their own SUMO cases instead of the bundled `4lane` demo
-6. resume field-validation and scene-physics hardening after project-entry UX is usable
-7. keep GPU follow-up selective and demand-driven unless hybrid GPU becomes a proven bottleneck
-8. deepen reporting and richer agent control after the GUI layer stabilizes
+5. deepen reporting and richer agent control after the GUI layer stabilizes
 
 ## 6. Bottom Line
 
