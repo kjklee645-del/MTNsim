@@ -247,8 +247,8 @@ Must-have elements:
 
 ### 4.3 Post-MVP Visual Expansion
 
-- 3D scene visualization with terrain, buildings, roads, and receivers (now started as a `3D View` workspace with static scene primitives, orbit/pan/zoom camera behavior, direct Result Viewer integration, and further scoped in `docs/visualization_3d_plan.md`)
-- 3D noise rendering instead of only 2D heatmap overlays (now started through a static 3D noise surface with dB legend/range controls and color-plate versus raised-surface modes)
+- 3D scene visualization with terrain, buildings, roads, and receivers (now started as a `3D View` workspace with static scene primitives, orbit/pan/zoom camera behavior, direct Result Viewer integration, and a deeper playback-aware slice with selected-vehicle highlighting, trails, and follow behavior, all further scoped in `docs/visualization_3d_plan.md`)
+- 3D noise rendering instead of only 2D heatmap overlays (now started through a static or playback-synced 3D noise surface with dB legend/range controls and color-plate versus raised-surface modes)
 - volumetric source-field rendering for individual vehicles
 - selectable source directivity modes such as spherical and wedge-like patterns
 - user-facing controls to choose the source-field display model

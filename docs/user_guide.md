@@ -462,6 +462,8 @@ Current 3D controls:
 - `Auto dB Range`, `Min dB`, `Max dB`: control the noise color scale
 - layer toggles: show/hide roads, receivers, barriers, buildings, ground, vegetation, grid region, and the 3D noise surface
 - `Result Viewer -> Open 3D View`: open the currently loaded result directly in the 3D workspace with run/scenario metadata carried over
+- when playback data exists, moving the playback slider updates 3D vehicle markers, playback frame metadata, and the 3D noise surface together
+- selected vehicles are now highlighted in 3D, short vehicle trails can be shown, and the 3D camera can follow the selected vehicle
 
 Current limitation:
-- the 3D view is still static with respect to noise playback; it does not yet animate vehicles or update the 3D noise field frame-by-frame from playback
+- the 3D view now follows playback for vehicle markers and frame-synced noise updates, but it is still an early slice rather than a fully polished 3D playback system

@@ -1694,6 +1694,7 @@ class MainWindow(QMainWindow):
         frame = self.scene_3d_view.canvas.frame_data
         if frame is not None:
             self.scene_3d_view.set_frame(self.scene3d_controller.apply_noise_cells(frame, cells))
+            self.scene_3d_view.set_playback_context(None, None, 0)
         if cells:
             self._append_log(f'[info] Loaded heatmap overlay with {len(cells)} cells')
 
@@ -1719,7 +1720,17 @@ class MainWindow(QMainWindow):
         self.vehicle_playback_view.set_heatmap_cells(cells)
         scene3d_frame = self.scene_3d_view.canvas.frame_data
         if scene3d_frame is not None:
-            self.scene_3d_view.set_frame(self.scene3d_controller.apply_noise_cells(scene3d_frame, cells))
+            scene3d_frame = self.scene3d_controller.apply_noise_cells(scene3d_frame, cells)
+            scene3d_frame = self.scene3d_controller.apply_playback_frame(
+                scene3d_frame,
+                frame,
+                dataset=dataset,
+                frame_index=frame_index,
+                selected_vehicle_id=selected_vehicle_id,
+            )
+            self.scene_3d_view.set_frame(scene3d_frame)
+        self.scene_3d_view.set_playback_context(frame.time_index, frame.sim_time_seconds, len(frame.vehicles))
+        self.scene_3d_view.set_playback_selection(selected_vehicle_id, self.vehicle_playback_view.is_follow_selected_vehicle())
         self.result_viewer_view.set_playback_cursor(frame.time_index)
 
         project_state = self.session_state.project_state
@@ -1785,6 +1796,10 @@ class MainWindow(QMainWindow):
         if not trace_file:
             self.vehicle_playback_view.set_dataset(None)
             self.vehicle_playback_view.set_selected_vehicle_receiver_contributions({})
+            scene3d_frame = self.scene_3d_view.canvas.frame_data
+            if scene3d_frame is not None:
+                self.scene_3d_view.set_frame(self.scene3d_controller.apply_playback_frame(scene3d_frame, None))
+            self.scene_3d_view.set_playback_context(None, None, 0)
             self.playback_action.setEnabled(False)
             return
         try:
@@ -1799,6 +1814,10 @@ class MainWindow(QMainWindow):
         if dataset.frame_count > 0:
             self._sync_heatmap_to_playback_frame(self.vehicle_playback_view.slider.value())
         else:
+            scene3d_frame = self.scene_3d_view.canvas.frame_data
+            if scene3d_frame is not None:
+                self.scene_3d_view.set_frame(self.scene3d_controller.apply_playback_frame(scene3d_frame, None))
+            self.scene_3d_view.set_playback_context(None, None, 0)
             self.result_viewer_view.set_playback_cursor(None)
         self._append_log(f'[info] Loaded vehicle playback trace: {trace_file}')
 

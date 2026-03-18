@@ -65,6 +65,26 @@ class NoiseCell3D:
 
 
 @dataclass(slots=True)
+class VehicleMarker3D:
+    vehicle_id: str
+    x: float
+    y: float
+    z: float = 0.35
+    speed_mps: float = 0.0
+    vehicle_type: str = ''
+    color: str = '#53d6ff'
+    selected: bool = False
+
+
+@dataclass(slots=True)
+class TrailLine3D:
+    points: list[tuple[float, float]]
+    z: float = 0.12
+    color: str = '#4db6ff'
+    selected: bool = False
+
+
+@dataclass(slots=True)
 class Scene3DFrame:
     bounds: tuple[float, float, float, float]
     roads: list[RoadMesh3D] = field(default_factory=list)
@@ -74,5 +94,7 @@ class Scene3DFrame:
     ground_surfaces: list[SurfacePolygon3D] = field(default_factory=list)
     vegetation_zones: list[SurfacePolygon3D] = field(default_factory=list)
     receivers: list[Marker3D] = field(default_factory=list)
+    vehicles: list[VehicleMarker3D] = field(default_factory=list)
+    vehicle_trails: list[TrailLine3D] = field(default_factory=list)
     noise_cells: list[NoiseCell3D] = field(default_factory=list)
     grid_region: GridRegion3D | None = None

@@ -163,10 +163,11 @@ Goal:
 
 ### Phase 3D-4: Playback-Aware 3D Expansion
 
-Later:
-- animate vehicles in 3D
-- sync playback slider with 3D scene
-- optional dynamic heatmap updates per frame
+Current state: [started]
+- animate vehicles in 3D [started through frame-based vehicle markers]
+- sync playback slider with 3D scene [started]
+- optional dynamic heatmap updates per frame [started]
+- highlight a selected playback vehicle in 3D, show short 3D trails, and support basic 3D camera follow [started]
 
 Goal:
 - unify playback and 3D visualization after the static 3D scene is stable
@@ -208,9 +209,9 @@ Mitigation:
 ## 9. Immediate Next Coding Task
 
 The next coding task after the current slice is:
-1. keep layer states and camera resets manageable across 3D result switches
-2. prepare the scene adapter for later playback-aware 3D updates
-3. then move toward playback-aware 3D behavior
-4. after that, start volumetric/directive source-field overlays
+1. deepen playback-aware 3D beyond the current first slice with better interaction polish
+2. then start volumetric/directive source-field overlays
+3. after that, evaluate whether true 3D acoustic field logic is needed
+4. keep layer states and camera resets manageable across longer 3D sessions
 
 That is the correct next slice because the static 3D scene, static 3D noise surface, operator legend/range controls, and orbit/pan/zoom camera now exist and should be folded into the normal result workflow before dynamic 3D playback is attempted.

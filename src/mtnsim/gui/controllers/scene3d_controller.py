@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from mtnsim.gui.controllers.playback_controller import PlaybackDataset, PlaybackFrame
 from mtnsim.gui.controllers.result_controller import HeatmapCell
 from mtnsim.gui.controllers.scene_controller import SceneSnapshot
-from mtnsim.gui.models.scene_3d import GridRegion3D, LineWall3D, Marker3D, NoiseCell3D, PrismMesh3D, RoadMesh3D, Scene3DFrame, SurfacePolygon3D
+from mtnsim.gui.models.scene_3d import GridRegion3D, LineWall3D, Marker3D, NoiseCell3D, PrismMesh3D, RoadMesh3D, Scene3DFrame, SurfacePolygon3D, TrailLine3D, VehicleMarker3D
 
 
 class Scene3DController:
@@ -90,3 +91,68 @@ class Scene3DController:
             for cell in cells
         ]
         return frame
+
+
+    def apply_playback_frame(
+        self,
+        frame: Scene3DFrame | None,
+        playback_frame: PlaybackFrame | None,
+        *,
+        dataset: PlaybackDataset | None = None,
+        frame_index: int | None = None,
+        selected_vehicle_id: str | None = None,
+    ) -> Scene3DFrame | None:
+        if frame is None:
+            return None
+        if playback_frame is None:
+            frame.vehicles = []
+            frame.vehicle_trails = []
+            return frame
+        frame.vehicles = [
+            VehicleMarker3D(
+                vehicle_id=vehicle.vehicle_id,
+                x=vehicle.x,
+                y=vehicle.y,
+                z=0.35,
+                speed_mps=vehicle.speed_mps,
+                vehicle_type=vehicle.vehicle_type,
+                color=self._speed_color(vehicle.speed_mps),
+                selected=(vehicle.vehicle_id == selected_vehicle_id),
+            )
+            for vehicle in playback_frame.vehicles
+        ]
+        frame.vehicle_trails = []
+        if dataset is not None and frame_index is not None and frame_index >= 0:
+            tail_start = max(0, frame_index - 12)
+            tail_frames = dataset.frames[tail_start:frame_index + 1]
+            for vehicle in playback_frame.vehicles:
+                trail = []
+                for tail_frame in tail_frames:
+                    for candidate in tail_frame.vehicles:
+                        if candidate.vehicle_id == vehicle.vehicle_id:
+                            trail.append((candidate.x, candidate.y))
+                            break
+                if len(trail) >= 2:
+                    frame.vehicle_trails.append(
+                        TrailLine3D(
+                            points=trail,
+                            z=0.10,
+                            color=self._speed_color(vehicle.speed_mps),
+                            selected=(vehicle.vehicle_id == selected_vehicle_id),
+                        )
+                    )
+        return frame
+
+    def _speed_color(self, speed_mps: float) -> str:
+        ratio = max(0.0, min(1.0, speed_mps / 35.0))
+        if ratio < 0.5:
+            local = ratio / 0.5
+            r = int(60 + 80 * local)
+            g = int(190 + 20 * local)
+            b = int(240 - 140 * local)
+        else:
+            local = (ratio - 0.5) / 0.5
+            r = int(140 + 110 * local)
+            g = int(210 - 120 * local)
+            b = int(100 - 70 * local)
+        return f'#{r:02x}{g:02x}{b:02x}'
