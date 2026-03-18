@@ -355,6 +355,16 @@ class ProjectController:
         grid_block['margin_x_start'] = float(updates['grid.margin_x_start'])
         grid_block['margin_x_end'] = float(updates['grid.margin_x_end'])
         grid_block['extra_y_extent'] = float(updates['grid.extra_y_extent'])
+        override_enabled = bool(updates.get('grid.override_enabled', False))
+        grid_block['override_enabled'] = override_enabled
+        if override_enabled:
+            grid_block['override_min_x'] = float(updates['grid.override_min_x'])
+            grid_block['override_max_x'] = float(updates['grid.override_max_x'])
+            grid_block['override_min_y'] = float(updates['grid.override_min_y'])
+            grid_block['override_max_y'] = float(updates['grid.override_max_y'])
+        else:
+            for key in ['override_min_x', 'override_max_x', 'override_min_y', 'override_max_y']:
+                grid_block.pop(key, None)
         data['receivers'] = [
             {
                 'id': str(item['id']),

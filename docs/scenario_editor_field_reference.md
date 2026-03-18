@@ -108,6 +108,22 @@ When current values pass editor validation, the editor automatically updates the
 - Meaning: extra lateral extent added to the analysis grid.
 - Typical use: widen the receiver/noise-map domain away from the road.
 
+### Grid Override
+- Schema field: `grid.override_enabled`
+- Meaning: switch from the default road-bounds-based grid generation to a fully explicit rectangular calculation region.
+- When enabled: `Grid Min/Max X/Y` define the exact heatmap area.
+- GUI shortcut: `Draw Grid Region` lets you drag the rectangle directly in `Scene View` and writes the bounds back into the editor. Once set, the current grid region stays visible in `Scene View` and can later be moved or resized again by selecting and dragging the rectangle or its corner handles.
+
+### Grid Min X / Grid Max X
+- Schema fields: `grid.override_min_x`, `grid.override_max_x`
+- Meaning: explicit left/right bounds of the heatmap calculation region.
+- Typical use: move the grid away from the road center or include both sides of the road.
+
+### Grid Min Y / Grid Max Y
+- Schema fields: `grid.override_min_y`, `grid.override_max_y`
+- Meaning: explicit lower/upper bounds of the heatmap calculation region.
+- Typical use: include road-below space, symmetric above/below coverage, or any custom vertical extent.
+
 ## Receivers Table
 
 The `Receivers` table edits multiple receiver points directly.
@@ -162,6 +178,8 @@ The current editor blocks `Save As New Scenario` when any of the following check
 - Scenario name must not be empty.
 - Grid size must be greater than `0`.
 - Max area must be greater than or equal to grid size.
+- If `Grid Override` is enabled, `Grid Max X` must be greater than `Grid Min X`.
+- If `Grid Override` is enabled, `Grid Max Y` must be greater than `Grid Min Y`.
 - If `Post Control` is enabled, `Post Distance` must be greater than `0`.
 - Receiver height must not be negative.
 - At least one receiver row must exist.

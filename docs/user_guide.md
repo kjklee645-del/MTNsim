@@ -53,7 +53,7 @@ Current GUI scope in Phase 3 + playback + comparison + limited editor:
 - compare two scenario configurations in a dedicated comparison view and export comparison summaries as JSON or Markdown
 - run two scenarios from the comparison view and inspect receiver delta tables plus overlay charts
 - open a field campaign package, inspect campaign quality, validate it from the Campaign Validation view, and open generated summary/report/result files directly
-- edit selected high-value scenario parameters, including lane-change, noise/grid settings, and a multi-row receiver table, preview valid unsaved changes live in the scene/details view, then save a derived scenario from the Scenario Editor view
+- edit selected high-value scenario parameters, including lane-change, noise/grid settings, an explicit rectangular grid-bounds override with Scene-View drag authoring, an always-visible grid-region rectangle that can be drag-edited later in Scene View, and a multi-row receiver table, preview valid unsaved changes live in the scene/details view, then save a derived scenario from the Scenario Editor view
 - jump directly into config comparison between the source and saved derived scenario
 - block invalid saves with editor-side validation checks before writing a new TOML file
 - browse recent result summaries and open/export the current result summary artifacts
@@ -443,4 +443,4 @@ The GUI now uses clearer card-style summary panels and status badges in key work
 
 - Scenario Editor / Compare / Campaign Validation / Playback views polished with card layout and consistent status styling.
 
-- Scene Object Editor first pass added for list/form editing of barriers, buildings, terrain edges, ground surfaces, and vegetation zones with Save As and live scene preview.
+- Scene Object Editor first pass added for list/form editing of barriers, buildings, terrain edges, ground surfaces, and vegetation zones with Save As, live scene preview, Scene View-linked selection/highlight, first-pass 2D click-to-draw geometry authoring, direct geometry manipulation for selected objects, and basic duplicate plus undo/redo history support.

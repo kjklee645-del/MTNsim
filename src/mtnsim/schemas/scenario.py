@@ -169,6 +169,11 @@ class GridConfig:
     margin_x_start: float
     margin_x_end: float
     extra_y_extent: float
+    override_enabled: bool = False
+    override_min_x: float | None = None
+    override_max_x: float | None = None
+    override_min_y: float | None = None
+    override_max_y: float | None = None
 
 
 @dataclass(slots=True)

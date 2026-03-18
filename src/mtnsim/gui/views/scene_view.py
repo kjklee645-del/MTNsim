@@ -33,6 +33,11 @@ class VehicleGlyph:
 class SceneCanvas(QWidget):
     hover_text_changed = Signal(str)
     vehicle_selected = Signal(str)
+    scene_object_selected = Signal(str, str)
+    scene_object_drawn = Signal(str, dict)
+    scene_object_geometry_edited = Signal(str, str, dict)
+    grid_region_drawn = Signal(dict)
+    grid_region_edited = Signal(dict)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -41,6 +46,7 @@ class SceneCanvas(QWidget):
         self.vehicle_trails: list[list[tuple[float, float]]] = []
         self.heatmap_cells: list[HeatmapCell] = []
         self.selected_vehicle_id: str | None = None
+        self.selected_scene_object: tuple[str, str] | None = None
         self._heatmap_auto_range = True
         self._heatmap_min_db = 40.0
         self._heatmap_max_db = 80.0
@@ -50,6 +56,14 @@ class SceneCanvas(QWidget):
         self._dragging = False
         self._last_mouse_pos = QPointF()
         self._hover_text = ''
+        self._draw_mode: str | None = None
+        self._draw_template: dict | None = None
+        self._draw_points: list[tuple[float, float]] = []
+        self._grid_draw_origin: tuple[float, float] | None = None
+        self._grid_draw_current: tuple[float, float] | None = None
+        self._edit_mode: str | None = None
+        self._edit_vertex_index: int | None = None
+        self._edit_last_world: tuple[float, float] | None = None
         self.setMinimumHeight(420)
         self.setMouseTracking(True)
 
@@ -77,6 +91,35 @@ class SceneCanvas(QWidget):
 
     def set_selected_vehicle(self, vehicle_id: str | None) -> None:
         self.selected_vehicle_id = vehicle_id or None
+        self.update()
+
+    def set_selected_scene_object(self, object_type: str | None, object_id: str | None) -> None:
+        if object_type and object_id:
+            self.selected_scene_object = (object_type, object_id)
+        else:
+            self.selected_scene_object = None
+        self.update()
+
+    def start_draw_mode(self, object_type: str, template: dict | None = None) -> None:
+        self._draw_mode = object_type
+        self._draw_template = dict(template or {})
+        self._draw_points = []
+        self._grid_draw_origin = None
+        self._grid_draw_current = None
+        self.update()
+
+    def finish_draw_mode(self) -> None:
+        if self._draw_mode in {'buildings', 'ground_surfaces', 'vegetation_zones'} and len(self._draw_points) >= 3:
+            self._emit_drawn_object()
+            return
+        self.cancel_draw_mode()
+
+    def cancel_draw_mode(self) -> None:
+        self._draw_mode = None
+        self._draw_template = None
+        self._draw_points = []
+        self._grid_draw_origin = None
+        self._grid_draw_current = None
         self.update()
 
     def set_heatmap_cells(self, cells: list[HeatmapCell]) -> None:
@@ -146,23 +189,44 @@ class SceneCanvas(QWidget):
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
+            if self._draw_mode == 'grid_region':
+                self._grid_draw_origin = self._screen_to_world(event.position(), self._plot_rect())
+                self._grid_draw_current = self._grid_draw_origin
+                self.update()
+                return
+            if self._draw_mode is not None:
+                self._append_draw_point(event.position())
+                return
+            if self._begin_scene_object_edit(event.position()):
+                return
             selected_vehicle = self._find_vehicle_at_position(event.position())
             if selected_vehicle is not None:
                 self.selected_vehicle_id = selected_vehicle.vehicle_id
                 self.vehicle_selected.emit(selected_vehicle.vehicle_id)
                 self.update()
             else:
-                if self.selected_vehicle_id is not None:
-                    self.selected_vehicle_id = None
-                    self.vehicle_selected.emit('')
+                selected_scene_object = self._find_scene_object_at_position(event.position())
+                if selected_scene_object is not None:
+                    self.selected_scene_object = selected_scene_object
+                    self.scene_object_selected.emit(selected_scene_object[0], selected_scene_object[1])
                     self.update()
-                self._dragging = True
-                self._last_mouse_pos = event.position()
-                self.setCursor(Qt.ClosedHandCursor)
+                else:
+                    if self.selected_vehicle_id is not None:
+                        self.selected_vehicle_id = None
+                        self.vehicle_selected.emit('')
+                        self.update()
+                    self._dragging = True
+                    self._last_mouse_pos = event.position()
+                    self.setCursor(Qt.ClosedHandCursor)
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802
-        if self._dragging:
+        if self._draw_mode == 'grid_region' and self._grid_draw_origin is not None:
+            self._grid_draw_current = self._screen_to_world(event.position(), self._plot_rect())
+            self.update()
+        elif self._edit_mode is not None:
+            self._update_scene_object_edit(event.position())
+        elif self._dragging:
             delta = event.position() - self._last_mouse_pos
             self._pan = QPointF(self._pan.x() + delta.x(), self._pan.y() + delta.y())
             self._last_mouse_pos = event.position()
@@ -174,13 +238,35 @@ class SceneCanvas(QWidget):
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
+            if self._draw_mode == 'grid_region' and self._grid_draw_origin is not None and self._grid_draw_current is not None:
+                x1, y1 = self._grid_draw_origin
+                x2, y2 = self._grid_draw_current
+                if abs(x2 - x1) > 1e-6 and abs(y2 - y1) > 1e-6:
+                    payload = {
+                        'min_x': float(min(x1, x2)),
+                        'max_x': float(max(x1, x2)),
+                        'min_y': float(min(y1, y2)),
+                        'max_y': float(max(y1, y2)),
+                    }
+                    self.grid_region_drawn.emit(payload)
+                self.cancel_draw_mode()
+                self.setCursor(Qt.ArrowCursor)
+                super().mouseReleaseEvent(event)
+                return
             self._dragging = False
+            self._edit_mode = None
+            self._edit_vertex_index = None
+            self._edit_last_world = None
             self.setCursor(Qt.ArrowCursor)
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
-            self.reset_view()
+            if self._draw_mode in {'buildings', 'ground_surfaces', 'vegetation_zones'} and len(self._draw_points) >= 3:
+                self._emit_drawn_object()
+                return
+            if self._draw_mode is None:
+                self.reset_view()
         super().mouseDoubleClickEvent(event)
 
     def leaveEvent(self, event) -> None:  # noqa: N802
@@ -214,6 +300,7 @@ class SceneCanvas(QWidget):
         painter.setPen(QPen(QColor('#d8cfc2'), 1))
         painter.drawRect(plot_rect)
         self._draw_grid(painter, plot_rect)
+        self._draw_grid_region(painter, map_point)
         self._draw_polygons(painter, self.snapshot.ground_layer.polygons, map_point, LayerStyle('#7aa65a', 1, '#cfdf9f'))
         self._draw_polygons(painter, self.snapshot.vegetation_layer.polygons, map_point, LayerStyle('#2f6b3d', 1, '#9bd18b'))
         self._draw_polygons(painter, self.snapshot.junction_layer.polygons, map_point, LayerStyle('#4b5563', 1, '#505864'))
@@ -222,6 +309,8 @@ class SceneCanvas(QWidget):
         self._draw_polygons(painter, self.snapshot.building_layer.polygons, map_point, LayerStyle('#315a9f', 2, '#b9ccef'))
         self._draw_polylines(painter, self.snapshot.barrier_layer.polylines, map_point, LayerStyle('#cb4335', 4))
         self._draw_polylines(painter, self.snapshot.terrain_layer.polylines, map_point, LayerStyle('#7c4a21', 3))
+        self._draw_selected_scene_object(painter, map_point)
+        self._draw_draw_mode_overlay(painter, map_point)
         self._draw_vehicle_trails(painter, self.vehicle_trails, map_point)
         self._draw_receivers(painter, self.snapshot.receiver_layer.points, map_point)
         self._draw_vehicle_glyphs(painter, self.vehicle_glyphs, map_point, pixels_per_meter)
@@ -373,12 +462,409 @@ class SceneCanvas(QWidget):
                     nearest_distance = distance
                     nearest_text = f'Lane {index} | width={width_m:.1f} m'
 
-        for index, polygon in enumerate(self.snapshot.building_layer.polygons, start=1):
-            qpolygon = QPolygonF([self._transform_screen_point(map_point(point), plot_rect) for point in polygon])
-            if qpolygon.containsPoint(local_pos, Qt.OddEvenFill):
-                return f'Building {index} | footprint points={len(polygon)}'
+        scene_object_hit = self._find_scene_object_at_position(local_pos)
+        if scene_object_hit is not None:
+            object_type, object_id = scene_object_hit
+            return self._selected_scene_object_text(object_type, object_id)
 
         return nearest_text
+
+    def _find_scene_object_at_position(self, local_pos: QPointF) -> tuple[str, str] | None:
+        if self.snapshot is None:
+            return None
+        plot_rect, pixels_per_meter, map_point = self._mapping_context()
+
+        def find_polyline(layer, object_type: str, base_threshold: float) -> tuple[str, str] | None:
+            nearest = None
+            nearest_distance = 1e9
+            for index, polyline in enumerate(layer.polylines):
+                object_id = layer.ids[index] if index < len(layer.ids) else f'{object_type}_{index + 1}'
+                width_value = layer.widths[index] if index < len(layer.widths) else 1.0
+                threshold = max(base_threshold, width_value * pixels_per_meter * 0.4 * self._zoom)
+                for seg_index in range(len(polyline) - 1):
+                    start = self._transform_screen_point(map_point(polyline[seg_index]), plot_rect)
+                    end = self._transform_screen_point(map_point(polyline[seg_index + 1]), plot_rect)
+                    distance = self._distance_to_segment(local_pos, start, end)
+                    if distance < nearest_distance and distance <= threshold:
+                        nearest = (object_type, object_id)
+                        nearest_distance = distance
+            return nearest
+
+        def find_polygon(layer, object_type: str) -> tuple[str, str] | None:
+            for index, polygon in enumerate(layer.polygons):
+                qpolygon = QPolygonF([self._transform_screen_point(map_point(point), plot_rect) for point in polygon])
+                if qpolygon.containsPoint(local_pos, Qt.OddEvenFill):
+                    object_id = layer.ids[index] if index < len(layer.ids) else f'{object_type}_{index + 1}'
+                    return (object_type, object_id)
+            return None
+
+        for layer, object_type, threshold in [
+            (self.snapshot.barrier_layer, 'noise_barriers', 10.0),
+            (self.snapshot.terrain_layer, 'terrain_edges', 9.0),
+        ]:
+            hit = find_polyline(layer, object_type, threshold)
+            if hit is not None:
+                return hit
+
+        for layer, object_type in [
+            (self.snapshot.building_layer, 'buildings'),
+            (self.snapshot.ground_layer, 'ground_surfaces'),
+            (self.snapshot.vegetation_layer, 'vegetation_zones'),
+        ]:
+            hit = find_polygon(layer, object_type)
+            if hit is not None:
+                return hit
+
+        if self.snapshot.grid_region is not None:
+            min_x, min_y, max_x, max_y = self.snapshot.grid_region
+            p1 = self._transform_screen_point(map_point((min_x, min_y)), plot_rect)
+            p2 = self._transform_screen_point(map_point((max_x, max_y)), plot_rect)
+            rect = QRectF(p1, p2).normalized()
+            if rect.adjusted(-8, -8, 8, 8).contains(local_pos):
+                return ('grid_region', 'grid_region')
+        return None
+
+    def _selected_scene_object_text(self, object_type: str, object_id: str) -> str:
+        labels = {
+            'noise_barriers': 'Noise barrier',
+            'terrain_edges': 'Terrain edge',
+            'buildings': 'Building',
+            'ground_surfaces': 'Ground surface',
+            'vegetation_zones': 'Vegetation zone',
+            'grid_region': 'Grid region',
+        }
+        return f'{labels.get(object_type, object_type)} {object_id}'
+
+    def _draw_selected_scene_object(self, painter: QPainter, mapper) -> None:
+        if self.snapshot is None or self.selected_scene_object is None:
+            return
+        object_type, object_id = self.selected_scene_object
+        highlight_pen = QPen(QColor('#f59e0b'), 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+        highlight_brush = QBrush(QColor(245, 158, 11, 60))
+
+        def draw_polyline(layer) -> bool:
+            if object_id not in layer.ids:
+                return False
+            index = layer.ids.index(object_id)
+            polyline = layer.polylines[index]
+            painter.setPen(highlight_pen)
+            for seg_index in range(len(polyline) - 1):
+                x1, y1 = mapper(polyline[seg_index])
+                x2, y2 = mapper(polyline[seg_index + 1])
+                painter.drawLine(int(x1), int(y1), int(x2), int(y2))
+            return True
+
+        def draw_polygon(layer) -> bool:
+            if object_id not in layer.ids:
+                return False
+            index = layer.ids.index(object_id)
+            polygon = layer.polygons[index]
+            if len(polygon) < 3:
+                return False
+            painter.setPen(highlight_pen)
+            painter.setBrush(highlight_brush)
+            qpolygon = QPolygonF([QPointF(*mapper(point)) for point in polygon])
+            painter.drawPolygon(qpolygon)
+            return True
+
+        if object_type == 'noise_barriers':
+            draw_polyline(self.snapshot.barrier_layer)
+            self._draw_selected_linear_handles(painter, mapper, self.snapshot.barrier_layer, object_id)
+        elif object_type == 'terrain_edges':
+            draw_polyline(self.snapshot.terrain_layer)
+            self._draw_selected_linear_handles(painter, mapper, self.snapshot.terrain_layer, object_id)
+        elif object_type == 'buildings':
+            draw_polygon(self.snapshot.building_layer)
+            self._draw_selected_polygon_handles(painter, mapper, self.snapshot.building_layer, object_id)
+        elif object_type == 'ground_surfaces':
+            draw_polygon(self.snapshot.ground_layer)
+            self._draw_selected_polygon_handles(painter, mapper, self.snapshot.ground_layer, object_id)
+        elif object_type == 'vegetation_zones':
+            draw_polygon(self.snapshot.vegetation_layer)
+            self._draw_selected_polygon_handles(painter, mapper, self.snapshot.vegetation_layer, object_id)
+        elif object_type == 'grid_region':
+            self._draw_selected_grid_region(painter, mapper)
+
+    def _get_selected_layer_and_index(self):
+        if self.snapshot is None or self.selected_scene_object is None:
+            return None, None, None
+        object_type, object_id = self.selected_scene_object
+        if object_type == 'grid_region':
+            return object_type, 'grid_region', 0
+        layer_map = {
+            'noise_barriers': self.snapshot.barrier_layer,
+            'terrain_edges': self.snapshot.terrain_layer,
+            'buildings': self.snapshot.building_layer,
+            'ground_surfaces': self.snapshot.ground_layer,
+            'vegetation_zones': self.snapshot.vegetation_layer,
+        }
+        layer = layer_map.get(object_type)
+        if layer is None or object_id not in layer.ids:
+            return object_type, None, None
+        return object_type, layer, layer.ids.index(object_id)
+
+    def _begin_scene_object_edit(self, local_pos: QPointF) -> bool:
+        if self.selected_scene_object is None or self.snapshot is None:
+            return False
+        hit = self._find_selected_object_edit_hit(local_pos)
+        if hit is None:
+            return False
+        self._edit_mode, self._edit_vertex_index = hit
+        self._edit_last_world = self._screen_to_world(local_pos, self._plot_rect())
+        self.setCursor(Qt.SizeAllCursor if self._edit_mode == 'move' else Qt.CrossCursor)
+        return True
+
+    def _find_selected_object_edit_hit(self, local_pos: QPointF) -> tuple[str, int | None] | None:
+        object_type, layer, index = self._get_selected_layer_and_index()
+        plot_rect, pixels_per_meter, map_point = self._mapping_context()
+        if object_type == 'grid_region':
+            return self._find_grid_region_edit_hit(local_pos, plot_rect, map_point)
+        if layer is None or index is None:
+            return None
+        handle_threshold = max(10.0, 8.0 * self._zoom)
+        if object_type in {'noise_barriers', 'terrain_edges'}:
+            polyline = layer.polylines[index]
+            for point_index, point in enumerate(polyline[:2]):
+                pos = self._transform_screen_point(map_point(point), plot_rect)
+                if hypot(local_pos.x() - pos.x(), local_pos.y() - pos.y()) <= handle_threshold:
+                    return ('endpoint', point_index)
+            for seg_index in range(len(polyline) - 1):
+                start = self._transform_screen_point(map_point(polyline[seg_index]), plot_rect)
+                end = self._transform_screen_point(map_point(polyline[seg_index + 1]), plot_rect)
+                threshold = max(8.0, (layer.widths[index] if index < len(layer.widths) else 1.0) * pixels_per_meter * 0.4 * self._zoom)
+                if self._distance_to_segment(local_pos, start, end) <= threshold:
+                    return ('move', None)
+            return None
+        polygon = layer.polygons[index]
+        for point_index, point in enumerate(polygon):
+            pos = self._transform_screen_point(map_point(point), plot_rect)
+            if hypot(local_pos.x() - pos.x(), local_pos.y() - pos.y()) <= handle_threshold:
+                return ('vertex', point_index)
+        qpolygon = QPolygonF([self._transform_screen_point(map_point(point), plot_rect) for point in polygon])
+        if qpolygon.containsPoint(local_pos, Qt.OddEvenFill):
+            return ('move', None)
+        return None
+
+    def _update_scene_object_edit(self, local_pos: QPointF) -> None:
+        if self.snapshot is None or self.selected_scene_object is None or self._edit_mode is None:
+            return
+        object_type, layer, index = self._get_selected_layer_and_index()
+        current_world = self._screen_to_world(local_pos, self._plot_rect())
+        if object_type == 'grid_region':
+            self._update_grid_region_edit(current_world)
+            return
+        if layer is None or index is None:
+            return
+        last_world = self._edit_last_world or current_world
+        dx = current_world[0] - last_world[0]
+        dy = current_world[1] - last_world[1]
+        if object_type in {'noise_barriers', 'terrain_edges'}:
+            polyline = list(layer.polylines[index])
+            if self._edit_mode == 'endpoint' and self._edit_vertex_index is not None:
+                polyline[self._edit_vertex_index] = current_world
+            elif self._edit_mode == 'move':
+                polyline = [(point[0] + dx, point[1] + dy) for point in polyline]
+            layer.polylines[index] = polyline
+            payload = {
+                'x1': float(polyline[0][0]),
+                'y1': float(polyline[0][1]),
+                'x2': float(polyline[1][0]),
+                'y2': float(polyline[1][1]),
+            }
+        else:
+            polygon = list(layer.polygons[index])
+            if self._edit_mode == 'vertex' and self._edit_vertex_index is not None:
+                polygon[self._edit_vertex_index] = current_world
+            elif self._edit_mode == 'move':
+                polygon = [(point[0] + dx, point[1] + dy) for point in polygon]
+            layer.polygons[index] = polygon
+            payload = {'footprint': [[float(x), float(y)] for x, y in polygon]}
+        self._edit_last_world = current_world
+        self.scene_object_geometry_edited.emit(object_type, self.selected_scene_object[1], payload)
+        self.update()
+
+    def _draw_selected_linear_handles(self, painter: QPainter, mapper, layer, object_id: str) -> None:
+        if object_id not in layer.ids:
+            return
+        index = layer.ids.index(object_id)
+        painter.save()
+        painter.setPen(QPen(QColor('#78350f'), 2))
+        painter.setBrush(QBrush(QColor('#fde68a')))
+        for point in layer.polylines[index][:2]:
+            px, py = mapper(point)
+            painter.drawEllipse(QPointF(px, py), 5, 5)
+        painter.restore()
+
+    def _draw_selected_polygon_handles(self, painter: QPainter, mapper, layer, object_id: str) -> None:
+        if object_id not in layer.ids:
+            return
+        index = layer.ids.index(object_id)
+        painter.save()
+        painter.setPen(QPen(QColor('#78350f'), 2))
+        painter.setBrush(QBrush(QColor('#fde68a')))
+        for point in layer.polygons[index]:
+            px, py = mapper(point)
+            painter.drawRect(QRectF(px - 4, py - 4, 8, 8))
+        painter.restore()
+
+
+    def _draw_grid_region(self, painter: QPainter, mapper) -> None:
+        if self.snapshot is None or self.snapshot.grid_region is None:
+            return
+        min_x, min_y, max_x, max_y = self.snapshot.grid_region
+        painter.save()
+        painter.setPen(QPen(QColor('#8b5cf6'), 2, Qt.DashLine))
+        painter.setBrush(QBrush(QColor(139, 92, 246, 28)))
+        p1 = QPointF(*mapper((min_x, min_y)))
+        p2 = QPointF(*mapper((max_x, max_y)))
+        painter.drawRect(QRectF(p1, p2).normalized())
+        painter.restore()
+
+    def _draw_selected_grid_region(self, painter: QPainter, mapper) -> None:
+        if self.snapshot is None or self.snapshot.grid_region is None:
+            return
+        min_x, min_y, max_x, max_y = self.snapshot.grid_region
+        painter.save()
+        painter.setPen(QPen(QColor('#f59e0b'), 3, Qt.SolidLine))
+        painter.setBrush(QBrush(QColor(245, 158, 11, 36)))
+        p1 = QPointF(*mapper((min_x, min_y)))
+        p2 = QPointF(*mapper((max_x, max_y)))
+        rect = QRectF(p1, p2).normalized()
+        painter.drawRect(rect)
+        painter.setPen(QPen(QColor('#78350f'), 2))
+        painter.setBrush(QBrush(QColor('#fde68a')))
+        for point in [rect.topLeft(), rect.topRight(), rect.bottomLeft(), rect.bottomRight()]:
+            painter.drawRect(QRectF(point.x() - 4, point.y() - 4, 8, 8))
+        painter.restore()
+
+    def _find_grid_region_edit_hit(self, local_pos: QPointF, plot_rect: QRectF, map_point) -> tuple[str, int | None] | None:
+        if self.snapshot is None or self.snapshot.grid_region is None:
+            return None
+        min_x, min_y, max_x, max_y = self.snapshot.grid_region
+        p1 = self._transform_screen_point(map_point((min_x, min_y)), plot_rect)
+        p2 = self._transform_screen_point(map_point((max_x, max_y)), plot_rect)
+        rect = QRectF(p1, p2).normalized()
+        handle_threshold = max(10.0, 8.0 * self._zoom)
+        handles = [rect.topLeft(), rect.topRight(), rect.bottomLeft(), rect.bottomRight()]
+        for idx, point in enumerate(handles):
+            if hypot(local_pos.x() - point.x(), local_pos.y() - point.y()) <= handle_threshold:
+                return ('grid_corner', idx)
+        if rect.adjusted(-6, -6, 6, 6).contains(local_pos):
+            return ('move', None)
+        return None
+
+    def _update_grid_region_edit(self, current_world: tuple[float, float]) -> None:
+        if self.snapshot is None or self.snapshot.grid_region is None or self._edit_mode is None:
+            return
+        min_x, min_y, max_x, max_y = self.snapshot.grid_region
+        last_world = self._edit_last_world or current_world
+        dx = current_world[0] - last_world[0]
+        dy = current_world[1] - last_world[1]
+        if self._edit_mode == 'move':
+            min_x += dx
+            max_x += dx
+            min_y += dy
+            max_y += dy
+        elif self._edit_mode == 'grid_corner' and self._edit_vertex_index is not None:
+            if self._edit_vertex_index == 0:
+                min_x, min_y = current_world
+            elif self._edit_vertex_index == 1:
+                max_x, min_y = current_world
+            elif self._edit_vertex_index == 2:
+                min_x, max_y = current_world
+            elif self._edit_vertex_index == 3:
+                max_x, max_y = current_world
+        if max_x - min_x <= 1e-6 or max_y - min_y <= 1e-6:
+            return
+        min_x, max_x = sorted((min_x, max_x))
+        min_y, max_y = sorted((min_y, max_y))
+        self.snapshot.grid_region = (float(min_x), float(min_y), float(max_x), float(max_y))
+        self._edit_last_world = current_world
+        self.grid_region_edited.emit({
+            'min_x': float(min_x),
+            'max_x': float(max_x),
+            'min_y': float(min_y),
+            'max_y': float(max_y),
+        })
+        self.update()
+
+    def _append_draw_point(self, screen_pos: QPointF) -> None:
+        if self.snapshot is None or self._draw_mode is None:
+            return
+        world_point = self._screen_to_world(screen_pos, self._plot_rect())
+        self._draw_points.append(world_point)
+        if self._draw_mode in {'noise_barriers', 'terrain_edges'} and len(self._draw_points) >= 2:
+            self._emit_drawn_object()
+            return
+        self.update()
+
+    def _emit_drawn_object(self) -> None:
+        if self._draw_mode is None:
+            return
+        template = dict(self._draw_template or {})
+        object_type = self._draw_mode
+        if object_type in {'noise_barriers', 'terrain_edges'}:
+            if len(self._draw_points) < 2:
+                return
+            payload = {
+                'id': str(template.get('id', object_type[:-1] if object_type.endswith('s') else object_type)),
+                'x1': float(self._draw_points[0][0]),
+                'y1': float(self._draw_points[0][1]),
+                'x2': float(self._draw_points[1][0]),
+                'y2': float(self._draw_points[1][1]),
+                'height_meters': float(template.get('height_meters', 4.0)),
+                'attenuation_db': float(template.get('attenuation_db', 0.0)),
+                'material': str(template.get('material', 'generic')),
+            }
+        else:
+            if len(self._draw_points) < 3:
+                return
+            payload = {
+                'id': str(template.get('id', object_type[:-1] if object_type.endswith('s') else object_type)),
+                'footprint': [[float(x), float(y)] for x, y in self._draw_points],
+                'material': str(template.get('material', 'generic')),
+            }
+            if object_type in {'buildings', 'vegetation_zones'}:
+                payload['height_meters'] = float(template.get('height_meters', 6.0))
+                payload['attenuation_db'] = float(template.get('attenuation_db', 0.0))
+        self.scene_object_drawn.emit(object_type, payload)
+        self.cancel_draw_mode()
+
+    def _draw_draw_mode_overlay(self, painter: QPainter, mapper) -> None:
+        if self._draw_mode is None:
+            return
+        painter.save()
+        painter.setPen(QPen(QColor('#f59e0b'), 3, Qt.DashLine, Qt.RoundCap, Qt.RoundJoin))
+        painter.setBrush(QBrush(QColor(245, 158, 11, 55)))
+        if self._draw_mode == 'grid_region':
+            if self._grid_draw_origin is not None and self._grid_draw_current is not None:
+                x1, y1 = mapper(self._grid_draw_origin)
+                x2, y2 = mapper(self._grid_draw_current)
+                rect = QRectF(QPointF(x1, y1), QPointF(x2, y2)).normalized()
+                painter.drawRect(rect)
+            painter.restore()
+            return
+        if not self._draw_points:
+            painter.restore()
+            return
+        if self._draw_mode in {'noise_barriers', 'terrain_edges'}:
+            if len(self._draw_points) >= 2:
+                x1, y1 = mapper(self._draw_points[0])
+                x2, y2 = mapper(self._draw_points[1])
+                painter.drawLine(int(x1), int(y1), int(x2), int(y2))
+        else:
+            if len(self._draw_points) >= 2:
+                qpolygon = QPolygonF([QPointF(*mapper(point)) for point in self._draw_points])
+                painter.drawPolyline(qpolygon)
+            if len(self._draw_points) >= 3:
+                qpolygon = QPolygonF([QPointF(*mapper(point)) for point in self._draw_points])
+                painter.drawPolygon(qpolygon)
+        painter.setPen(QPen(QColor('#92400e'), 2))
+        painter.setBrush(QBrush(QColor('#f59e0b')))
+        for point in self._draw_points:
+            px, py = mapper(point)
+            painter.drawEllipse(QPointF(px, py), 4, 4)
+        painter.restore()
 
     def _set_hover_text(self, text: str, event) -> None:
         if text == self._hover_text:
@@ -407,6 +893,12 @@ class SceneCanvas(QWidget):
             overlay_lines.append(f'Heatmap opacity {int(round(self._heatmap_opacity / 255 * 100))}%')
         if self.selected_vehicle_id:
             overlay_lines.append(f'Selected vehicle {self.selected_vehicle_id}')
+        if self.selected_scene_object is not None:
+            overlay_lines.append(self._selected_scene_object_text(*self.selected_scene_object))
+        if self._draw_mode == 'grid_region':
+            overlay_lines.append('Draw mode: grid region (drag rectangle)')
+        elif self._draw_mode is not None:
+            overlay_lines.append(f'Draw mode: {self._draw_mode} ({len(self._draw_points)} pts)')
         if self._hover_text:
             overlay_lines.append(self._hover_text)
         text = '\n'.join(overlay_lines)
@@ -596,6 +1088,9 @@ class SceneCanvas(QWidget):
 
 
 class SceneView(QWidget):
+    grid_region_drawn = Signal(dict)
+    grid_region_edited = Signal(dict)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._build_ui()
@@ -628,6 +1123,7 @@ class SceneView(QWidget):
         if snapshot is None:
             self.legend_box.setPlainText('No scene snapshot loaded.')
             return
+
         min_x, min_y, max_x, max_y = snapshot.bounds
         lines = [
             'Layers',
@@ -656,6 +1152,10 @@ class SceneView(QWidget):
             '- Drag: pan',
             '- Double-click: reset',
             '- Hover: lane / receiver / vehicle / grid cell info',
+            '- Click scene object: select in editor',
+            '- Drag selected object or its handles to edit geometry',
+            '- Grid region override rectangle is shown when enabled',
+            '- Drag selected grid-region corners or body to edit it',
             '',
             'Bounds',
             f'- min_x: {min_x:.1f}',
@@ -664,3 +1164,15 @@ class SceneView(QWidget):
             f'- max_y: {max_y:.1f}',
         ]
         self.legend_box.setPlainText('\n'.join(lines))
+
+    def set_selected_scene_object(self, object_type: str | None, object_id: str | None) -> None:
+        self.canvas.set_selected_scene_object(object_type, object_id)
+
+    def start_draw_mode(self, object_type: str, template: dict | None = None) -> None:
+        self.canvas.start_draw_mode(object_type, template)
+
+    def finish_draw_mode(self) -> None:
+        self.canvas.finish_draw_mode()
+
+    def cancel_draw_mode(self) -> None:
+        self.canvas.cancel_draw_mode()

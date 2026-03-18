@@ -311,18 +311,34 @@ class RunService:
         return project_root / path
 
     def _build_grid_domain(self, context: RunContext, min_x: float, min_y: float, max_x: float, max_y: float) -> GridDomain:
+        grid_config = context.scenario.grid
+        use_override = (
+            bool(grid_config.override_enabled)
+            and grid_config.override_min_x is not None
+            and grid_config.override_max_x is not None
+            and grid_config.override_min_y is not None
+            and grid_config.override_max_y is not None
+        )
+        domain_min_x = float(grid_config.override_min_x) if use_override else min_x
+        domain_min_y = float(grid_config.override_min_y) if use_override else min_y
+        domain_max_x = float(grid_config.override_max_x) if use_override else max_x
+        domain_max_y = float(grid_config.override_max_y) if use_override else max_y
         domain = GridDomain(
-            min_x=min_x,
-            min_y=min_y,
-            max_x=max_x,
-            max_y=max_y,
+            min_x=domain_min_x,
+            min_y=domain_min_y,
+            max_x=domain_max_x,
+            max_y=domain_max_y,
             grid_size=context.scenario.noise.grid_size_meters,
         )
-        for x, y in domain.iter_points(
-            context.scenario.grid.margin_x_start,
-            context.scenario.grid.margin_x_end,
-            context.scenario.grid.extra_y_extent,
-        ):
+        if use_override:
+            iterator = domain.iter_points_within_bounds()
+        else:
+            iterator = domain.iter_points(
+                grid_config.margin_x_start,
+                grid_config.margin_x_end,
+                grid_config.extra_y_extent,
+            )
+        for x, y in iterator:
             domain.add_cell(x, y, context.scenario.noise.receiver_height_meters, context.scenario.noise.background_noise_db)
         return domain
 

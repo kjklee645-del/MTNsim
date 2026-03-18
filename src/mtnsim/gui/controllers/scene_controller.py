@@ -14,12 +14,14 @@ class PolylineLayer:
     name: str
     polylines: list[list[tuple[float, float]]] = field(default_factory=list)
     widths: list[float] = field(default_factory=list)
+    ids: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
 class PolygonLayer:
     name: str
     polygons: list[list[tuple[float, float]]] = field(default_factory=list)
+    ids: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -39,6 +41,7 @@ class SceneSnapshot:
     ground_layer: PolygonLayer
     vegetation_layer: PolygonLayer
     receiver_layer: PointLayer
+    grid_region: tuple[float, float, float, float] | None = None
 
 
 class SceneController:
@@ -52,29 +55,43 @@ class SceneController:
             road_polylines, road_widths, junction_polygons = [], [], []
         scene_model = build_scene_model(scenario.scene)
 
-        road_layer = PolylineLayer(name='Road Network', polylines=road_polylines, widths=road_widths)
-        junction_layer = PolygonLayer(name='Junctions', polygons=junction_polygons)
+        road_layer = PolylineLayer(
+            name='Road Network',
+            polylines=road_polylines,
+            widths=road_widths,
+            ids=[f'lane_{index + 1}' for index in range(len(road_polylines))],
+        )
+        junction_layer = PolygonLayer(
+            name='Junctions',
+            polygons=junction_polygons,
+            ids=[f'junction_{index + 1}' for index in range(len(junction_polygons))],
+        )
         barrier_layer = PolylineLayer(
             name='Noise Barriers',
             polylines=[[item.start_xy, item.end_xy] for item in scene_model.noise_barriers],
             widths=[item.height_meters for item in scene_model.noise_barriers],
+            ids=[item.id for item in scene_model.noise_barriers],
         )
         terrain_layer = PolylineLayer(
             name='Terrain Edges',
             polylines=[[item.start_xy, item.end_xy] for item in scene_model.terrain_edges],
             widths=[item.height_meters for item in scene_model.terrain_edges],
+            ids=[item.id for item in scene_model.terrain_edges],
         )
         building_layer = PolygonLayer(
             name='Buildings',
             polygons=[list(item.footprint) for item in scene_model.buildings],
+            ids=[item.id for item in scene_model.buildings],
         )
         ground_layer = PolygonLayer(
             name='Ground Surfaces',
             polygons=[list(item.footprint) for item in scene_model.ground_surfaces],
+            ids=[item.id for item in scene_model.ground_surfaces],
         )
         vegetation_layer = PolygonLayer(
             name='Vegetation Zones',
             polygons=[list(item.footprint) for item in scene_model.vegetation_zones],
+            ids=[item.id for item in scene_model.vegetation_zones],
         )
         receiver_layer = PointLayer(
             name='Receivers',
@@ -91,6 +108,19 @@ class SceneController:
             vegetation_layer,
             receiver_layer,
         )
+        grid_region = None
+        if scenario.grid.override_enabled and None not in (
+            scenario.grid.override_min_x,
+            scenario.grid.override_min_y,
+            scenario.grid.override_max_x,
+            scenario.grid.override_max_y,
+        ):
+            grid_region = (
+                float(scenario.grid.override_min_x),
+                float(scenario.grid.override_min_y),
+                float(scenario.grid.override_max_x),
+                float(scenario.grid.override_max_y),
+            )
         return SceneSnapshot(
             bounds=bounds,
             road_layer=road_layer,
@@ -101,6 +131,7 @@ class SceneController:
             ground_layer=ground_layer,
             vegetation_layer=vegetation_layer,
             receiver_layer=receiver_layer,
+            grid_region=grid_region,
         )
 
     def _resolve_path(self, project: ProjectManifest, raw_path: str) -> Path | None:

@@ -247,7 +247,7 @@ Must-have elements:
 
 ### 4.3 Post-MVP Visual Expansion
 
-- 3D scene visualization with terrain, buildings, roads, and receivers
+- 3D scene visualization with terrain, buildings, roads, and receivers (now further scoped in `docs/visualization_3d_plan.md`)
 - 3D noise rendering instead of only 2D heatmap overlays
 - volumetric source-field rendering for individual vehicles
 - selectable source directivity modes such as spherical and wedge-like patterns
@@ -408,7 +408,7 @@ Goal:
 7. add comparison panel [done]
 8. add campaign validation panel [done]
 9. add limited scenario editor only after read-only flows are stable [started]
-10. add Scene Object Editor for user-authored propagation geometry [started]
+10. add Scene Object Editor for user-authored propagation geometry with Scene View-linked selection/highlight, click-to-draw geometry creation, direct manipulation, and basic duplicate plus undo/redo history [started]
 
 ## 9. Success Criteria for the GUI MVP
 

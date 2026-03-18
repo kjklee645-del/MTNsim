@@ -30,7 +30,7 @@ Status legend:
 | Schema | Result schema | [x] | `schemas/result.schema.json` |
 | Packaging | Python package skeleton | [x] | `src/mtnsim` |
 | Metadata | README and package metadata | [x] | `README.md`, `pyproject.toml` |
-| GUI UX | Project/run/result operator polish | [~] | readiness guidance, completion summaries, clearer result cards, and quickstart docs implemented; recent-project/session polish still remains |
+| GUI UX | Project/run/result operator polish | [~] | readiness guidance, completion summaries, clearer result cards, quickstart docs, and explicit rectangular grid-bounds editing with persistent Scene-View overlay plus drag re-editing are implemented; recent-project/session polish still remains |
 | Project UX | New/import/attach project workflow | [~] | first-pass GUI creation/import flow implemented with validation summary, overwrite handling, first-run guidance, empty-project mode, later attach-SUMO support, selectable attach refresh scope, optional scene/measurement import, and top-level SUMO config compatibility; deeper wizard polish still remains |
 | GUI UX | Preserve true scene aspect ratio in 2D views | [x] | scene/playback mapping now keeps SUMO network proportions with uniform scale and centered content |
 | GUI UX | Visual design refresh | [~] | shared desktop stylesheet and first-pass operator-shell polish implemented; deeper visual design work still remains |
@@ -113,8 +113,8 @@ Status legend:
 | Visualization | GUI Scene View | [x] | SUMO road polylines, receivers, and scenario geometry layers rendered in a 2D scene view |
 | Visualization | GUI Vehicle Playback | [x] | GUI-triggered runs now record vehicle traces and replay them with a time slider on top of the 2D scene view |
 | Visualization | GUI implementation | [~] | active track; core GUI flows exist; preview UX polish items are deferred in `docs/deferred_enhancement_backlog.md` |
-| Visualization | Scene Object Editor for barriers, buildings, terrain, ground, and vegetation | [~] | first-pass GUI view now supports list/form editing, Save As, and live scene preview; deeper geometry editing still remains |
-| Visualization | 3D scene and noise visualization layer | [ ] | future visualization track beyond the current 2D scene/heatmap implementation |
+| Visualization | Scene Object Editor for barriers, buildings, terrain, ground, and vegetation | [~] | first-pass GUI view now supports list/form editing, Save As, live scene preview, Scene View-linked selection/highlight, click-to-draw creation, direct manipulation, and basic duplicate plus undo/redo history; deeper geometry editing still remains |
+| Visualization | 3D scene and noise visualization layer | [~] | scope and first implementation order are now defined in `docs/visualization_3d_plan.md`; code work not started yet |
 | Visualization | Volumetric/directional source-field visualization | [ ] | support spherical, wedge-like, or other directional source-region displays with selectable modes |
 | API | Local API layer | [~] | thin local layer exists |
 | Agent | Bounded command architecture baseline | [~] | early structure only |
@@ -127,9 +127,9 @@ Status legend:
 | --- | --- | --- | --- |
 | 1 | Fix the GUI scene/playback aspect-ratio problem | [x] | completed; 2D rendering now preserves SUMO proportions with uniform scale and centered content |
 | 2 | Raise GUI visual polish and operator-facing design quality | [~] | major shell and core view polish completed, but product-level refinement still remains |
-| 3 | Add a Scene Object Editor so users can define barriers, buildings, terrain, ground, and vegetation without manual TOML editing | [~] | first-pass scene-object editing now exists, but it is still form-first and not yet a richer 2D geometry authoring workflow |
+| 3 | Add a Scene Object Editor so users can define barriers, buildings, terrain, ground, and vegetation without manual TOML editing | [~] | first-pass scene-object editing now exists with Scene View-linked selection, click-to-draw creation, direct manipulation, and basic duplicate plus undo/redo history; vertex add/remove, duplicate-and-drag flow, snapping, and richer reshape tooling are now tracked in the deferred backlog |
 | 4 | Continue project/run/result UX polish after the new project/import flow | [~] | project entry is now usable, so the next value comes from smoother recent-project, run, and result navigation |
-| 5 | Plan and then implement a 3D scene/noise visualization layer | [ ] | the current 2D-only scene is useful but no longer sufficient for the intended long-term product direction |
+| 5 | Plan and then implement a 3D scene/noise visualization layer | [~] | plan is now fixed in `docs/visualization_3d_plan.md`; next coding slice is a `3D View` shell plus a static scene adapter |
 | 6 | Treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion | [ ] | source radiation still appears effectively flat-height in the GUI and should evolve toward selectable 3D/directive field shapes |
 | 7 | Keep deeper validation, calibration, scene-physics, and GPU work on the deferred backlog while GUI/product usability is the mainline focus | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
 

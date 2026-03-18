@@ -114,13 +114,30 @@ Keep for a later phase:
 - richer preview overlays that show what changed before saving
 - Project Home expansion with recent comparison history and recent campaign-validation history
 - clearer run-monitor <-> Project Home handoff for in-progress versus completed work
+- grid-region preset helpers such as symmetric above/below-road coverage and named reusable analysis windows
+- polygon or multi-region heatmap authoring beyond a single rectangular grid override
+- snapping and numeric-constraint polish while moving or resizing the grid-region rectangle in Scene View
+- direct reset/remove commands for the drawn grid-region overlay from within Scene View
 
 Why deferred:
 - live unsaved preview now works for scene/details updates
 - these are polish improvements rather than immediate workflow blockers
 
 
-### 2.9 Advanced Visualization and Source-Field Modeling
+### 2.9 Scene Object Editor Geometry-Authoring Polish
+
+Keep for a later phase:
+- vertex add/remove editing for drawn polygons and line objects
+- duplicate-and-drag workflow improvements after object duplication
+- snapping support such as grid snapping or nearby-vertex snapping
+- richer reshape tooling such as edge split, rotate, and more polished handles
+- undo/redo visualization and stronger geometry-edit feedback
+
+Why deferred:
+- the editor already supports list/form editing, click-to-draw creation, direct manipulation, and basic duplicate plus undo/redo history
+- these next items improve authoring comfort, but they are not immediate workflow blockers
+
+### 2.10 Advanced Visualization and Source-Field Modeling
 
 Keep for a later phase:
 - full 3D scene rendering instead of only 2D map/noise overlays
