@@ -85,11 +85,11 @@ class ProjectController:
         if not sumo_config_path.exists():
             raise FileNotFoundError(f'SUMO config not found: {sumo_config_path}')
         root = ET.parse(sumo_config_path).getroot()
-        input_node = root.find('input')
-        if input_node is None:
-            raise ValueError('SUMO config does not contain an <input> section')
+        input_node = self._resolve_sumo_input_container(root)
 
         warnings: list[str] = []
+        if input_node is root:
+            warnings.append('SUMO config stores input files at the top level without an <input> section; MTNsim will handle this layout automatically.')
         network_path = self._resolve_optional_input_path(input_node, 'net-file', sumo_config_path.parent)
         route_paths = self._resolve_input_path_list(input_node, 'route-files', sumo_config_path.parent)
         additional_paths = self._resolve_input_path_list(input_node, 'additional-files', sumo_config_path.parent)
@@ -510,6 +510,15 @@ class ProjectController:
                 return path
         return scenario_paths[0] if scenario_paths else None
 
+    def _resolve_sumo_input_container(self, root: ET.Element) -> ET.Element:
+        input_node = root.find('input')
+        if input_node is not None:
+            return input_node
+        # Some SUMO configs place net-file/route-files directly under <configuration>.
+        if any(root.find(tag) is not None for tag in ('net-file', 'route-files', 'additional-files')):
+            return root
+        raise ValueError('SUMO config does not define net-file/route-files in either an <input> section or the top-level <configuration> node.')
+
     def _resolve_optional_input_path(self, input_node: ET.Element, tag: str, base_dir: Path) -> Path | None:
         child = input_node.find(tag)
         raw = None if child is None else (child.attrib.get('value') or child.text)
@@ -617,9 +626,7 @@ class ProjectController:
     def _rewrite_copied_sumo_config(self, copied_config: Path, *, network_name: str, route_names: list[str], additional_names: list[str]) -> None:
         tree = ET.parse(copied_config)
         root = tree.getroot()
-        input_node = root.find('input')
-        if input_node is None:
-            raise ValueError('Copied SUMO config does not contain an <input> section')
+        input_node = self._resolve_sumo_input_container(root)
         self._set_input_text(input_node, 'net-file', network_name)
         if route_names:
             self._set_input_text(input_node, 'route-files', ','.join(route_names))

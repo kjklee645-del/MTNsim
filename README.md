@@ -1,4 +1,4 @@
-# MTNsim
+﻿# MTNsim
 
 MTNsim is a microscopic traffic noise simulation prototype that combines SUMO-based vehicle motion, receiver/grid noise calculation, scenario comparison, calibration, and early scene-aware propagation logic.
 
@@ -137,3 +137,4 @@ Run campaign-aware validation:
 1. Continue the desktop GUI so non-developer users can create/import their own projects, then run, compare, inspect, and validate MTNsim flows.
 2. Keep deferred validation, calibration, physics, and GPU work tracked in `docs/deferred_enhancement_backlog.md`.
 3. Return to deeper engine and field-validation work after the GUI prototype is usable.
+
