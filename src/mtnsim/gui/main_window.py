@@ -273,6 +273,7 @@ class MainWindow(QMainWindow):
         self.project_home_view.open_latest_output_requested.connect(self.open_latest_output_from_home)
         self.scenario_editor_view.save_as_requested.connect(self.save_scenario_variant)
         self.scenario_editor_view.preview_requested.connect(self.apply_scenario_preview)
+        self.scenario_editor_view.grid_region_draw_requested.connect(self.start_grid_region_draw_mode)
         self.scene_object_editor_view.save_as_requested.connect(self.save_scene_object_variant)
         self.scene_object_editor_view.preview_requested.connect(self.apply_scene_object_preview)
         self.scene_object_editor_view.object_selected.connect(self.handle_scene_object_editor_selection)
@@ -1068,6 +1069,11 @@ class MainWindow(QMainWindow):
         preview.grid.margin_x_start = float(payload['grid.margin_x_start'])
         preview.grid.margin_x_end = float(payload['grid.margin_x_end'])
         preview.grid.extra_y_extent = float(payload['grid.extra_y_extent'])
+        preview.grid.override_enabled = bool(payload.get('grid.override_enabled', False))
+        preview.grid.override_min_x = float(payload['grid.override_min_x']) if payload.get('grid.override_enabled', False) else None
+        preview.grid.override_max_x = float(payload['grid.override_max_x']) if payload.get('grid.override_enabled', False) else None
+        preview.grid.override_min_y = float(payload['grid.override_min_y']) if payload.get('grid.override_enabled', False) else None
+        preview.grid.override_max_y = float(payload['grid.override_max_y']) if payload.get('grid.override_enabled', False) else None
         preview.receivers = [
             Receiver(
                 id=str(receiver['id']),
@@ -1130,6 +1136,11 @@ class MainWindow(QMainWindow):
         self.selected_scene_object_key = (object_type, object_id) if object_type and object_id else None
         self.scene_view.set_selected_scene_object(object_type or None, object_id or None)
         self.vehicle_playback_view.set_selected_scene_object(object_type or None, object_id or None)
+        if object_type == 'grid_region':
+            self._append_log('[info] Selected grid region from view')
+            self.statusBar().showMessage('Selected grid region')
+            self.show_scenario_editor()
+            return
         if object_type and object_id:
             self.scene_object_editor_view.set_selected_object(object_type, object_id)
             self._append_log(f'[info] Selected scene object from view: {object_type}:{object_id}')
@@ -1162,6 +1173,43 @@ class MainWindow(QMainWindow):
         self.scene_view.cancel_draw_mode()
         self.scene_object_editor_view.set_draw_status('Draw mode cancelled.')
         self.statusBar().showMessage('Scene-object draw mode cancelled.')
+
+
+    def start_grid_region_draw_mode(self) -> None:
+        self.scene_view.start_draw_mode('grid_region', None)
+        self.show_scene_view()
+        message = 'Draw mode active for grid region: drag a rectangle in Scene View.'
+        self.scenario_editor_view.set_status(message)
+        self.statusBar().showMessage(message)
+        self._append_log('[info] Started grid-region draw mode')
+
+    def handle_grid_region_drawn(self, payload: dict) -> None:
+        self.scenario_editor_view.apply_drawn_grid_region(
+            float(payload['min_x']),
+            float(payload['max_x']),
+            float(payload['min_y']),
+            float(payload['max_y']),
+        )
+        self.show_scenario_editor()
+        self.statusBar().showMessage('Grid region updated from Scene View.')
+        self._append_log(
+            f"[info] Updated grid region from Scene View: x=({payload['min_x']:.1f}, {payload['max_x']:.1f}), y=({payload['min_y']:.1f}, {payload['max_y']:.1f})"
+        )
+
+
+    def handle_grid_region_edited(self, payload: dict) -> None:
+        self.scenario_editor_view.apply_drawn_grid_region(
+            float(payload['min_x']),
+            float(payload['max_x']),
+            float(payload['min_y']),
+            float(payload['max_y']),
+        )
+        self.scene_view.set_selected_scene_object('grid_region', 'grid_region')
+        self.vehicle_playback_view.set_selected_scene_object('grid_region', 'grid_region')
+        self.statusBar().showMessage('Edited grid region geometry.')
+        self._append_log(
+            f"[info] Edited grid region geometry: x=({payload['min_x']:.1f}, {payload['max_x']:.1f}), y=({payload['min_y']:.1f}, {payload['max_y']:.1f})"
+        )
 
     def handle_scene_object_drawn(self, object_type: str, payload: dict) -> None:
         self.scene_object_editor_view.add_drawn_object(object_type, payload)

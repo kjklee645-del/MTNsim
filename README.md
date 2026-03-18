@@ -19,7 +19,7 @@ Implemented in the repository today:
 - campaign-aware validation that runs simulation, calibration, and threshold checks from a campaign manifest
 - standardized campaign import contracts for traffic metadata and scene manifests
 - desktop campaign validation UI for campaign inspection and validation summaries with direct report/result file access
-- limited scenario editor for Save As creation of derived scenarios from core parameters, including lane-change, noise/grid values, a multi-row receiver table, input validation, and unsaved live preview into the scene/details view
+- limited scenario editor for Save As creation of derived scenarios from core parameters, including lane-change, noise/grid values, an explicit rectangular grid-bounds override, Scene-View-driven grid-region drawing, a persistent visible grid-region overlay that can later be drag-edited in Scene View, a multi-row receiver table, input validation, and unsaved live preview into the scene/details view
 - GUI reporting/export actions for result summaries, scenario comparison summaries, and campaign validation artifacts
 - Project Home recent-run panel with quick-open result and latest-output shortcuts, plus project readiness/status guidance
 - first-pass `New Project` / `Import SUMO Project` / `Attach SUMO` GUI flow that can generate either an empty MTNsim project shell, import a SUMO-backed project, or attach SUMO later to an existing empty project with selectable scenario-refresh scope and optional scene/measurement file import
@@ -144,4 +144,4 @@ Run campaign-aware validation:
 
 - Scenario Editor / Compare / Campaign Validation / Playback views polished with card layout and consistent status styling.
 
-- Scene Object Editor first pass added for list/form editing of barriers, buildings, terrain edges, ground surfaces, and vegetation zones with Save As, live scene preview, Scene View-linked selection/highlight, first-pass 2D click-to-draw geometry authoring, and direct geometry manipulation for selected objects.
+- Scene Object Editor first pass added for list/form editing of barriers, buildings, terrain edges, ground surfaces, and vegetation zones with Save As, live scene preview, Scene View-linked selection/highlight, first-pass 2D click-to-draw geometry authoring, direct geometry manipulation for selected objects, and basic duplicate plus undo/redo history support.

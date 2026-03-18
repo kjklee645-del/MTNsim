@@ -36,6 +36,8 @@ class SceneCanvas(QWidget):
     scene_object_selected = Signal(str, str)
     scene_object_drawn = Signal(str, dict)
     scene_object_geometry_edited = Signal(str, str, dict)
+    grid_region_drawn = Signal(dict)
+    grid_region_edited = Signal(dict)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -57,6 +59,8 @@ class SceneCanvas(QWidget):
         self._draw_mode: str | None = None
         self._draw_template: dict | None = None
         self._draw_points: list[tuple[float, float]] = []
+        self._grid_draw_origin: tuple[float, float] | None = None
+        self._grid_draw_current: tuple[float, float] | None = None
         self._edit_mode: str | None = None
         self._edit_vertex_index: int | None = None
         self._edit_last_world: tuple[float, float] | None = None
@@ -100,6 +104,8 @@ class SceneCanvas(QWidget):
         self._draw_mode = object_type
         self._draw_template = dict(template or {})
         self._draw_points = []
+        self._grid_draw_origin = None
+        self._grid_draw_current = None
         self.update()
 
     def finish_draw_mode(self) -> None:
@@ -112,6 +118,8 @@ class SceneCanvas(QWidget):
         self._draw_mode = None
         self._draw_template = None
         self._draw_points = []
+        self._grid_draw_origin = None
+        self._grid_draw_current = None
         self.update()
 
     def set_heatmap_cells(self, cells: list[HeatmapCell]) -> None:
@@ -181,6 +189,11 @@ class SceneCanvas(QWidget):
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
+            if self._draw_mode == 'grid_region':
+                self._grid_draw_origin = self._screen_to_world(event.position(), self._plot_rect())
+                self._grid_draw_current = self._grid_draw_origin
+                self.update()
+                return
             if self._draw_mode is not None:
                 self._append_draw_point(event.position())
                 return
@@ -208,7 +221,10 @@ class SceneCanvas(QWidget):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802
-        if self._edit_mode is not None:
+        if self._draw_mode == 'grid_region' and self._grid_draw_origin is not None:
+            self._grid_draw_current = self._screen_to_world(event.position(), self._plot_rect())
+            self.update()
+        elif self._edit_mode is not None:
             self._update_scene_object_edit(event.position())
         elif self._dragging:
             delta = event.position() - self._last_mouse_pos
@@ -222,6 +238,21 @@ class SceneCanvas(QWidget):
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
+            if self._draw_mode == 'grid_region' and self._grid_draw_origin is not None and self._grid_draw_current is not None:
+                x1, y1 = self._grid_draw_origin
+                x2, y2 = self._grid_draw_current
+                if abs(x2 - x1) > 1e-6 and abs(y2 - y1) > 1e-6:
+                    payload = {
+                        'min_x': float(min(x1, x2)),
+                        'max_x': float(max(x1, x2)),
+                        'min_y': float(min(y1, y2)),
+                        'max_y': float(max(y1, y2)),
+                    }
+                    self.grid_region_drawn.emit(payload)
+                self.cancel_draw_mode()
+                self.setCursor(Qt.ArrowCursor)
+                super().mouseReleaseEvent(event)
+                return
             self._dragging = False
             self._edit_mode = None
             self._edit_vertex_index = None
@@ -269,6 +300,7 @@ class SceneCanvas(QWidget):
         painter.setPen(QPen(QColor('#d8cfc2'), 1))
         painter.drawRect(plot_rect)
         self._draw_grid(painter, plot_rect)
+        self._draw_grid_region(painter, map_point)
         self._draw_polygons(painter, self.snapshot.ground_layer.polygons, map_point, LayerStyle('#7aa65a', 1, '#cfdf9f'))
         self._draw_polygons(painter, self.snapshot.vegetation_layer.polygons, map_point, LayerStyle('#2f6b3d', 1, '#9bd18b'))
         self._draw_polygons(painter, self.snapshot.junction_layer.polygons, map_point, LayerStyle('#4b5563', 1, '#505864'))
@@ -482,6 +514,14 @@ class SceneCanvas(QWidget):
             hit = find_polygon(layer, object_type)
             if hit is not None:
                 return hit
+
+        if self.snapshot.grid_region is not None:
+            min_x, min_y, max_x, max_y = self.snapshot.grid_region
+            p1 = self._transform_screen_point(map_point((min_x, min_y)), plot_rect)
+            p2 = self._transform_screen_point(map_point((max_x, max_y)), plot_rect)
+            rect = QRectF(p1, p2).normalized()
+            if rect.adjusted(-8, -8, 8, 8).contains(local_pos):
+                return ('grid_region', 'grid_region')
         return None
 
     def _selected_scene_object_text(self, object_type: str, object_id: str) -> str:
@@ -491,6 +531,7 @@ class SceneCanvas(QWidget):
             'buildings': 'Building',
             'ground_surfaces': 'Ground surface',
             'vegetation_zones': 'Vegetation zone',
+            'grid_region': 'Grid region',
         }
         return f'{labels.get(object_type, object_type)} {object_id}'
 
@@ -541,11 +582,15 @@ class SceneCanvas(QWidget):
         elif object_type == 'vegetation_zones':
             draw_polygon(self.snapshot.vegetation_layer)
             self._draw_selected_polygon_handles(painter, mapper, self.snapshot.vegetation_layer, object_id)
+        elif object_type == 'grid_region':
+            self._draw_selected_grid_region(painter, mapper)
 
     def _get_selected_layer_and_index(self):
         if self.snapshot is None or self.selected_scene_object is None:
             return None, None, None
         object_type, object_id = self.selected_scene_object
+        if object_type == 'grid_region':
+            return object_type, 'grid_region', 0
         layer_map = {
             'noise_barriers': self.snapshot.barrier_layer,
             'terrain_edges': self.snapshot.terrain_layer,
@@ -571,9 +616,11 @@ class SceneCanvas(QWidget):
 
     def _find_selected_object_edit_hit(self, local_pos: QPointF) -> tuple[str, int | None] | None:
         object_type, layer, index = self._get_selected_layer_and_index()
+        plot_rect, pixels_per_meter, map_point = self._mapping_context()
+        if object_type == 'grid_region':
+            return self._find_grid_region_edit_hit(local_pos, plot_rect, map_point)
         if layer is None or index is None:
             return None
-        plot_rect, pixels_per_meter, map_point = self._mapping_context()
         handle_threshold = max(10.0, 8.0 * self._zoom)
         if object_type in {'noise_barriers', 'terrain_edges'}:
             polyline = layer.polylines[index]
@@ -602,9 +649,12 @@ class SceneCanvas(QWidget):
         if self.snapshot is None or self.selected_scene_object is None or self._edit_mode is None:
             return
         object_type, layer, index = self._get_selected_layer_and_index()
+        current_world = self._screen_to_world(local_pos, self._plot_rect())
+        if object_type == 'grid_region':
+            self._update_grid_region_edit(current_world)
+            return
         if layer is None or index is None:
             return
-        current_world = self._screen_to_world(local_pos, self._plot_rect())
         last_world = self._edit_last_world or current_world
         dx = current_world[0] - last_world[0]
         dy = current_world[1] - last_world[1]
@@ -657,6 +707,87 @@ class SceneCanvas(QWidget):
             painter.drawRect(QRectF(px - 4, py - 4, 8, 8))
         painter.restore()
 
+
+    def _draw_grid_region(self, painter: QPainter, mapper) -> None:
+        if self.snapshot is None or self.snapshot.grid_region is None:
+            return
+        min_x, min_y, max_x, max_y = self.snapshot.grid_region
+        painter.save()
+        painter.setPen(QPen(QColor('#8b5cf6'), 2, Qt.DashLine))
+        painter.setBrush(QBrush(QColor(139, 92, 246, 28)))
+        p1 = QPointF(*mapper((min_x, min_y)))
+        p2 = QPointF(*mapper((max_x, max_y)))
+        painter.drawRect(QRectF(p1, p2).normalized())
+        painter.restore()
+
+    def _draw_selected_grid_region(self, painter: QPainter, mapper) -> None:
+        if self.snapshot is None or self.snapshot.grid_region is None:
+            return
+        min_x, min_y, max_x, max_y = self.snapshot.grid_region
+        painter.save()
+        painter.setPen(QPen(QColor('#f59e0b'), 3, Qt.SolidLine))
+        painter.setBrush(QBrush(QColor(245, 158, 11, 36)))
+        p1 = QPointF(*mapper((min_x, min_y)))
+        p2 = QPointF(*mapper((max_x, max_y)))
+        rect = QRectF(p1, p2).normalized()
+        painter.drawRect(rect)
+        painter.setPen(QPen(QColor('#78350f'), 2))
+        painter.setBrush(QBrush(QColor('#fde68a')))
+        for point in [rect.topLeft(), rect.topRight(), rect.bottomLeft(), rect.bottomRight()]:
+            painter.drawRect(QRectF(point.x() - 4, point.y() - 4, 8, 8))
+        painter.restore()
+
+    def _find_grid_region_edit_hit(self, local_pos: QPointF, plot_rect: QRectF, map_point) -> tuple[str, int | None] | None:
+        if self.snapshot is None or self.snapshot.grid_region is None:
+            return None
+        min_x, min_y, max_x, max_y = self.snapshot.grid_region
+        p1 = self._transform_screen_point(map_point((min_x, min_y)), plot_rect)
+        p2 = self._transform_screen_point(map_point((max_x, max_y)), plot_rect)
+        rect = QRectF(p1, p2).normalized()
+        handle_threshold = max(10.0, 8.0 * self._zoom)
+        handles = [rect.topLeft(), rect.topRight(), rect.bottomLeft(), rect.bottomRight()]
+        for idx, point in enumerate(handles):
+            if hypot(local_pos.x() - point.x(), local_pos.y() - point.y()) <= handle_threshold:
+                return ('grid_corner', idx)
+        if rect.adjusted(-6, -6, 6, 6).contains(local_pos):
+            return ('move', None)
+        return None
+
+    def _update_grid_region_edit(self, current_world: tuple[float, float]) -> None:
+        if self.snapshot is None or self.snapshot.grid_region is None or self._edit_mode is None:
+            return
+        min_x, min_y, max_x, max_y = self.snapshot.grid_region
+        last_world = self._edit_last_world or current_world
+        dx = current_world[0] - last_world[0]
+        dy = current_world[1] - last_world[1]
+        if self._edit_mode == 'move':
+            min_x += dx
+            max_x += dx
+            min_y += dy
+            max_y += dy
+        elif self._edit_mode == 'grid_corner' and self._edit_vertex_index is not None:
+            if self._edit_vertex_index == 0:
+                min_x, min_y = current_world
+            elif self._edit_vertex_index == 1:
+                max_x, min_y = current_world
+            elif self._edit_vertex_index == 2:
+                min_x, max_y = current_world
+            elif self._edit_vertex_index == 3:
+                max_x, max_y = current_world
+        if max_x - min_x <= 1e-6 or max_y - min_y <= 1e-6:
+            return
+        min_x, max_x = sorted((min_x, max_x))
+        min_y, max_y = sorted((min_y, max_y))
+        self.snapshot.grid_region = (float(min_x), float(min_y), float(max_x), float(max_y))
+        self._edit_last_world = current_world
+        self.grid_region_edited.emit({
+            'min_x': float(min_x),
+            'max_x': float(max_x),
+            'min_y': float(min_y),
+            'max_y': float(max_y),
+        })
+        self.update()
+
     def _append_draw_point(self, screen_pos: QPointF) -> None:
         if self.snapshot is None or self._draw_mode is None:
             return
@@ -700,11 +831,22 @@ class SceneCanvas(QWidget):
         self.cancel_draw_mode()
 
     def _draw_draw_mode_overlay(self, painter: QPainter, mapper) -> None:
-        if self._draw_mode is None or not self._draw_points:
+        if self._draw_mode is None:
             return
         painter.save()
         painter.setPen(QPen(QColor('#f59e0b'), 3, Qt.DashLine, Qt.RoundCap, Qt.RoundJoin))
         painter.setBrush(QBrush(QColor(245, 158, 11, 55)))
+        if self._draw_mode == 'grid_region':
+            if self._grid_draw_origin is not None and self._grid_draw_current is not None:
+                x1, y1 = mapper(self._grid_draw_origin)
+                x2, y2 = mapper(self._grid_draw_current)
+                rect = QRectF(QPointF(x1, y1), QPointF(x2, y2)).normalized()
+                painter.drawRect(rect)
+            painter.restore()
+            return
+        if not self._draw_points:
+            painter.restore()
+            return
         if self._draw_mode in {'noise_barriers', 'terrain_edges'}:
             if len(self._draw_points) >= 2:
                 x1, y1 = mapper(self._draw_points[0])
@@ -753,7 +895,9 @@ class SceneCanvas(QWidget):
             overlay_lines.append(f'Selected vehicle {self.selected_vehicle_id}')
         if self.selected_scene_object is not None:
             overlay_lines.append(self._selected_scene_object_text(*self.selected_scene_object))
-        if self._draw_mode is not None:
+        if self._draw_mode == 'grid_region':
+            overlay_lines.append('Draw mode: grid region (drag rectangle)')
+        elif self._draw_mode is not None:
             overlay_lines.append(f'Draw mode: {self._draw_mode} ({len(self._draw_points)} pts)')
         if self._hover_text:
             overlay_lines.append(self._hover_text)
@@ -944,6 +1088,9 @@ class SceneCanvas(QWidget):
 
 
 class SceneView(QWidget):
+    grid_region_drawn = Signal(dict)
+    grid_region_edited = Signal(dict)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._build_ui()
@@ -1007,6 +1154,8 @@ class SceneView(QWidget):
             '- Hover: lane / receiver / vehicle / grid cell info',
             '- Click scene object: select in editor',
             '- Drag selected object or its handles to edit geometry',
+            '- Grid region override rectangle is shown when enabled',
+            '- Drag selected grid-region corners or body to edit it',
             '',
             'Bounds',
             f'- min_x: {min_x:.1f}',

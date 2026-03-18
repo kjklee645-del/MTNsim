@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 class ScenarioEditorView(QWidget):
     save_as_requested = Signal(dict)
     preview_requested = Signal(dict)
+    grid_region_draw_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -148,6 +149,38 @@ class ScenarioEditorView(QWidget):
         self.grid_extra_y_spin.setSuffix(' m')
         form.addRow('Grid Extra Y', self.grid_extra_y_spin)
 
+        self.grid_override_check = QCheckBox('Use explicit grid bounds')
+        form.addRow('Grid Override', self.grid_override_check)
+
+        self.grid_override_min_x_spin = QDoubleSpinBox()
+        self.grid_override_min_x_spin.setRange(-100000.0, 100000.0)
+        self.grid_override_min_x_spin.setDecimals(1)
+        self.grid_override_min_x_spin.setSuffix(' m')
+        form.addRow('Grid Min X', self.grid_override_min_x_spin)
+
+        self.grid_override_max_x_spin = QDoubleSpinBox()
+        self.grid_override_max_x_spin.setRange(-100000.0, 100000.0)
+        self.grid_override_max_x_spin.setDecimals(1)
+        self.grid_override_max_x_spin.setSuffix(' m')
+        form.addRow('Grid Max X', self.grid_override_max_x_spin)
+
+        self.grid_override_min_y_spin = QDoubleSpinBox()
+        self.grid_override_min_y_spin.setRange(-100000.0, 100000.0)
+        self.grid_override_min_y_spin.setDecimals(1)
+        self.grid_override_min_y_spin.setSuffix(' m')
+        form.addRow('Grid Min Y', self.grid_override_min_y_spin)
+
+        self.grid_override_max_y_spin = QDoubleSpinBox()
+        self.grid_override_max_y_spin.setRange(-100000.0, 100000.0)
+        self.grid_override_max_y_spin.setDecimals(1)
+        self.grid_override_max_y_spin.setSuffix(' m')
+        form.addRow('Grid Max Y', self.grid_override_max_y_spin)
+
+        self.draw_grid_region_button = QPushButton('Draw Grid Region')
+        self.draw_grid_region_button.clicked.connect(self.grid_region_draw_requested)
+        self.draw_grid_region_button.setEnabled(False)
+        form.addRow('Grid Draw', self.draw_grid_region_button)
+
         self.post_distance_control_check = QCheckBox('Enable post-distance speed control')
         form.addRow('Post Control', self.post_distance_control_check)
 
@@ -206,6 +239,10 @@ class ScenarioEditorView(QWidget):
             self.grid_margin_start_spin,
             self.grid_margin_end_spin,
             self.grid_extra_y_spin,
+            self.grid_override_min_x_spin,
+            self.grid_override_max_x_spin,
+            self.grid_override_min_y_spin,
+            self.grid_override_max_y_spin,
         ]
         for widget in watched:
             widget.valueChanged.connect(self._schedule_preview)
@@ -213,6 +250,7 @@ class ScenarioEditorView(QWidget):
         self.lane_change_strategy_combo.currentIndexChanged.connect(self._schedule_preview)
         self.post_distance_control_check.toggled.connect(self._schedule_preview)
         self.lane_change_force_check.toggled.connect(self._schedule_preview)
+        self.grid_override_check.toggled.connect(self._schedule_preview)
         self.receiver_table.itemChanged.connect(self._schedule_preview)
 
     def set_scenario(self, scenario_path, scenario) -> None:
@@ -234,6 +272,11 @@ class ScenarioEditorView(QWidget):
         self.grid_margin_start_spin.setValue(float(scenario.grid.margin_x_start))
         self.grid_margin_end_spin.setValue(float(scenario.grid.margin_x_end))
         self.grid_extra_y_spin.setValue(float(scenario.grid.extra_y_extent))
+        self.grid_override_check.setChecked(bool(scenario.grid.override_enabled))
+        self.grid_override_min_x_spin.setValue(float(scenario.grid.override_min_x or 0.0))
+        self.grid_override_max_x_spin.setValue(float(scenario.grid.override_max_x or 0.0))
+        self.grid_override_min_y_spin.setValue(float(scenario.grid.override_min_y or 0.0))
+        self.grid_override_max_y_spin.setValue(float(scenario.grid.override_max_y or 0.0))
         self.post_distance_control_check.setChecked(bool(scenario.controls.post_distance_speed_control))
         self.lane_change_force_check.setChecked(bool(scenario.controls.lane_change_force_change))
 
@@ -256,6 +299,7 @@ class ScenarioEditorView(QWidget):
         self.save_as_button.setEnabled(True)
         self.add_receiver_button.setEnabled(True)
         self.remove_receiver_button.setEnabled(True)
+        self.draw_grid_region_button.setEnabled(True)
         self._suspend_preview = False
         self._emit_preview_if_valid()
 
@@ -315,6 +359,11 @@ class ScenarioEditorView(QWidget):
             errors.append('Post distance must be greater than 0 when post-distance control is enabled.')
         if self.receiver_height_spin.value() < 0:
             errors.append('Receiver height must not be negative.')
+        if self.grid_override_check.isChecked():
+            if self.grid_override_max_x_spin.value() <= self.grid_override_min_x_spin.value():
+                errors.append('Grid Max X must be greater than Grid Min X when grid override is enabled.')
+            if self.grid_override_max_y_spin.value() <= self.grid_override_min_y_spin.value():
+                errors.append('Grid Max Y must be greater than Grid Min Y when grid override is enabled.')
 
         receivers: list[dict] = []
         seen_ids: set[str] = set()
@@ -368,6 +417,11 @@ class ScenarioEditorView(QWidget):
             'grid.margin_x_start': float(self.grid_margin_start_spin.value()),
             'grid.margin_x_end': float(self.grid_margin_end_spin.value()),
             'grid.extra_y_extent': float(self.grid_extra_y_spin.value()),
+            'grid.override_enabled': bool(self.grid_override_check.isChecked()),
+            'grid.override_min_x': float(self.grid_override_min_x_spin.value()),
+            'grid.override_max_x': float(self.grid_override_max_x_spin.value()),
+            'grid.override_min_y': float(self.grid_override_min_y_spin.value()),
+            'grid.override_max_y': float(self.grid_override_max_y_spin.value()),
             'receivers': receivers,
         }
         return payload, []
@@ -381,6 +435,16 @@ class ScenarioEditorView(QWidget):
             self._apply_status_style(self.status_label.text())
             return
         self.preview_requested.emit(payload)
+
+
+    def apply_drawn_grid_region(self, min_x: float, max_x: float, min_y: float, max_y: float) -> None:
+        self.grid_override_check.setChecked(True)
+        self.grid_override_min_x_spin.setValue(float(min_x))
+        self.grid_override_max_x_spin.setValue(float(max_x))
+        self.grid_override_min_y_spin.setValue(float(min_y))
+        self.grid_override_max_y_spin.setValue(float(max_y))
+        self.set_status('Grid region updated from Scene View.')
+        self._emit_preview_if_valid()
 
     def validate_inputs(self) -> tuple[dict | None, list[str]]:
         return self._build_payload(strict=True)

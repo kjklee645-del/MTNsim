@@ -41,6 +41,7 @@ class SceneSnapshot:
     ground_layer: PolygonLayer
     vegetation_layer: PolygonLayer
     receiver_layer: PointLayer
+    grid_region: tuple[float, float, float, float] | None = None
 
 
 class SceneController:
@@ -107,6 +108,19 @@ class SceneController:
             vegetation_layer,
             receiver_layer,
         )
+        grid_region = None
+        if scenario.grid.override_enabled and None not in (
+            scenario.grid.override_min_x,
+            scenario.grid.override_min_y,
+            scenario.grid.override_max_x,
+            scenario.grid.override_max_y,
+        ):
+            grid_region = (
+                float(scenario.grid.override_min_x),
+                float(scenario.grid.override_min_y),
+                float(scenario.grid.override_max_x),
+                float(scenario.grid.override_max_y),
+            )
         return SceneSnapshot(
             bounds=bounds,
             road_layer=road_layer,
@@ -117,6 +131,7 @@ class SceneController:
             ground_layer=ground_layer,
             vegetation_layer=vegetation_layer,
             receiver_layer=receiver_layer,
+            grid_region=grid_region,
         )
 
     def _resolve_path(self, project: ProjectManifest, raw_path: str) -> Path | None:
