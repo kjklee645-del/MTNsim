@@ -240,12 +240,14 @@ class SceneCanvas(QWidget):
         span_x = max(max_x - min_x, 1.0)
         span_y = max(max_y - min_y, 1.0)
         pixels_per_meter = min(plot_rect.width() / span_x, plot_rect.height() / span_y)
+        content_width = span_x * pixels_per_meter
+        content_height = span_y * pixels_per_meter
+        offset_x = plot_rect.left() + ((plot_rect.width() - content_width) / 2.0)
+        offset_y = plot_rect.top() + ((plot_rect.height() - content_height) / 2.0)
 
         def map_point(point: tuple[float, float]) -> tuple[float, float]:
-            x_ratio = (point[0] - min_x) / span_x
-            y_ratio = (point[1] - min_y) / span_y
-            px = plot_rect.left() + (plot_rect.width() * x_ratio)
-            py = plot_rect.bottom() - (plot_rect.height() * y_ratio)
+            px = offset_x + ((point[0] - min_x) * pixels_per_meter)
+            py = offset_y + content_height - ((point[1] - min_y) * pixels_per_meter)
             return px, py
 
         return plot_rect, pixels_per_meter, map_point
@@ -262,12 +264,19 @@ class SceneCanvas(QWidget):
         min_x, min_y, max_x, max_y = self.snapshot.bounds
         span_x = max(max_x - min_x, 1.0)
         span_y = max(max_y - min_y, 1.0)
+        pixels_per_meter = min(plot_rect.width() / span_x, plot_rect.height() / span_y)
+        content_width = span_x * pixels_per_meter
+        content_height = span_y * pixels_per_meter
+        offset_x = plot_rect.left() + ((plot_rect.width() - content_width) / 2.0)
+        offset_y = plot_rect.top() + ((plot_rect.height() - content_height) / 2.0)
         center = QPointF(plot_rect.center())
         base_x = center.x() + ((screen.x() - center.x() - self._pan.x()) / self._zoom)
         base_y = center.y() + ((screen.y() - center.y() - self._pan.y()) / self._zoom)
-        x_ratio = (base_x - plot_rect.left()) / plot_rect.width()
-        y_ratio = (plot_rect.bottom() - base_y) / plot_rect.height()
-        return (min_x + (span_x * x_ratio), min_y + (span_y * y_ratio))
+        world_x = min_x + ((base_x - offset_x) / pixels_per_meter)
+        world_y = min_y + ((offset_y + content_height - base_y) / pixels_per_meter)
+        world_x = max(min_x, min(max_x, world_x))
+        world_y = max(min_y, min(max_y, world_y))
+        return (world_x, world_y)
 
     def _distance_to_segment(self, point: QPointF, start: QPointF, end: QPointF) -> float:
         dx = end.x() - start.x()
@@ -422,11 +431,17 @@ class SceneCanvas(QWidget):
         min_x, min_y, max_x, max_y = self.snapshot.bounds
         span_x = max(max_x - min_x, 1.0)
         span_y = max(max_y - min_y, 1.0)
+        mini_ppm = min(inner.width() / span_x, inner.height() / span_y)
+        mini_width = span_x * mini_ppm
+        mini_height = span_y * mini_ppm
+        mini_offset_x = inner.left() + ((inner.width() - mini_width) / 2.0)
+        mini_offset_y = inner.top() + ((inner.height() - mini_height) / 2.0)
 
         def mini_map(point: tuple[float, float]) -> QPointF:
-            x_ratio = (point[0] - min_x) / span_x
-            y_ratio = (point[1] - min_y) / span_y
-            return QPointF(inner.left() + (inner.width() * x_ratio), inner.bottom() - (inner.height() * y_ratio))
+            return QPointF(
+                mini_offset_x + ((point[0] - min_x) * mini_ppm),
+                mini_offset_y + mini_height - ((point[1] - min_y) * mini_ppm),
+            )
 
         painter.setPen(QPen(QColor('#cbd5e1'), 1))
         painter.drawRect(inner)

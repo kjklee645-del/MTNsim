@@ -45,13 +45,14 @@ From a product-engineering perspective, the current state also strengthens Stage
 
 The current recommended order is:
 
-1. extend the GUI prototype from run flow into result viewing and scenario comparison workflows
-2. deferred backlog tracking for deeper validation, calibration, scene physics, and GPU work
-3. return to field-facing validation and scene hardening after GUI feedback arrives
-4. selective GPU follow-up only where the hybrid path is not enough
-5. richer reporting and agent-control layers after GUI flows stabilize
+1. fix the GUI scene/playback aspect-ratio problem so visual trust is not undermined by stretched geometry
+2. raise GUI visual polish and product-facing design quality
+3. continue project/run/result UX polish now that project creation/import/attach is usable
+4. treat 3D scene/noise visualization as the next visualization expansion after the 2D shell is corrected and polished
+5. treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion after the 3D scene layer is defined
+6. keep deeper validation, calibration, scene physics, and GPU work on the deferred backlog unless external data or product needs pull them forward
 
-This means the mainline focus has shifted from deeper engine refinement to product usability.
+This means the mainline focus has shifted from deeper engine refinement to product usability and trustworthy visualization.
 The hybrid scene-aware GPU path is considered sufficient for the current stage unless scale or workflow requirements prove otherwise.
 
 ## Maintenance Rule

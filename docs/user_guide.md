@@ -411,3 +411,28 @@ Campaign validation will then report group-level coverage, bias, MAE, and RMSE, 
 - `validation_thresholds.max_receiver_group_rmse_db`
 - `validation_thresholds.max_receiver_group_abs_mean_bias_db`
 - `validation_thresholds.min_receiver_group_coverage_ratio`
+
+## Toolbar Layout
+
+The top toolbar is now organized as menus:
+- `Project`
+- `Run`
+- `Results`
+- `Validation`
+- `Help`
+
+A single quick action, `Run Selected`, remains on the right side of the toolbar for the most common operation.
+
+## Workspace Navigation
+
+The left dock now acts as a workspace switcher rather than an action toolbar.
+- `Home`
+- `Scene`
+- `Editor`
+- `Compare`
+- `Validation`
+- `Run Monitor`
+- `Results`
+- `Playback`
+
+Project creation/import/attach actions live in the top toolbar menus, while Project Home focuses on status, recent work, and next-step shortcuts.

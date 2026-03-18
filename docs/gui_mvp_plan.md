@@ -1,6 +1,6 @@
 # MTNsim GUI MVP Plan
 
-Date: 2026-03-11
+Date: 2026-03-18
 Purpose: define the first user-facing MTNsim desktop prototype so non-developer users can run simulations, compare scenarios, and inspect outputs without editing TOML files or using CLI commands.
 
 ## 1. Product Goal
@@ -15,6 +15,10 @@ Build a desktop GUI prototype that lets a general user:
 - open campaign validation outputs
 
 The GUI MVP is not a full professional acoustic workstation. It is a usable operator shell around the existing MTNsim engine.
+
+Near-term correction request now added to the plan:
+- preserve the original SUMO map aspect ratio in 2D scene and playback views so roads, trajectories, and noise fields are not visually stretched
+- raise the GUI visual quality from a functional engineering shell toward a cleaner, more deliberate operator-facing product
 
 ## 2. Recommended GUI Stack
 
@@ -67,6 +71,7 @@ Layout recommendation:
 - left sidebar: project, scenario, campaign, and recent runs navigation
 - center workspace: editor or results view depending on selected mode
 - right panel: run status, selected object details, quick actions
+- top toolbar: menu-driven action groups (`Project`, `Run`, `Results`, `Validation`, `Help`) plus one quick `Run Selected` action
 - bottom panel: logs, warnings, run progress, errors
 
 ### 3.2 Screen A: Project Home
@@ -201,13 +206,22 @@ Must-have elements:
 - validation status badges
 - parameter reset to scenario defaults
 - simple scene summary panel
+- true-aspect 2D scene/playback rendering
+- more polished visual styling, spacing, and hierarchy across the desktop shell
 
-### 4.3 Not in First MVP
+### 4.3 Post-MVP Visual Expansion
+
+- 3D scene visualization with terrain, buildings, roads, and receivers
+- 3D noise rendering instead of only 2D heatmap overlays
+- volumetric source-field rendering for individual vehicles
+- selectable source directivity modes such as spherical and wedge-like patterns
+- user-facing controls to choose the source-field display model
+
+### 4.4 Not in First MVP
 
 - full scene drawing/editing canvas
 - CAD/GIS import UI
 - full report designer
-- multi-window 3D visualization
 - AI natural-language panel
 - full precomputed correction-field controls
 

@@ -23,6 +23,9 @@ Implemented in the repository today:
 - GUI reporting/export actions for result summaries, scenario comparison summaries, and campaign validation artifacts
 - Project Home recent-run panel with quick-open result and latest-output shortcuts, plus project readiness/status guidance
 - first-pass `New Project` / `Import SUMO Project` / `Attach SUMO` GUI flow that can generate either an empty MTNsim project shell, import a SUMO-backed project, or attach SUMO later to an existing empty project with selectable scenario-refresh scope and optional scene/measurement file import
+- shared desktop styling for a cleaner operator-facing GUI shell
+- menu-driven top toolbar organized around Project / Run / Results / Validation / Help plus a single quick Run button
+- Navigation / workspace list now acts primarily as view switching, while Project Home focuses on status, next steps, and recent work
 
 Supported example scenarios:
 - `baseline`

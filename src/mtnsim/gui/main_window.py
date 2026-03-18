@@ -9,6 +9,7 @@ import os
 import imageio.v2 as imageio
 from PIL import Image
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt, QThread, QTimer
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -17,11 +18,14 @@ from PySide6.QtWidgets import (
     QDialog,
     QDockWidget,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPlainTextEdit,
+    QSizePolicy,
     QStackedWidget,
     QTextEdit,
     QToolBar,
+    QToolButton,
     QWidget,
 )
 
@@ -66,7 +70,8 @@ class MainWindow(QMainWindow):
             self.load_project(Path(manifest_path))
 
     def _build_ui(self) -> None:
-        self.setWindowTitle('MTNsim GUI Prototype')
+        self.setWindowTitle('MTNsim Noise Simulation Workbench')
+        self.setObjectName('MainWorkbenchWindow')
         self.resize(1520, 940)
 
         self._build_toolbar()
@@ -83,6 +88,7 @@ class MainWindow(QMainWindow):
         self.result_viewer_view = ResultViewerView()
         self.vehicle_playback_view = VehiclePlaybackView()
         self.central_stack = QStackedWidget()
+        self.central_stack.setObjectName('CentralWorkspace')
         self.central_stack.addWidget(self.project_home_view)
         self.central_stack.addWidget(self.scene_view)
         self.central_stack.addWidget(self.scenario_editor_view)
@@ -92,61 +98,132 @@ class MainWindow(QMainWindow):
         self.central_stack.addWidget(self.result_viewer_view)
         self.central_stack.addWidget(self.vehicle_playback_view)
         self.setCentralWidget(self.central_stack)
+        self.statusBar().setObjectName('AppStatusBar')
         self.statusBar().showMessage('Ready')
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar('Main Toolbar', self)
+        toolbar.setObjectName('MainToolbar')
         toolbar.setMovable(False)
-        self.open_project_action = toolbar.addAction('Open Project')
+
+        self.open_project_action = QAction('Open Project', self)
         self.open_project_action.triggered.connect(self.open_project_dialog)
-        self.new_project_action = toolbar.addAction('New Project')
+        self.new_project_action = QAction('New Project', self)
         self.new_project_action.triggered.connect(self.open_new_project_dialog)
-        self.import_project_action = toolbar.addAction('Import SUMO Project')
+        self.import_project_action = QAction('Import SUMO Project', self)
         self.import_project_action.triggered.connect(self.open_import_project_dialog)
-        self.attach_sumo_action = toolbar.addAction('Attach SUMO')
+        self.attach_sumo_action = QAction('Attach SUMO', self)
         self.attach_sumo_action.triggered.connect(self.open_attach_sumo_dialog)
         self.attach_sumo_action.setEnabled(False)
-        self.run_selected_action = toolbar.addAction('Run Selected')
+
+        self.run_selected_action = QAction('Run Selected', self)
         self.run_selected_action.triggered.connect(self.run_selected_scenario)
         self.run_selected_action.setEnabled(False)
-        toolbar.addSeparator()
-        self.home_action = toolbar.addAction('Project Home')
+        self.run_monitor_action = QAction('Run Monitor', self)
+        self.run_monitor_action.triggered.connect(self.show_run_monitor)
+
+        self.home_action = QAction('Project Home', self)
         self.home_action.triggered.connect(self.show_project_home)
-        self.scene_view_action = toolbar.addAction('Scene View')
+        self.scene_view_action = QAction('Scene View', self)
         self.scene_view_action.triggered.connect(self.show_scene_view)
         self.scene_view_action.setEnabled(False)
-        self.scenario_editor_action = toolbar.addAction('Scenario Editor')
+        self.scenario_editor_action = QAction('Scenario Editor', self)
         self.scenario_editor_action.triggered.connect(self.show_scenario_editor)
         self.scenario_editor_action.setEnabled(False)
-        self.compare_view_action = toolbar.addAction('Compare')
+
+        self.compare_view_action = QAction('Compare', self)
         self.compare_view_action.triggered.connect(self.show_scenario_comparison)
         self.compare_view_action.setEnabled(False)
-        self.campaign_view_action = toolbar.addAction('Campaign Validation')
-        self.campaign_view_action.triggered.connect(self.show_campaign_validation)
-        self.campaign_view_action.setEnabled(False)
-        self.run_monitor_action = toolbar.addAction('Run Monitor')
-        self.run_monitor_action.triggered.connect(self.show_run_monitor)
-        self.result_viewer_action = toolbar.addAction('Result Viewer')
+        self.result_viewer_action = QAction('Result Viewer', self)
         self.result_viewer_action.triggered.connect(self.show_result_viewer)
         self.result_viewer_action.setEnabled(False)
-        self.playback_action = toolbar.addAction('Vehicle Playback')
+        self.playback_action = QAction('Vehicle Playback', self)
         self.playback_action.triggered.connect(self.show_vehicle_playback)
         self.playback_action.setEnabled(False)
+
+        self.campaign_view_action = QAction('Campaign Validation', self)
+        self.campaign_view_action.triggered.connect(self.show_campaign_validation)
+        self.campaign_view_action.setEnabled(False)
+        self.open_campaign_action = QAction('Open Campaign Manifest', self)
+        self.open_campaign_action.triggered.connect(self.open_campaign_dialog)
+
+        self.open_quickstart_action = QAction('Open Quickstart', self)
+        self.open_quickstart_action.triggered.connect(self.open_quickstart_guide)
+        self.open_user_guide_action = QAction('Open User Guide', self)
+        self.open_user_guide_action.triggered.connect(self.open_user_guide)
+        self.about_action = QAction('About MTNsim', self)
+        self.about_action.triggered.connect(self.show_about_dialog)
+
+        self._add_toolbar_menu_button(toolbar, 'Project', [
+            self.home_action,
+            None,
+            self.open_project_action,
+            self.new_project_action,
+            self.import_project_action,
+            self.attach_sumo_action,
+            None,
+            self.scene_view_action,
+            self.scenario_editor_action,
+        ])
+        self._add_toolbar_menu_button(toolbar, 'Run', [
+            self.run_selected_action,
+            self.run_monitor_action,
+        ])
+        self._add_toolbar_menu_button(toolbar, 'Results', [
+            self.result_viewer_action,
+            self.playback_action,
+            self.compare_view_action,
+        ])
+        self._add_toolbar_menu_button(toolbar, 'Validation', [
+            self.campaign_view_action,
+            self.open_campaign_action,
+        ])
+        self._add_toolbar_menu_button(toolbar, 'Help', [
+            self.open_quickstart_action,
+            self.open_user_guide_action,
+            None,
+            self.about_action,
+        ])
+
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        toolbar.addWidget(spacer)
+
+        quick_run_button = QToolButton(self)
+        quick_run_button.setObjectName('QuickRunButton')
+        quick_run_button.setDefaultAction(self.run_selected_action)
+        quick_run_button.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        toolbar.addWidget(quick_run_button)
         self.addToolBar(toolbar)
+
+    def _add_toolbar_menu_button(self, toolbar: QToolBar, label: str, entries: list[QAction | None]) -> None:
+        menu = QMenu(self)
+        for entry in entries:
+            if entry is None:
+                menu.addSeparator()
+            else:
+                menu.addAction(entry)
+        button = QToolButton(self)
+        button.setText(label)
+        button.setPopupMode(QToolButton.InstantPopup)
+        button.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        button.setMenu(menu)
+        button.setObjectName(f'{label.replace(' ', '')}MenuButton')
+        toolbar.addWidget(button)
 
     def _build_navigation_dock(self) -> None:
         self.navigation_list = QListWidget()
-        self.navigation_list.addItem(QListWidgetItem('Project Home'))
-        self.navigation_list.addItem(QListWidgetItem('Scene View'))
-        self.navigation_list.addItem(QListWidgetItem('Scenario Editor'))
+        self.navigation_list.addItem(QListWidgetItem('Home'))
+        self.navigation_list.addItem(QListWidgetItem('Scene'))
+        self.navigation_list.addItem(QListWidgetItem('Editor'))
         self.navigation_list.addItem(QListWidgetItem('Compare'))
-        self.navigation_list.addItem(QListWidgetItem('Campaign Validation'))
+        self.navigation_list.addItem(QListWidgetItem('Validation'))
         self.navigation_list.addItem(QListWidgetItem('Run Monitor'))
-        self.navigation_list.addItem(QListWidgetItem('Result Viewer'))
-        self.navigation_list.addItem(QListWidgetItem('Vehicle Playback'))
+        self.navigation_list.addItem(QListWidgetItem('Results'))
+        self.navigation_list.addItem(QListWidgetItem('Playback'))
         self.navigation_list.setCurrentRow(0)
 
-        dock = QDockWidget('Navigation', self)
+        dock = QDockWidget('Workspace', self)
         dock.setObjectName('NavigationDock')
         dock.setAllowedAreas(Qt.LeftDockWidgetArea)
         dock.setWidget(self.navigation_list)
@@ -179,6 +256,7 @@ class MainWindow(QMainWindow):
         self.project_home_view.new_project_requested.connect(self.open_new_project_dialog)
         self.project_home_view.import_project_requested.connect(self.open_import_project_dialog)
         self.project_home_view.attach_sumo_requested.connect(self.open_attach_sumo_dialog)
+        self.project_home_view.scene_requested.connect(self.show_scene_view)
         self.project_home_view.scenario_selected.connect(self.select_scenario)
         self.project_home_view.run_selected_requested.connect(self.run_selected_scenario)
         self.project_home_view.edit_selected_requested.connect(self.show_scenario_editor)
@@ -1203,6 +1281,19 @@ class MainWindow(QMainWindow):
         else:
             self.result_viewer_view.set_playback_cursor(None)
         self._append_log(f'[info] Loaded vehicle playback trace: {trace_file}')
+
+    def open_quickstart_guide(self) -> None:
+        self._open_path(Path.cwd() / 'docs' / 'new_project_quickstart.md', label='quickstart guide')
+
+    def open_user_guide(self) -> None:
+        self._open_path(Path.cwd() / 'docs' / 'user_guide.md', label='user guide')
+
+    def show_about_dialog(self) -> None:
+        QMessageBox.information(
+            self,
+            'About MTNsim',
+            'MTNsim Noise Simulation Workbench\n\nA GUI prototype for microscopic traffic-noise simulation, playback, comparison, and validation workflows.',
+        )
 
     def _open_path(self, path_like: str | Path | None, *, label: str) -> None:
         if not path_like:

@@ -1,6 +1,6 @@
 # MTNsim Deferred Enhancement Backlog
 
-Date: 2026-03-11
+Date: 2026-03-18
 Purpose: capture the high-value engine, validation, and performance work that remains important, but is intentionally not the immediate focus while GUI MVP work proceeds.
 
 ## 1. Why This Backlog Exists
@@ -120,6 +120,19 @@ Why deferred:
 - these are polish improvements rather than immediate workflow blockers
 
 
+### 2.9 Advanced Visualization and Source-Field Modeling
+
+Keep for a later phase:
+- full 3D scene rendering instead of only 2D map/noise overlays
+- 3D noise visualization tied to terrain, barriers, buildings, and receiver height
+- volumetric source-field models for individual vehicles
+- selectable directivity/source-field display modes such as spherical and wedge-like patterns
+- tighter linkage between future 3D visualization and more realistic directional propagation models
+
+Why deferred:
+- the current 2D GUI prototype is already broad enough that immediate value comes first from fixing aspect ratio and improving visual polish
+- true 3D rendering and directional source-field modeling are major expansions that should follow a stabilized operator workflow
+
 ## 3. Re-Entry Conditions
 
 Resume one of the deferred tracks when at least one of these becomes true:
@@ -132,8 +145,8 @@ Resume one of the deferred tracks when at least one of these becomes true:
 ## 4. Current Mainline Focus
 
 The current mainline focus is:
-1. GUI technology selection and desktop application shape
-2. GUI MVP screens and execution flow
+1. GUI product usability, project-entry flow, and operator workflow clarity
+2. Visual correctness and polish of the current 2D desktop shell
 3. Wiring the existing run/compare/validation engine into a usable desktop prototype
 
 ## 5. Maintenance Rule

@@ -1,6 +1,6 @@
 # MTNsim Development Checklist
 
-Last updated: 2026-03-11
+Last updated: 2026-03-18
 Owner: Codex + User
 Purpose: keep a single progress checklist that reflects product direction, implementation order, and current technical status.
 
@@ -30,8 +30,10 @@ Status legend:
 | Schema | Result schema | [x] | `schemas/result.schema.json` |
 | Packaging | Python package skeleton | [x] | `src/mtnsim` |
 | Metadata | README and package metadata | [x] | `README.md`, `pyproject.toml` |
-| GUI UX | Project/run/result operator polish | [~] | readiness guidance, completion summaries, and clearer result cards implemented; further history/session polish remains |
-| Project UX | New/import/attach project workflow | [~] | first-pass GUI creation/import flow implemented with validation summary, overwrite handling, first-run guidance, empty-project mode, later attach-SUMO support, selectable attach refresh scope, and optional scene/measurement import; deeper wizard polish still remains |
+| GUI UX | Project/run/result operator polish | [~] | readiness guidance, completion summaries, clearer result cards, and quickstart docs implemented; recent-project/session polish still remains |
+| Project UX | New/import/attach project workflow | [~] | first-pass GUI creation/import flow implemented with validation summary, overwrite handling, first-run guidance, empty-project mode, later attach-SUMO support, selectable attach refresh scope, optional scene/measurement import, and top-level SUMO config compatibility; deeper wizard polish still remains |
+| GUI UX | Preserve true scene aspect ratio in 2D views | [x] | scene/playback mapping now keeps SUMO network proportions with uniform scale and centered content |
+| GUI UX | Visual design refresh | [~] | shared desktop stylesheet and first-pass operator-shell polish implemented; deeper visual design work still remains |
 
 ## 3. Core Execution Kernel
 
@@ -111,6 +113,8 @@ Status legend:
 | Visualization | GUI Scene View | [x] | SUMO road polylines, receivers, and scenario geometry layers rendered in a 2D scene view |
 | Visualization | GUI Vehicle Playback | [x] | GUI-triggered runs now record vehicle traces and replay them with a time slider on top of the 2D scene view |
 | Visualization | GUI implementation | [~] | active track; core GUI flows exist; preview UX polish items are deferred in `docs/deferred_enhancement_backlog.md` |
+| Visualization | 3D scene and noise visualization layer | [ ] | future visualization track beyond the current 2D scene/heatmap implementation |
+| Visualization | Volumetric/directional source-field visualization | [ ] | support spherical, wedge-like, or other directional source-region displays with selectable modes |
 | API | Local API layer | [~] | thin local layer exists |
 | Agent | Bounded command architecture baseline | [~] | early structure only |
 | Agent | Real natural-language scenario control | [ ] | not started |
@@ -120,11 +124,12 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Polish the first-pass `New Project` / `Import SUMO Project` flow | [~] | project entry is now implemented, but wizard validation, overwrite handling, and empty-project support still need work |
-| 2 | Keep deeper validation, calibration, physics, and GPU work on the deferred backlog while project-entry UX is being stabilized | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
-| 3 | Resume field-data validation hardening after project creation/import and GUI operator flow are easier for non-developers | [~] | real external users now need to bring their own cases in before validation polish becomes broadly useful |
-| 4 | Add scene-aware performance benchmarking and selective GPU follow-up only where hybrid GPU becomes the bottleneck | [~] | hybrid GPU path is already usable, so more GPU work is not the immediate product priority |
-| 5 | Deepen reporting and richer agent control after project-entry and operator workflows stabilize | [ ] | depends on a smoother end-to-end project lifecycle |
+| 1 | Fix the GUI scene/playback aspect-ratio problem | [ ] | current 2D rendering can visually distort roads and noise fields, which directly hurts trust in the playback and heatmap views |
+| 2 | Raise GUI visual polish and operator-facing design quality | [ ] | the workflow is broad enough now that visual clarity and product feel matter more than another large backend feature |
+| 3 | Continue project/run/result UX polish after the new project/import flow | [~] | project entry is now usable, so the next value comes from smoother recent-project, run, and result navigation |
+| 4 | Plan and then implement a 3D scene/noise visualization layer | [ ] | the current 2D-only scene is useful but no longer sufficient for the intended long-term product direction |
+| 5 | Treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion | [ ] | source radiation still appears effectively flat-height in the GUI and should evolve toward selectable 3D/directive field shapes |
+| 6 | Keep deeper validation, calibration, scene-physics, and GPU work on the deferred backlog while GUI/product usability is the mainline focus | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
 
 ## 10. Maintenance Rule
 
