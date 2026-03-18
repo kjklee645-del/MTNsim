@@ -243,12 +243,12 @@ Must-have elements:
 - parameter reset to scenario defaults
 - simple scene summary panel
 - true-aspect 2D scene/playback rendering
-- more polished visual styling, spacing, and hierarchy across the desktop shell
+- more polished visual styling, spacing, and hierarchy across the desktop shell, including a dashboard-style `Tools & Config / Integrated Viewer / Analysis & Data` composition
 
 ### 4.3 Post-MVP Visual Expansion
 
-- 3D scene visualization with terrain, buildings, roads, and receivers (now further scoped in `docs/visualization_3d_plan.md`)
-- 3D noise rendering instead of only 2D heatmap overlays
+- 3D scene visualization with terrain, buildings, roads, and receivers (now started as a `3D View` workspace with static scene primitives, orbit/pan/zoom camera behavior, direct Result Viewer integration, and further scoped in `docs/visualization_3d_plan.md`)
+- 3D noise rendering instead of only 2D heatmap overlays (now started through a static 3D noise surface with dB legend/range controls and color-plate versus raised-surface modes)
 - volumetric source-field rendering for individual vehicles
 - selectable source directivity modes such as spherical and wedge-like patterns
 - user-facing controls to choose the source-field display model

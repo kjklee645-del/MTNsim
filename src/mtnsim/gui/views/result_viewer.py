@@ -122,6 +122,7 @@ class ResultViewerView(QWidget):
     open_output_dir_requested = Signal()
     open_result_summary_requested = Signal()
     open_manifest_requested = Signal()
+    open_3d_view_requested = Signal()
     export_markdown_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -151,6 +152,10 @@ class ResultViewerView(QWidget):
         self.open_manifest_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self.open_manifest_button.linkActivated.connect(lambda *_: self.open_manifest_requested.emit())
         action_row.addWidget(self.open_manifest_button)
+        self.open_3d_view_button = QLabel('<a href="#">Open 3D View</a>')
+        self.open_3d_view_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_3d_view_button.linkActivated.connect(lambda *_: self.open_3d_view_requested.emit())
+        action_row.addWidget(self.open_3d_view_button)
         self.export_markdown_button = QLabel('<a href="#">Export Markdown</a>')
         self.export_markdown_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self.export_markdown_button.linkActivated.connect(lambda *_: self.export_markdown_requested.emit())

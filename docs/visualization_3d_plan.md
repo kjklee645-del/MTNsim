@@ -140,11 +140,12 @@ Goal:
 
 ### Phase 3D-2: Static 3D Noise Surface
 
-Build next:
-- load selected run's final grid snapshot
-- convert grid cells into a 3D surface or height field
-- add legend and dB scaling controls
-- let users switch between color-only and height-plus-color rendering
+Build next: [started]
+- load selected run's final grid snapshot [done]
+- convert grid cells into a 3D surface or height field [done]
+- add legend and dB scaling controls [done]
+- let users switch between color-only and height-plus-color rendering [done]
+- support operator camera controls for orbit / pan / zoom / reset [done]
 
 Goal:
 - users can understand the noise field spatially in 3D
@@ -152,10 +153,10 @@ Goal:
 ### Phase 3D-3: Result Integration Polish
 
 Build next:
-- open 3D view directly from Result Viewer
-- bind the selected run to the 3D view
-- show run metadata and current view mode
-- keep layer states and camera resets manageable
+- open 3D view directly from Result Viewer [done]
+- bind the selected run to the 3D view [done]
+- show run metadata and current view mode [done]
+- keep layer states and camera resets manageable [started]
 
 Goal:
 - make the 3D view part of the normal operator workflow rather than a demo-only screen
@@ -206,10 +207,10 @@ Mitigation:
 
 ## 9. Immediate Next Coding Task
 
-The next coding task after this plan is:
-1. add a new `3D View` workspace target
-2. add a placeholder `Scene3DView` widget
-3. add a scene-to-3D adapter contract
-4. render the first static 3D scene primitives for roads, receivers, barriers, and buildings
+The next coding task after the current slice is:
+1. keep layer states and camera resets manageable across 3D result switches
+2. prepare the scene adapter for later playback-aware 3D updates
+3. then move toward playback-aware 3D behavior
+4. after that, start volumetric/directive source-field overlays
 
-That is the correct first implementation slice because it proves the architecture without yet committing to dynamic noise playback.
+That is the correct next slice because the static 3D scene, static 3D noise surface, operator legend/range controls, and orbit/pan/zoom camera now exist and should be folded into the normal result workflow before dynamic 3D playback is attempted.
