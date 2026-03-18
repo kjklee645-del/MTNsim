@@ -18,7 +18,7 @@ The codebase now supports:
 - path-specific material-aware propagation effects
 - scene-aware hybrid GPU execution for attenuation and accumulation
 - a GUI prototype with project loading, 2D scene viewing, background run execution, progress monitoring, result viewing, and receiver-series plotting
-- first-pass GUI-wide visual polish via a shared desktop stylesheet, cleaner operator-shell presentation, a menu-driven top-toolbar structure, workspace-oriented navigation semantics, and card-like summary sections in key operator views
+- first-pass GUI-wide visual polish via a shared desktop stylesheet, cleaner operator-shell presentation, a menu-driven top-toolbar structure, workspace-oriented navigation semantics, card-like summary sections in key operator views, and a darker dashboard-style shell with `Tools & Config`, `Integrated Viewer`, and `Analysis & Data` regions
 
 ## 2. What Has Been Implemented
 
@@ -257,7 +257,7 @@ These values are prototype-level engineering checks, not yet validated against m
 - GUI can browse scenarios, inspect a 2D scene view, run scenarios, inspect results, replay recorded vehicle motion, compare two scenarios through config diff and run-result comparison, and inspect/validate field campaigns through a dedicated desktop UI
 - current GUI styling is functional but still prototype-grade rather than polished product UI
 - scene objects such as noise barriers, terrain edges, ground surfaces, vegetation zones, and buildings can now be authored in a first-pass GUI editor with click-to-draw geometry creation, basic direct manipulation, and duplicate plus undo/redo support; deeper geometry-authoring polish such as vertex add/remove, duplicate-and-drag, snapping, and richer reshape tooling is deferred in the backlog
-- no 3D scene/noise visualization code exists yet, but the scope and first implementation order are now fixed in `docs/visualization_3d_plan.md`
+- a first 3D scene shell now exists through `Scene3DView`, `Scene3DController`, and the scene-to-3D adapter layer; it now renders static 3D scene primitives for roads, receivers, barriers, buildings, ground, vegetation, the grid-region overlay, and a static 3D noise surface derived from the selected run's grid snapshot, with orbit/pan/zoom/reset camera controls, dB legend/range controls, color-plate versus raised-surface rendering modes, and direct Result Viewer-to-3D linking with run metadata, but not yet dynamic 3D playback
 - current source radiation and visible heatmap logic are still effectively flat-height approximations rather than selectable volumetric or directional source-field models
 - no final report generator yet
 - campaign import standardization exists, but full production-grade GIS/CAD ingestion is still not implemented
@@ -268,7 +268,7 @@ These values are prototype-level engineering checks, not yet validated against m
 1. continue GUI visual polish from functional prototype quality toward a cleaner, more deliberate operator-facing product shell
 2. continue expanding the Scene Object Editor from form/list editing plus Scene View-linked selection, click-to-draw creation, direct manipulation, and duplicate plus undo/redo support toward a smoother geometry-authoring workflow
 3. continue project/run/result UX polish now that `New Project`, `Import SUMO Project`, and `Attach SUMO` are all usable
-4. execute the now-defined 3D visualization plan in `docs/visualization_3d_plan.md`, starting with a `3D View` shell and static scene primitives before dynamic playback
+4. continue the now-started 3D visualization plan in `docs/visualization_3d_plan.md`, moving from the current static 3D scene plus static 3D noise-surface view with Result Viewer integration toward playback-aware 3D behavior
 5. treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion after the 3D scene layer is defined
 6. keep deeper validation, calibration, scene-physics, and GPU work tracked as deferred backlog while GUI/product usability remains the mainline focus
 

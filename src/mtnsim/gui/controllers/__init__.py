@@ -5,6 +5,7 @@ from mtnsim.gui.controllers.project_controller import ProjectController
 from mtnsim.gui.controllers.result_controller import ResultController, ReceiverSeries
 from mtnsim.gui.controllers.run_controller import RunController, RunWorker
 from mtnsim.gui.controllers.scene_controller import SceneController, SceneSnapshot
+from mtnsim.gui.controllers.scene3d_controller import Scene3DController
 
 __all__ = [
     "CampaignController",
@@ -20,6 +21,7 @@ __all__ = [
     "RunController",
     "RunWorker",
     "SceneController",
+    "Scene3DController",
     "SceneSnapshot",
     "VehicleTracePoint",
 ]

@@ -17,21 +17,27 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QDialog,
     QDockWidget,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
     QMainWindow,
     QMenu,
     QMessageBox,
     QPlainTextEdit,
+    QPushButton,
     QSizePolicy,
     QStackedWidget,
     QTextEdit,
     QToolBar,
     QToolButton,
+    QVBoxLayout,
     QWidget,
 )
 
-from mtnsim.gui.controllers import CampaignController, CompareController, PlaybackController, ProjectController, ResultController, RunController, SceneController
+from mtnsim.gui.controllers import CampaignController, CompareController, PlaybackController, ProjectController, ResultController, RunController, Scene3DController, SceneController
 from mtnsim.gui.state import GuiRunState, GuiSessionState
-from mtnsim.gui.views import CampaignValidationView, ProjectHomeView, ProjectSetupDialog, ResultViewerView, RunMonitorView, ScenarioComparisonView, ScenarioEditorView, SceneObjectEditorView, SceneView, VehiclePlaybackView
+from mtnsim.gui.views import CampaignValidationView, ProjectHomeView, ProjectSetupDialog, ResultViewerView, RunMonitorView, ScenarioComparisonView, ScenarioEditorView, Scene3DView, SceneObjectEditorView, SceneView, VehiclePlaybackView
 from mtnsim.schemas.scenario import Building, GroundSurface, NoiseBarrier, Receiver, TerrainEdge, VegetationZone
 
 
@@ -44,6 +50,7 @@ class MainWindow(QMainWindow):
         self.run_controller = RunController()
         self.result_controller = ResultController()
         self.scene_controller = SceneController()
+        self.scene3d_controller = Scene3DController()
         self.playback_controller = PlaybackController()
         self.session_state = GuiSessionState()
         self.run_thread: QThread | None = None
@@ -71,7 +78,7 @@ class MainWindow(QMainWindow):
             self.load_project(Path(manifest_path))
 
     def _build_ui(self) -> None:
-        self.setWindowTitle('MTNsim Noise Simulation Workbench')
+        self.setWindowTitle('MTNsim - Urban Corridor Analysis')
         self.setObjectName('MainWorkbenchWindow')
         self.resize(1520, 940)
 
@@ -84,6 +91,7 @@ class MainWindow(QMainWindow):
         self.scene_view = SceneView()
         self.scenario_editor_view = ScenarioEditorView()
         self.scene_object_editor_view = SceneObjectEditorView()
+        self.scene_3d_view = Scene3DView()
         self.scenario_comparison_view = ScenarioComparisonView()
         self.campaign_validation_view = CampaignValidationView()
         self.run_monitor_view = RunMonitorView()
@@ -95,12 +103,13 @@ class MainWindow(QMainWindow):
         self.central_stack.addWidget(self.scene_view)
         self.central_stack.addWidget(self.scenario_editor_view)
         self.central_stack.addWidget(self.scene_object_editor_view)
+        self.central_stack.addWidget(self.scene_3d_view)
         self.central_stack.addWidget(self.scenario_comparison_view)
         self.central_stack.addWidget(self.campaign_validation_view)
         self.central_stack.addWidget(self.run_monitor_view)
         self.central_stack.addWidget(self.result_viewer_view)
         self.central_stack.addWidget(self.vehicle_playback_view)
-        self.setCentralWidget(self.central_stack)
+        self._build_central_workspace_shell()
         self.statusBar().setObjectName('AppStatusBar')
         self.statusBar().showMessage('Ready')
 
@@ -136,6 +145,9 @@ class MainWindow(QMainWindow):
         self.scene_object_editor_action = QAction('Scene Objects', self)
         self.scene_object_editor_action.triggered.connect(self.show_scene_object_editor)
         self.scene_object_editor_action.setEnabled(False)
+        self.scene_3d_view_action = QAction('3D View', self)
+        self.scene_3d_view_action.triggered.connect(self.show_scene_3d_view)
+        self.scene_3d_view_action.setEnabled(False)
 
         self.compare_view_action = QAction('Compare', self)
         self.compare_view_action.triggered.connect(self.show_scenario_comparison)
@@ -219,7 +231,58 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(button)
 
     def _build_navigation_dock(self) -> None:
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(12)
+
+        title = QLabel('Tools & Config')
+        title.setObjectName('panelTitle')
+        layout.addWidget(title)
+
+        project_label = self._build_shell_section_label('PROJECT')
+        layout.addWidget(project_label)
+
+        project_grid = QGridLayout()
+        project_grid.setHorizontalSpacing(8)
+        project_grid.setVerticalSpacing(8)
+        project_grid.addWidget(self._build_action_tile('New', self.new_project_action), 0, 0)
+        project_grid.addWidget(self._build_action_tile('Open', self.open_project_action), 0, 1)
+        project_grid.addWidget(self._build_action_tile('Import', self.import_project_action), 0, 2)
+        project_grid.addWidget(self._build_action_tile('Attach', self.attach_sumo_action), 1, 0)
+        project_grid.addWidget(self._build_action_tile('Run', self.run_selected_action), 1, 1)
+        project_grid.addWidget(self._build_action_tile('Monitor', self.run_monitor_action), 1, 2)
+        layout.addLayout(project_grid)
+
+        edit_label = self._build_shell_section_label('MAP EDITOR')
+        layout.addWidget(edit_label)
+
+        edit_grid = QGridLayout()
+        edit_grid.setHorizontalSpacing(8)
+        edit_grid.setVerticalSpacing(8)
+        edit_grid.addWidget(self._build_action_tile('Scene', self.scene_view_action), 0, 0)
+        edit_grid.addWidget(self._build_action_tile('Objects', self.scene_object_editor_action), 0, 1)
+        edit_grid.addWidget(self._build_action_tile('Scenario', self.scenario_editor_action), 0, 2)
+        edit_grid.addWidget(self._build_action_tile('Compare', self.compare_view_action), 1, 0)
+        edit_grid.addWidget(self._build_action_tile('Results', self.result_viewer_action), 1, 1)
+        edit_grid.addWidget(self._build_action_tile('Playback', self.playback_action), 1, 2)
+        edit_grid.addWidget(self._build_action_tile('3D View', self.scene_3d_view_action), 2, 0)
+        layout.addLayout(edit_grid)
+
+        validation_label = self._build_shell_section_label('VALIDATION')
+        layout.addWidget(validation_label)
+        validation_row = QHBoxLayout()
+        validation_row.setSpacing(8)
+        validation_row.addWidget(self._build_action_tile('Campaign', self.campaign_view_action))
+        validation_row.addWidget(self._build_action_tile('Manifest', self.open_campaign_action))
+        validation_row.addStretch(1)
+        layout.addLayout(validation_row)
+
+        workspace_label = self._build_shell_section_label('WORKSPACE')
+        layout.addWidget(workspace_label)
+
         self.navigation_list = QListWidget()
+        self.navigation_list.setObjectName('WorkspaceList')
         self.navigation_list.addItem(QListWidgetItem('Home'))
         self.navigation_list.addItem(QListWidgetItem('Scene'))
         self.navigation_list.addItem(QListWidgetItem('Scene Objects'))
@@ -229,23 +292,61 @@ class MainWindow(QMainWindow):
         self.navigation_list.addItem(QListWidgetItem('Run Monitor'))
         self.navigation_list.addItem(QListWidgetItem('Results'))
         self.navigation_list.addItem(QListWidgetItem('Playback'))
+        self.navigation_list.addItem(QListWidgetItem('3D View'))
         self.navigation_list.setCurrentRow(0)
+        layout.addWidget(self.navigation_list, 1)
 
-        dock = QDockWidget('Workspace', self)
+        dock = QDockWidget('Tools & Config', self)
         dock.setObjectName('NavigationDock')
         dock.setAllowedAreas(Qt.LeftDockWidgetArea)
-        dock.setWidget(self.navigation_list)
+        dock.setWidget(panel)
         self.addDockWidget(Qt.LeftDockWidgetArea, dock)
 
     def _build_details_dock(self) -> None:
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(12)
+
+        title = QLabel('Analysis & Data')
+        title.setObjectName('panelTitle')
+        layout.addWidget(title)
+
+        self.analysis_status_label = QLabel('Status: idle')
+        self.analysis_status_label.setObjectName('statusBadgeNeutral')
+        layout.addWidget(self.analysis_status_label)
+
+        summary_card = QFrame()
+        summary_card.setObjectName('infoCard')
+        summary_layout = QVBoxLayout(summary_card)
+        summary_layout.setContentsMargins(12, 12, 12, 12)
+        summary_layout.setSpacing(6)
+        summary_title = QLabel('LIVE ANALYTICS')
+        summary_title.setObjectName('sectionTitle')
+        summary_layout.addWidget(summary_title)
+        self.analysis_project_label = QLabel('Project: -')
+        self.analysis_scenario_label = QLabel('Scenario: -')
+        self.analysis_run_label = QLabel('Last run: -')
+        self.analysis_mode_label = QLabel('Execution: -')
+        for widget in [self.analysis_project_label, self.analysis_scenario_label, self.analysis_run_label, self.analysis_mode_label]:
+            widget.setWordWrap(True)
+            summary_layout.addWidget(widget)
+        layout.addWidget(summary_card)
+
+        details_title = QLabel('SCENARIO DETAILS')
+        details_title.setObjectName('sectionTitle')
+        layout.addWidget(details_title)
+
         self.details_panel = QTextEdit()
+        self.details_panel.setObjectName('infoCard')
         self.details_panel.setReadOnly(True)
         self.details_panel.setPlaceholderText('Scenario details will appear here.')
+        layout.addWidget(self.details_panel, 1)
 
-        dock = QDockWidget('Scenario Details', self)
+        dock = QDockWidget('Analysis & Data', self)
         dock.setObjectName('DetailsDock')
         dock.setAllowedAreas(Qt.RightDockWidgetArea)
-        dock.setWidget(self.details_panel)
+        dock.setWidget(panel)
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
 
     def _build_log_dock(self) -> None:
@@ -258,6 +359,127 @@ class MainWindow(QMainWindow):
         dock.setAllowedAreas(Qt.BottomDockWidgetArea)
         dock.setWidget(self.log_panel)
         self.addDockWidget(Qt.BottomDockWidgetArea, dock)
+
+
+    def _build_central_workspace_shell(self) -> None:
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+
+        header_card = QFrame()
+        header_card.setObjectName('viewerHeaderCard')
+        header_layout = QVBoxLayout(header_card)
+        header_layout.setContentsMargins(16, 14, 16, 14)
+        header_layout.setSpacing(10)
+
+        title = QLabel('Integrated Viewer')
+        title.setObjectName('pageTitle')
+        header_layout.addWidget(title)
+
+        tabs_row = QHBoxLayout()
+        tabs_row.setSpacing(8)
+        self.center_view_buttons = {}
+        center_specs = [
+            ('Scene', self.show_scene_view, 'scene'),
+            ('Objects', self.show_scene_object_editor, 'objects'),
+            ('Scenario', self.show_scenario_editor, 'editor'),
+            ('Noise Map', self.show_result_viewer, 'results'),
+            ('Vehicle Path', self.show_vehicle_playback, 'playback'),
+            ('Compare', self.show_scenario_comparison, 'compare'),
+            ('Validation', self.show_campaign_validation, 'validation'),
+            ('3D View', self.show_scene_3d_view, '3d'),
+        ]
+        for label, handler, key in center_specs:
+            button = QPushButton(label)
+            button.setObjectName('viewerTabButton')
+            button.setCheckable(True)
+            button.clicked.connect(handler)
+            tabs_row.addWidget(button)
+            self.center_view_buttons[key] = button
+        tabs_row.addStretch(1)
+        header_layout.addLayout(tabs_row)
+
+        layout.addWidget(header_card)
+        layout.addWidget(self.central_stack, 1)
+        self.setCentralWidget(container)
+
+    def _build_action_tile(self, label: str, action: QAction) -> QToolButton:
+        button = QToolButton(self)
+        button.setObjectName('ActionTile')
+        button.setDefaultAction(action)
+        button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        button.setText(label)
+        return button
+
+    def _build_shell_section_label(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName('shellSectionLabel')
+        return label
+
+    def _set_active_center_button(self, key: str | None) -> None:
+        for name, button in getattr(self, 'center_view_buttons', {}).items():
+            button.blockSignals(True)
+            button.setChecked(name == key)
+            button.blockSignals(False)
+
+    def _sync_shell_controls(self) -> None:
+        if hasattr(self, 'center_view_buttons'):
+            if 'scene' in self.center_view_buttons:
+                self.center_view_buttons['scene'].setEnabled(self.scene_view_action.isEnabled())
+            if 'objects' in self.center_view_buttons:
+                self.center_view_buttons['objects'].setEnabled(self.scene_object_editor_action.isEnabled())
+            if 'editor' in self.center_view_buttons:
+                self.center_view_buttons['editor'].setEnabled(self.scenario_editor_action.isEnabled())
+            if 'results' in self.center_view_buttons:
+                self.center_view_buttons['results'].setEnabled(self.result_viewer_action.isEnabled())
+            if 'playback' in self.center_view_buttons:
+                self.center_view_buttons['playback'].setEnabled(self.playback_action.isEnabled())
+            if 'compare' in self.center_view_buttons:
+                self.center_view_buttons['compare'].setEnabled(self.compare_view_action.isEnabled())
+            if 'validation' in self.center_view_buttons:
+                self.center_view_buttons['validation'].setEnabled(self.campaign_view_action.isEnabled())
+            if '3d' in self.center_view_buttons:
+                self.center_view_buttons['3d'].setEnabled(self.scene_3d_view_action.isEnabled())
+
+    def _refresh_analysis_panel(self) -> None:
+        project_state = self.session_state.project_state
+        run_state = self.session_state.run_state
+        project_name = project_state.project.project.name if project_state.project is not None else '-'
+        scenario_name = project_state.selected_scenario.scenario.name if project_state.selected_scenario is not None else '-'
+        if run_state.run_id:
+            run_label = f'Last run: {run_state.run_id[:8]}'
+        else:
+            run_label = 'Last run: -'
+        if run_state.is_running:
+            status_text = f'Status: running ({run_state.progress_percent}%)'
+            status_object = 'statusBadgeWarning'
+        elif run_state.error_message:
+            status_text = 'Status: run failed'
+            status_object = 'statusBadgeWarning'
+        elif self.current_result_summary is not None:
+            status_text = 'Status: result loaded'
+            status_object = 'statusBadgeReady'
+        elif project_state.project is not None:
+            status_text = 'Status: project loaded'
+            status_object = 'statusBadgeNeutral'
+        else:
+            status_text = 'Status: idle'
+            status_object = 'statusBadgeNeutral'
+        execution = '-'
+        if run_state.requested_use_gpu is not None:
+            execution = 'GPU requested' if run_state.requested_use_gpu else 'CPU requested'
+        if run_state.used_gpu is not None:
+            execution = 'GPU used' if run_state.used_gpu else 'CPU used'
+
+        self.analysis_status_label.setText(status_text)
+        self.analysis_status_label.setObjectName(status_object)
+        self.analysis_status_label.style().unpolish(self.analysis_status_label)
+        self.analysis_status_label.style().polish(self.analysis_status_label)
+        self.analysis_project_label.setText(f'Project: {project_name}')
+        self.analysis_scenario_label.setText(f'Scenario: {scenario_name}')
+        self.analysis_run_label.setText(run_label)
+        self.analysis_mode_label.setText(f'Execution: {execution}')
 
     def _connect_signals(self) -> None:
         self.project_home_view.open_project_requested.connect(self.open_project_dialog)
@@ -306,6 +528,7 @@ class MainWindow(QMainWindow):
         self.result_viewer_view.open_output_dir_requested.connect(self.open_current_result_output_dir)
         self.result_viewer_view.open_result_summary_requested.connect(self.open_current_result_summary_file)
         self.result_viewer_view.open_manifest_requested.connect(self.open_current_run_manifest_file)
+        self.result_viewer_view.open_3d_view_requested.connect(self.open_current_result_in_3d_view)
         self.result_viewer_view.export_markdown_requested.connect(self.export_current_result_markdown)
         self.vehicle_playback_view.playback_frame_changed.connect(self._sync_heatmap_to_playback_frame)
         self.vehicle_playback_view.contribution_view_changed.connect(self._refresh_playback_contribution_view)
@@ -547,6 +770,8 @@ class MainWindow(QMainWindow):
         self.run_selected_action.setEnabled(run_enabled)
         self.project_home_view.set_run_enabled(run_enabled)
         self._refresh_project_home_readiness()
+        self._sync_shell_controls()
+        self._refresh_analysis_panel()
 
     def load_project(self, manifest_path: Path) -> None:
         try:
@@ -567,6 +792,7 @@ class MainWindow(QMainWindow):
         run_enabled = state.selected_scenario_path is not None
         self.scene_view_action.setEnabled(run_enabled)
         self.scenario_editor_action.setEnabled(run_enabled)
+        self.scene_3d_view_action.setEnabled(run_enabled)
         self.compare_view_action.setEnabled(len(state.scenario_paths) >= 2)
         self.campaign_view_action.setEnabled(state.manifest_path is not None)
         self._update_run_enablement()
@@ -580,6 +806,8 @@ class MainWindow(QMainWindow):
             self.scene_object_editor_view.set_scenario(state.selected_scenario_path, state.selected_scenario)
             self._update_scene_view()
         self.statusBar().showMessage(f'Loaded project: {state.project.project.name}')
+        self._sync_shell_controls()
+        self._refresh_analysis_panel()
         self.show_project_home()
 
     def select_scenario(self, scenario_path: str) -> None:
@@ -604,6 +832,7 @@ class MainWindow(QMainWindow):
         self.scene_view_action.setEnabled(True)
         self.scenario_editor_action.setEnabled(True)
         self.scene_object_editor_action.setEnabled(True)
+        self.scene_3d_view_action.setEnabled(True)
         self.compare_view_action.setEnabled(len(self.session_state.project_state.scenario_paths) >= 2)
         self.campaign_view_action.setEnabled(self.session_state.project_state.manifest_path is not None)
         self._update_run_enablement()
@@ -611,6 +840,8 @@ class MainWindow(QMainWindow):
         self.scenario_comparison_view.set_run_comparison(None)
         self._append_log(f'[info] Selected scenario: {loaded.scenario.name}')
         self.statusBar().showMessage(f'Selected scenario: {loaded.scenario.name}')
+        self._sync_shell_controls()
+        self._refresh_analysis_panel()
 
     def run_selected_scenario(self) -> None:
         project_state = self.session_state.project_state
@@ -669,6 +900,7 @@ class MainWindow(QMainWindow):
         self.current_result_summary_path = Path(result_summary_path)
         self.result_viewer_view.set_result_summary_source(result_summary_path)
         self.result_viewer_view.set_result_summary(summary)
+        self.scene_3d_view.set_result_context(summary, result_summary_path)
         if summary.receiver_history_files:
             first_receiver = sorted(summary.receiver_history_files.keys())[0]
             self.result_viewer_view.receiver_selector.setCurrentText(first_receiver)
@@ -679,6 +911,13 @@ class MainWindow(QMainWindow):
         self.result_viewer_action.setEnabled(True)
         self.show_result_viewer()
         self._append_log(f'[info] Loaded result summary: {result_summary_path}')
+        self._refresh_analysis_panel()
+
+    def open_current_result_in_3d_view(self) -> None:
+        if self.current_result_summary is None:
+            QMessageBox.information(self, '3D View', 'Load a result summary before opening the 3D view.')
+            return
+        self.show_scene_3d_view()
 
     def load_receiver_series(self, receiver_id: str) -> None:
         if self.current_result_summary is None:
@@ -707,74 +946,102 @@ class MainWindow(QMainWindow):
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(0)
         self.navigation_list.blockSignals(False)
+        self._set_active_center_button(None)
 
     def show_scene_view(self) -> None:
         self.central_stack.setCurrentWidget(self.scene_view)
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(1)
         self.navigation_list.blockSignals(False)
+        self._set_active_center_button('scene')
 
     def show_scenario_editor(self) -> None:
         self.central_stack.setCurrentWidget(self.scenario_editor_view)
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(3)
         self.navigation_list.blockSignals(False)
+        self._set_active_center_button('editor')
 
     def show_scene_object_editor(self) -> None:
         self.central_stack.setCurrentWidget(self.scene_object_editor_view)
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(2)
         self.navigation_list.blockSignals(False)
+        self._set_active_center_button('objects')
+
+    def show_scene_3d_view(self) -> None:
+        self.central_stack.setCurrentWidget(self.scene_3d_view)
+        self.navigation_list.blockSignals(True)
+        self.navigation_list.setCurrentRow(9)
+        self.navigation_list.blockSignals(False)
+        self._set_active_center_button('3d')
 
     def show_scenario_comparison(self) -> None:
         self.central_stack.setCurrentWidget(self.scenario_comparison_view)
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(4)
         self.navigation_list.blockSignals(False)
+        self._set_active_center_button('compare')
 
     def show_campaign_validation(self) -> None:
         self.central_stack.setCurrentWidget(self.campaign_validation_view)
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(5)
         self.navigation_list.blockSignals(False)
+        self._set_active_center_button('validation')
 
     def show_run_monitor(self) -> None:
         self.central_stack.setCurrentWidget(self.run_monitor_view)
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(6)
         self.navigation_list.blockSignals(False)
+        self._set_active_center_button(None)
 
     def show_result_viewer(self) -> None:
         self.central_stack.setCurrentWidget(self.result_viewer_view)
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(7)
         self.navigation_list.blockSignals(False)
+        self._set_active_center_button('results')
 
     def show_vehicle_playback(self) -> None:
         self.central_stack.setCurrentWidget(self.vehicle_playback_view)
         self.navigation_list.blockSignals(True)
         self.navigation_list.setCurrentRow(8)
         self.navigation_list.blockSignals(False)
+        self._set_active_center_button('playback')
 
     def _handle_navigation_change(self, row: int) -> None:
         if row == 0:
             self.central_stack.setCurrentWidget(self.project_home_view)
+            self._set_active_center_button(None)
         elif row == 1:
             self.central_stack.setCurrentWidget(self.scene_view)
+            self._set_active_center_button('scene')
         elif row == 2:
             self.central_stack.setCurrentWidget(self.scene_object_editor_view)
+            self._set_active_center_button('objects')
         elif row == 3:
             self.central_stack.setCurrentWidget(self.scenario_editor_view)
+            self._set_active_center_button('editor')
         elif row == 4:
             self.central_stack.setCurrentWidget(self.scenario_comparison_view)
+            self._set_active_center_button('compare')
         elif row == 5:
             self.central_stack.setCurrentWidget(self.campaign_validation_view)
+            self._set_active_center_button('validation')
         elif row == 6:
             self.central_stack.setCurrentWidget(self.run_monitor_view)
+            self._set_active_center_button(None)
         elif row == 7:
             self.central_stack.setCurrentWidget(self.result_viewer_view)
+            self._set_active_center_button('results')
         elif row == 8:
             self.central_stack.setCurrentWidget(self.vehicle_playback_view)
+            self._set_active_center_button('playback')
+        elif row == 9:
+            self.central_stack.setCurrentWidget(self.scene_3d_view)
+            self._set_active_center_button('3d')
 
     def _on_run_progress(self, percent: int, label: str) -> None:
         state = self.session_state.run_state
@@ -827,6 +1094,7 @@ class MainWindow(QMainWindow):
         if state.vehicle_trace_file:
             self._append_log(f"[info] Vehicle trace: {state.vehicle_trace_file}")
         self.statusBar().showMessage('Run completed')
+        self._refresh_analysis_panel()
 
     def _on_run_failed(self, error_message: str) -> None:
         state = self.session_state.run_state
@@ -838,6 +1106,7 @@ class MainWindow(QMainWindow):
         self._update_run_enablement()
         self._append_log(f'[error] {error_message}')
         self.statusBar().showMessage('Run failed')
+        self._refresh_analysis_panel()
         QMessageBox.critical(self, 'Simulation Failed', error_message)
 
     def _cleanup_run_thread(self) -> None:
@@ -1356,6 +1625,7 @@ class MainWindow(QMainWindow):
             *receiver_lines,
         ]
         self.details_panel.setPlainText('\n'.join(lines))
+        self._refresh_analysis_panel()
 
     def _update_scene_view(self) -> None:
         project_state = self.session_state.project_state
@@ -1363,6 +1633,7 @@ class MainWindow(QMainWindow):
         if project_state.project is None or scenario is None:
             self.scene_view.set_snapshot(None)
             self.vehicle_playback_view.set_snapshot(None)
+            self.scene_3d_view.set_frame(None)
             self.dynamic_heatmap_context = None
             self._pending_prefetch_frame_indices = []
             self._playback_prefetch_timer.stop()
@@ -1370,6 +1641,7 @@ class MainWindow(QMainWindow):
         snapshot = self.scene_controller.build_snapshot(project_state.project, scenario)
         self.scene_view.set_snapshot(snapshot)
         self.vehicle_playback_view.set_snapshot(snapshot)
+        self.scene_3d_view.set_frame(self.scene3d_controller.build_frame(snapshot))
         if self.selected_scene_object_key is not None:
             self.scene_view.set_selected_scene_object(*self.selected_scene_object_key)
             self.vehicle_playback_view.set_selected_scene_object(*self.selected_scene_object_key)
@@ -1411,6 +1683,7 @@ class MainWindow(QMainWindow):
                 snapshot = self.scene_controller.build_snapshot(project_state.project, candidate)
                 self.scene_view.set_snapshot(snapshot)
                 self.vehicle_playback_view.set_snapshot(snapshot)
+                self.scene_3d_view.set_frame(self.scene3d_controller.build_frame(snapshot))
                 return candidate
         return selected
 
@@ -1418,6 +1691,9 @@ class MainWindow(QMainWindow):
         cells = self.result_controller.load_heatmap_cells(getattr(summary, 'final_grid_snapshot_file', None))
         self.scene_view.canvas.set_heatmap_cells(cells)
         self.vehicle_playback_view.set_heatmap_cells(cells)
+        frame = self.scene_3d_view.canvas.frame_data
+        if frame is not None:
+            self.scene_3d_view.set_frame(self.scene3d_controller.apply_noise_cells(frame, cells))
         if cells:
             self._append_log(f'[info] Loaded heatmap overlay with {len(cells)} cells')
 
@@ -1441,6 +1717,9 @@ class MainWindow(QMainWindow):
 
         self.scene_view.canvas.set_heatmap_cells(cells)
         self.vehicle_playback_view.set_heatmap_cells(cells)
+        scene3d_frame = self.scene_3d_view.canvas.frame_data
+        if scene3d_frame is not None:
+            self.scene_3d_view.set_frame(self.scene3d_controller.apply_noise_cells(scene3d_frame, cells))
         self.result_viewer_view.set_playback_cursor(frame.time_index)
 
         project_state = self.session_state.project_state

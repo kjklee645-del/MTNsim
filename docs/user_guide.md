@@ -363,11 +363,11 @@ Typical per-run outputs:
 
 ## 11. Current Limitations
 
-- no GUI yet
-- shielding-aware runs currently use CPU
-- terrain surfaces, vegetation, and richer 3D scene objects are not implemented yet
+- GUI is available, but some views are still prototype-grade rather than fully polished product UI
+- full tensorized scene-aware GPU propagation is still not implemented
+- 3D View currently supports static scene primitives and a static noise surface, but not yet full playback-aware 3D animation
 - propagation models are improved but still not fully field-validated
-- report generation is not implemented yet
+- report generation is only partially implemented through run/comparison/campaign exports
 - AI-agent control is not implemented as a user-facing feature yet
 
 ## 12. Recommended Starting Workflow
@@ -444,3 +444,24 @@ The GUI now uses clearer card-style summary panels and status badges in key work
 - Scenario Editor / Compare / Campaign Validation / Playback views polished with card layout and consistent status styling.
 
 - Scene Object Editor first pass added for list/form editing of barriers, buildings, terrain edges, ground surfaces, and vegetation zones with Save As, live scene preview, Scene View-linked selection/highlight, first-pass 2D click-to-draw geometry authoring, direct geometry manipulation for selected objects, and basic duplicate plus undo/redo history support.
+
+## 3D View
+
+The GUI now includes a `3D View` workspace for static scene and noise inspection.
+
+What it currently shows:
+- roads, receivers, barriers, buildings, ground, vegetation, and the authored grid region in 3D
+- a static 3D noise surface derived from the selected run's `grid_final_snapshot.json`
+
+Current 3D controls:
+- mouse wheel: zoom in/out
+- left drag: orbit / change viewpoint
+- right drag or middle drag: pan
+- double-click or `Reset View`: reset the camera
+- `Surface Mode`: switch between `Raised Surface` and `Color Plate`
+- `Auto dB Range`, `Min dB`, `Max dB`: control the noise color scale
+- layer toggles: show/hide roads, receivers, barriers, buildings, ground, vegetation, grid region, and the 3D noise surface
+- `Result Viewer -> Open 3D View`: open the currently loaded result directly in the 3D workspace with run/scenario metadata carried over
+
+Current limitation:
+- the 3D view is still static with respect to noise playback; it does not yet animate vehicles or update the 3D noise field frame-by-frame from playback
