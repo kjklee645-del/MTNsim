@@ -5,6 +5,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
+    QFrame,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -22,6 +23,7 @@ class ProjectHomeView(QWidget):
     new_project_requested = Signal()
     import_project_requested = Signal()
     attach_sumo_requested = Signal()
+    scene_requested = Signal()
     scenario_selected = Signal(str)
     run_selected_requested = Signal()
     edit_selected_requested = Signal()
@@ -40,51 +42,56 @@ class ProjectHomeView(QWidget):
 
         title = QLabel('MTNsim Project Home')
         title.setObjectName('pageTitle')
-        title.setStyleSheet('font-size: 22px; font-weight: 700;')
         root_layout.addWidget(title)
 
-        button_row = QHBoxLayout()
-        self.open_project_button = QPushButton('Open Project')
-        self.open_project_button.clicked.connect(self.open_project_requested.emit)
-        button_row.addWidget(self.open_project_button)
+        helper_label = QLabel('Use the top toolbar menus for project creation, import, attachment, validation, and help. Use the left workspace list to switch views.')
+        helper_label.setWordWrap(True)
+        helper_label.setObjectName('homeHelperLabel')
+        root_layout.addWidget(helper_label)
 
-        self.new_project_button = QPushButton('New Project')
-        self.new_project_button.clicked.connect(self.new_project_requested.emit)
-        button_row.addWidget(self.new_project_button)
+        shortcut_row = QHBoxLayout()
+        shortcut_row.setSpacing(8)
 
-        self.import_project_button = QPushButton('Import SUMO Project')
-        self.import_project_button.clicked.connect(self.import_project_requested.emit)
-        button_row.addWidget(self.import_project_button)
-
-        self.attach_sumo_button = QPushButton('Attach SUMO To Project')
+        self.attach_sumo_button = QPushButton('Attach SUMO')
         self.attach_sumo_button.clicked.connect(self.attach_sumo_requested.emit)
         self.attach_sumo_button.setEnabled(False)
-        button_row.addWidget(self.attach_sumo_button)
+        shortcut_row.addWidget(self.attach_sumo_button)
 
-        self.run_selected_button = QPushButton('Run Selected Scenario')
-        self.run_selected_button.clicked.connect(self.run_selected_requested.emit)
-        self.run_selected_button.setEnabled(False)
-        button_row.addWidget(self.run_selected_button)
+        self.open_scene_button = QPushButton('Open Scene View')
+        self.open_scene_button.clicked.connect(self.scene_requested.emit)
+        self.open_scene_button.setEnabled(False)
+        shortcut_row.addWidget(self.open_scene_button)
 
         self.edit_selected_button = QPushButton('Edit Selected Scenario')
         self.edit_selected_button.clicked.connect(self.edit_selected_requested.emit)
         self.edit_selected_button.setEnabled(False)
-        button_row.addWidget(self.edit_selected_button)
+        shortcut_row.addWidget(self.edit_selected_button)
 
-        button_row.addStretch(1)
-        root_layout.addLayout(button_row)
+        self.run_selected_button = QPushButton('Run Selected Scenario')
+        self.run_selected_button.clicked.connect(self.run_selected_requested.emit)
+        self.run_selected_button.setEnabled(False)
+        shortcut_row.addWidget(self.run_selected_button)
 
+        shortcut_row.addStretch(1)
+        root_layout.addLayout(shortcut_row)
+
+        summary_card = QFrame()
+        summary_card.setObjectName('infoCard')
+        summary_layout = QVBoxLayout(summary_card)
+        summary_layout.setContentsMargins(14, 12, 14, 12)
+        summary_layout.setSpacing(6)
         self.project_name_label = QLabel('Project: not loaded')
         self.project_path_label = QLabel('Manifest: -')
         self.project_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.project_status_label = QLabel('Status: not loaded')
-        self.project_status_label.setStyleSheet('font-weight: 700; color: #9a3412;')
+        self.project_status_label.setObjectName('statusBadgeWarning')
         self.readiness_label = QLabel('Readiness: load or create a project to see what is missing before a run.')
         self.readiness_label.setWordWrap(True)
-        root_layout.addWidget(self.project_name_label)
-        root_layout.addWidget(self.project_path_label)
-        root_layout.addWidget(self.project_status_label)
-        root_layout.addWidget(self.readiness_label)
+        summary_layout.addWidget(self.project_name_label)
+        summary_layout.addWidget(self.project_path_label)
+        summary_layout.addWidget(self.project_status_label)
+        summary_layout.addWidget(self.readiness_label)
+        root_layout.addWidget(summary_card)
 
         splitter = QSplitter()
         root_layout.addWidget(splitter, 1)
@@ -95,10 +102,11 @@ class ProjectHomeView(QWidget):
         scenarios_layout.setSpacing(8)
 
         scenarios_label = QLabel('Available Scenarios')
-        scenarios_label.setStyleSheet('font-size: 15px; font-weight: 600; margin-top: 8px;')
+        scenarios_label.setObjectName('sectionTitle')
         scenarios_layout.addWidget(scenarios_label)
 
         self.scenario_list = QListWidget()
+        self.scenario_list.setObjectName('infoCard')
         self.scenario_list.currentItemChanged.connect(self._emit_current_scenario)
         scenarios_layout.addWidget(self.scenario_list, 1)
 
@@ -114,7 +122,7 @@ class ProjectHomeView(QWidget):
         recent_layout.setSpacing(8)
 
         recent_label = QLabel('Recent Runs')
-        recent_label.setStyleSheet('font-size: 15px; font-weight: 600; margin-top: 8px;')
+        recent_label.setObjectName('sectionTitle')
         recent_layout.addWidget(recent_label)
 
         self.latest_run_label = QLabel('Latest run: -')
@@ -133,6 +141,7 @@ class ProjectHomeView(QWidget):
         recent_layout.addLayout(recent_button_row)
 
         self.recent_results_list = QListWidget()
+        self.recent_results_list.setObjectName('infoCard')
         self.recent_results_list.currentItemChanged.connect(self._handle_recent_result_changed)
         self.recent_results_list.itemDoubleClicked.connect(lambda item: self._emit_open_recent_result())
         recent_layout.addWidget(self.recent_results_list, 1)
@@ -151,11 +160,14 @@ class ProjectHomeView(QWidget):
             self.project_path_label.setText('Manifest: -')
             self.summary_label.setText('Load a project manifest or create/import a project to browse scenarios.')
             self.project_status_label.setText('Status: not loaded')
-            self.project_status_label.setStyleSheet('font-weight: 700; color: #9a3412;')
+            self.project_status_label.setObjectName('statusBadgeWarning')
+            self.project_status_label.style().unpolish(self.project_status_label)
+            self.project_status_label.style().polish(self.project_status_label)
             self.readiness_label.setText('Readiness: load or create a project to see what is missing before a run.')
             self.scenario_list.clear()
             self.run_selected_button.setEnabled(False)
             self.edit_selected_button.setEnabled(False)
+            self.open_scene_button.setEnabled(False)
             self.attach_sumo_button.setEnabled(False)
             return
 
@@ -181,17 +193,27 @@ class ProjectHomeView(QWidget):
         self.scenario_list.blockSignals(False)
         enabled = state.selected_scenario_path is not None
         self.run_selected_button.setEnabled(enabled)
+        self.open_scene_button.setEnabled(enabled)
         self.edit_selected_button.setEnabled(enabled)
+        self.open_scene_button.setEnabled(enabled)
         self.attach_sumo_button.setEnabled(state.manifest_path is not None)
 
 
     def set_project_readiness(self, *, status_title: str, status_color: str, summary: str) -> None:
         self.project_status_label.setText(status_title)
-        self.project_status_label.setStyleSheet(f'font-weight: 700; color: {status_color};')
+        if status_color == '#166534':
+            self.project_status_label.setObjectName('statusBadgeReady')
+        elif status_color == '#9a3412':
+            self.project_status_label.setObjectName('statusBadgeWarning')
+        else:
+            self.project_status_label.setObjectName('statusBadgeNeutral')
+        self.project_status_label.style().unpolish(self.project_status_label)
+        self.project_status_label.style().polish(self.project_status_label)
         self.readiness_label.setText(summary)
 
     def set_run_enabled(self, enabled: bool) -> None:
         self.run_selected_button.setEnabled(enabled)
+        self.open_scene_button.setEnabled(enabled)
 
     def set_recent_results(self, result_paths: list[Path]) -> None:
         self.recent_results_list.blockSignals(True)
@@ -241,11 +263,13 @@ class ProjectHomeView(QWidget):
         if current is None:
             self.run_selected_button.setEnabled(False)
             self.edit_selected_button.setEnabled(False)
+            self.open_scene_button.setEnabled(False)
             self.attach_sumo_button.setEnabled(False)
             return
         scenario_path = current.data(Qt.UserRole)
         enabled = bool(scenario_path)
         self.run_selected_button.setEnabled(enabled)
+        self.open_scene_button.setEnabled(enabled)
         self.edit_selected_button.setEnabled(enabled)
         if scenario_path:
             self.scenario_selected.emit(str(scenario_path))

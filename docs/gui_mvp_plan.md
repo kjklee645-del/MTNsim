@@ -1,6 +1,6 @@
 # MTNsim GUI MVP Plan
 
-Date: 2026-03-11
+Date: 2026-03-18
 Purpose: define the first user-facing MTNsim desktop prototype so non-developer users can run simulations, compare scenarios, and inspect outputs without editing TOML files or using CLI commands.
 
 ## 1. Product Goal
@@ -13,8 +13,13 @@ Build a desktop GUI prototype that lets a general user:
 - compare scenarios
 - inspect receiver-level results
 - open campaign validation outputs
+- create and edit scene objects such as barriers, buildings, ground surfaces, terrain edges, and vegetation zones without manual TOML editing
 
 The GUI MVP is not a full professional acoustic workstation. It is a usable operator shell around the existing MTNsim engine.
+
+Near-term correction request now added to the plan:
+- preserve the original SUMO map aspect ratio in 2D scene and playback views so roads, trajectories, and noise fields are not visually stretched
+- raise the GUI visual quality from a functional engineering shell toward a cleaner, more deliberate operator-facing product
 
 ## 2. Recommended GUI Stack
 
@@ -67,6 +72,7 @@ Layout recommendation:
 - left sidebar: project, scenario, campaign, and recent runs navigation
 - center workspace: editor or results view depending on selected mode
 - right panel: run status, selected object details, quick actions
+- top toolbar: menu-driven action groups (`Project`, `Run`, `Results`, `Validation`, `Help`) plus one quick `Run Selected` action
 - bottom panel: logs, warnings, run progress, errors
 
 ### 3.2 Screen A: Project Home
@@ -180,6 +186,40 @@ Must-have elements:
 - receiver/group diagnostics table
 - open generated Markdown/JSON reports
 
+### 3.8 Screen H: Scene Object Editor
+
+Purpose:
+- let a user create and edit scene geometry that changes propagation without hand-editing scenario TOML
+
+Must-have elements:
+- object-type selector
+  - noise barrier
+  - building
+  - terrain edge
+  - ground surface
+  - vegetation zone
+- add / edit / remove object actions
+- simple 2D geometry editing or coordinate-based forms
+- height / attenuation / material controls where relevant
+- object list tied to the current scenario
+- save back into the selected scenario
+
+Design note:
+- the first version can be form-first and list-driven rather than a full CAD-like drawing tool
+- tight Scene View integration is more important than rich geometry authoring in the first pass
+
+
+Purpose:
+- inspect campaign quality and validation outcomes
+
+Must-have elements:
+- open campaign manifest
+- run inspect / run validate actions
+- acceptance status badge
+- calibration recommendation list
+- receiver/group diagnostics table
+- open generated Markdown/JSON reports
+
 ## 4. MVP Functional Scope
 
 ### 4.1 Must Have
@@ -193,6 +233,7 @@ Must-have elements:
 - compare two scenarios
 - inspect one campaign package
 - run one campaign validation and view the report
+- create and edit basic scene objects for the active scenario
 
 ### 4.2 Should Have
 
@@ -201,13 +242,22 @@ Must-have elements:
 - validation status badges
 - parameter reset to scenario defaults
 - simple scene summary panel
+- true-aspect 2D scene/playback rendering
+- more polished visual styling, spacing, and hierarchy across the desktop shell
 
-### 4.3 Not in First MVP
+### 4.3 Post-MVP Visual Expansion
+
+- 3D scene visualization with terrain, buildings, roads, and receivers
+- 3D noise rendering instead of only 2D heatmap overlays
+- volumetric source-field rendering for individual vehicles
+- selectable source directivity modes such as spherical and wedge-like patterns
+- user-facing controls to choose the source-field display model
+
+### 4.4 Not in First MVP
 
 - full scene drawing/editing canvas
 - CAD/GIS import UI
 - full report designer
-- multi-window 3D visualization
 - AI natural-language panel
 - full precomputed correction-field controls
 
@@ -358,6 +408,7 @@ Goal:
 7. add comparison panel [done]
 8. add campaign validation panel [done]
 9. add limited scenario editor only after read-only flows are stable [started]
+10. add Scene Object Editor for user-authored propagation geometry [started]
 
 ## 9. Success Criteria for the GUI MVP
 

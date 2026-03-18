@@ -1,4 +1,4 @@
-# MTNsim
+﻿# MTNsim
 
 MTNsim is a microscopic traffic noise simulation prototype that combines SUMO-based vehicle motion, receiver/grid noise calculation, scenario comparison, calibration, and early scene-aware propagation logic.
 
@@ -23,6 +23,10 @@ Implemented in the repository today:
 - GUI reporting/export actions for result summaries, scenario comparison summaries, and campaign validation artifacts
 - Project Home recent-run panel with quick-open result and latest-output shortcuts, plus project readiness/status guidance
 - first-pass `New Project` / `Import SUMO Project` / `Attach SUMO` GUI flow that can generate either an empty MTNsim project shell, import a SUMO-backed project, or attach SUMO later to an existing empty project with selectable scenario-refresh scope and optional scene/measurement file import
+- shared desktop styling for a cleaner operator-facing GUI shell
+- menu-driven top toolbar organized around Project / Run / Results / Validation / Help plus a single quick Run button
+- Navigation / workspace list now acts primarily as view switching, while Project Home focuses on status, next steps, and recent work
+- card-like information sections and clearer status-badge styling across Project Home, Run Monitor, and Result Viewer
 
 Supported example scenarios:
 - `baseline`
@@ -137,3 +141,7 @@ Run campaign-aware validation:
 1. Continue the desktop GUI so non-developer users can create/import their own projects, then run, compare, inspect, and validate MTNsim flows.
 2. Keep deferred validation, calibration, physics, and GPU work tracked in `docs/deferred_enhancement_backlog.md`.
 3. Return to deeper engine and field-validation work after the GUI prototype is usable.
+
+- Scenario Editor / Compare / Campaign Validation / Playback views polished with card layout and consistent status styling.
+
+- Scene Object Editor first pass added for list/form editing of barriers, buildings, terrain edges, ground surfaces, and vegetation zones with Save As and live scene preview.

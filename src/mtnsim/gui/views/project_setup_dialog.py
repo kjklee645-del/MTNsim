@@ -440,6 +440,7 @@ class ProjectSetupDialog(QDialog):
             if self.inspection is None or Path(payload['sumo_config_path']).resolve() != self.inspection.sumo_config_path:
                 self.inspect_sumo_source()
                 if self.inspection is None:
+                    QMessageBox.warning(self, 'SUMO Inspection Failed', self.summary_box.toPlainText() or 'SUMO inspection failed. Review the summary and correct the input files.')
                     return
             if self.inspection.missing_paths:
                 QMessageBox.warning(self, 'Missing SUMO Files', 'Resolve the missing SUMO files listed in the summary before continuing.')

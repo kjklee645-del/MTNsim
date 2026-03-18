@@ -1,6 +1,6 @@
 # MTNsim Current Status
 
-Date: 2026-03-11
+Date: 2026-03-18
 
 ## 1. Summary
 
@@ -18,6 +18,7 @@ The codebase now supports:
 - path-specific material-aware propagation effects
 - scene-aware hybrid GPU execution for attenuation and accumulation
 - a GUI prototype with project loading, 2D scene viewing, background run execution, progress monitoring, result viewing, and receiver-series plotting
+- first-pass GUI-wide visual polish via a shared desktop stylesheet, cleaner operator-shell presentation, a menu-driven top-toolbar structure, workspace-oriented navigation semantics, and card-like summary sections in key operator views
 
 ## 2. What Has Been Implemented
 
@@ -196,6 +197,7 @@ What it does now:
 - compares two scenarios in a dedicated GUI view with configuration-diff summary, run-result comparison, receiver delta tables, receiver overlay charts, and export to JSON/Markdown
 - inspects and validates campaign packages in a dedicated GUI view with acceptance summary, threshold table, recommendation panel, and direct access to generated summary/report/result artifacts
 - edits a selected scenario through a limited GUI editor, including lane-change controls, noise/grid settings, and a multi-row receiver table, previews valid unsaved changes live in the scene/details view, validates inputs before save, saves derived scenarios with Save As, and jumps directly into source-vs-derived comparison
+- edits scene-aware propagation objects through a first-pass Scene Object Editor, including noise barriers, buildings, terrain edges, ground surfaces, and vegetation zones, with form/list editing, live scene preview, and Save As to a derived scenario
 - opens current result artifacts from the Result Viewer and exports a Markdown result summary from the GUI
 - loads a vehicle playback view with a time slider, play/pause controls, and scene-overlayed vehicle positions
 - supports zoom, pan, and hover inspection on scene and playback canvases
@@ -253,18 +255,25 @@ These values are prototype-level engineering checks, not yet validated against m
 ### 4.3 Product Limitations
 
 - GUI can browse scenarios, inspect a 2D scene view, run scenarios, inspect results, replay recorded vehicle motion, compare two scenarios through config diff and run-result comparison, and inspect/validate field campaigns through a dedicated desktop UI
+- current GUI styling is functional but still prototype-grade rather than polished product UI
+- scene objects such as noise barriers, terrain edges, ground surfaces, vegetation zones, and buildings can be simulated, but there is still no dedicated Scene Object Editor for non-developers to create or edit them in the GUI
+- no 3D scene/noise visualization layer exists yet
+- current source radiation and visible heatmap logic are still effectively flat-height approximations rather than selectable volumetric or directional source-field models
 - no final report generator yet
 - campaign import standardization exists, but full production-grade GIS/CAD ingestion is still not implemented
 - AI-agent structures exist only as an architectural baseline, not as a working user-facing capability
 
 ## 5. Recommended Next Order
 
-1. polish the project-entry workflow further now that `New Project`, `Import SUMO Project`, and `Attach SUMO` are all available
-2. keep deeper validation, calibration, scene-physics, and GPU work tracked as deferred backlog while project-entry UX is stabilizing
-3. resume field-validation and scene-physics hardening after outside users can bring their own SUMO cases into the GUI more easily
-4. keep GPU follow-up selective and demand-driven unless hybrid GPU becomes a proven bottleneck
-5. deepen reporting and richer agent control after the GUI layer stabilizes
+1. continue GUI visual polish from functional prototype quality toward a cleaner, more deliberate operator-facing product shell
+2. continue expanding the Scene Object Editor from first-pass form/list editing toward a smoother geometry-authoring workflow
+3. continue project/run/result UX polish now that `New Project`, `Import SUMO Project`, and `Attach SUMO` are all usable
+4. plan the next visualization step as a true 3D scene and noise-view layer rather than extending the current 2D-only approach indefinitely
+5. treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion after the 3D scene layer is defined
+6. keep deeper validation, calibration, scene-physics, and GPU work tracked as deferred backlog while GUI/product usability remains the mainline focus
 
 ## 6. Bottom Line
 
 MTNsim is now a structured simulation kernel with reproducible scenario handling, comparison capability, a runtime scene hierarchy, material-aware propagation behavior, campaign-aware validation tooling, a usable hybrid scene-aware GPU path, and a working GUI prototype that can launch runs, inspect receiver-level results, view the 2D scene, and replay recorded vehicle motion.
+
+- Scenario Editor / Compare / Campaign Validation / Playback views polished with card layout and consistent status styling.

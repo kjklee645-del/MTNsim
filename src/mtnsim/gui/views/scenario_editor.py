@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -40,13 +41,24 @@ class ScenarioEditorView(QWidget):
         root.setSpacing(12)
 
         title = QLabel('Limited Scenario Editor')
-        title.setStyleSheet('font-size: 22px; font-weight: 700;')
+        title.setObjectName('pageTitle')
         root.addWidget(title)
 
         self.info_box = QTextEdit()
+        self.info_box.setObjectName('infoCard')
         self.info_box.setReadOnly(True)
         self.info_box.setMaximumHeight(120)
         root.addWidget(self.info_box)
+
+        parameters_title = QLabel('Core Parameters')
+        parameters_title.setObjectName('sectionTitle')
+        root.addWidget(parameters_title)
+
+        form_card = QFrame()
+        form_card.setObjectName('infoCard')
+        form_card_layout = QVBoxLayout(form_card)
+        form_card_layout.setContentsMargins(14, 14, 14, 14)
+        form_card_layout.setSpacing(8)
 
         form = QFormLayout()
 
@@ -142,11 +154,12 @@ class ScenarioEditorView(QWidget):
         self.lane_change_force_check = QCheckBox('Force lane change')
         form.addRow('Lane Change Force', self.lane_change_force_check)
 
-        root.addLayout(form)
+        form_card_layout.addLayout(form)
+        root.addWidget(form_card)
 
         receiver_title_row = QHBoxLayout()
         receiver_title = QLabel('Receivers')
-        receiver_title.setStyleSheet('font-size: 15px; font-weight: 600;')
+        receiver_title.setObjectName('sectionTitle')
         receiver_title_row.addWidget(receiver_title)
         receiver_title_row.addStretch(1)
         self.add_receiver_button = QPushButton('Add Receiver')
@@ -160,6 +173,7 @@ class ScenarioEditorView(QWidget):
         root.addLayout(receiver_title_row)
 
         self.receiver_table = QTableWidget(0, 4)
+        self.receiver_table.setObjectName('infoCard')
         self.receiver_table.setHorizontalHeaderLabels(['ID', 'X', 'Y', 'Z'])
         self.receiver_table.horizontalHeader().setStretchLastSection(True)
         self.receiver_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -175,6 +189,7 @@ class ScenarioEditorView(QWidget):
         root.addLayout(button_row)
 
         self.status_label = QLabel('Select a scenario to edit its limited parameters.')
+        self.status_label.setObjectName('statusBadgeNeutral')
         root.addWidget(self.status_label)
 
     def _connect_preview_sources(self) -> None:
@@ -237,6 +252,7 @@ class ScenarioEditorView(QWidget):
             f'Vegetation zones: {len(scenario.scene.vegetation_zones)}',
         ]))
         self.status_label.setText('Edit selected fields and use Save As to create a derived scenario. Preview updates the scene live when values are valid.')
+        self._apply_status_style(self.status_label.text())
         self.save_as_button.setEnabled(True)
         self.add_receiver_button.setEnabled(True)
         self.remove_receiver_button.setEnabled(True)
@@ -245,6 +261,7 @@ class ScenarioEditorView(QWidget):
 
     def set_status(self, text: str) -> None:
         self.status_label.setText(text)
+        self._apply_status_style(text)
 
     def _schedule_preview(self, *args) -> None:  # noqa: ANN002
         if self._suspend_preview:
@@ -361,6 +378,7 @@ class ScenarioEditorView(QWidget):
         payload, errors = self._build_payload(strict=False)
         if payload is None:
             self.status_label.setText(f'Preview paused: {errors[0]}')
+            self._apply_status_style(self.status_label.text())
             return
         self.preview_requested.emit(payload)
 
@@ -373,6 +391,21 @@ class ScenarioEditorView(QWidget):
         payload, errors = self.validate_inputs()
         if errors:
             self.status_label.setText(f'Cannot save: {errors[0]}')
+            self._apply_status_style(self.status_label.text())
             QMessageBox.warning(self, 'Scenario Editor Validation', '\n'.join(errors))
             return
+        self._apply_status_style('Scenario ready to save.')
         self.save_as_requested.emit(payload)
+
+    def _apply_status_style(self, text: str) -> None:
+        lowered = text.lower()
+        if 'cannot save' in lowered or 'paused' in lowered:
+            object_name = 'statusBadgeWarning'
+        elif 'ready' in lowered or 'valid' in lowered:
+            object_name = 'statusBadgeReady'
+        else:
+            object_name = 'statusBadgeNeutral'
+        if self.status_label.objectName() != object_name:
+            self.status_label.setObjectName(object_name)
+            self.status_label.style().unpolish(self.status_label)
+            self.status_label.style().polish(self.status_label)
