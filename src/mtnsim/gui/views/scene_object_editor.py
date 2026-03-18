@@ -26,6 +26,10 @@ from PySide6.QtWidgets import (
 class SceneObjectEditorView(QWidget):
     save_as_requested = Signal(dict)
     preview_requested = Signal(dict)
+    object_selected = Signal(str, str)
+    draw_mode_requested = Signal(dict)
+    finish_draw_requested = Signal()
+    cancel_draw_requested = Signal()
 
     OBJECT_TYPES = [
         ('noise_barriers', 'Noise Barriers'),
@@ -42,6 +46,9 @@ class SceneObjectEditorView(QWidget):
         self._source_description = ''
         self._scene_data: dict[str, list[dict]] = {key: [] for key, _ in self.OBJECT_TYPES}
         self._suspend = False
+        self._selected_object_key: tuple[str, str] | None = None
+        self._undo_stack: list[dict] = []
+        self._redo_stack: list[dict] = []
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -102,11 +109,35 @@ class SceneObjectEditorView(QWidget):
         left_buttons = QHBoxLayout()
         self.add_button = QPushButton('Add New')
         self.add_button.clicked.connect(self._add_new_object)
+        self.duplicate_button = QPushButton('Duplicate Selected')
+        self.duplicate_button.clicked.connect(self._duplicate_selected_object)
         self.delete_button = QPushButton('Delete Selected')
         self.delete_button.clicked.connect(self._delete_selected_object)
         left_buttons.addWidget(self.add_button)
+        left_buttons.addWidget(self.duplicate_button)
         left_buttons.addWidget(self.delete_button)
         left_col.addLayout(left_buttons)
+
+        history_buttons = QHBoxLayout()
+        self.undo_button = QPushButton('Undo')
+        self.undo_button.clicked.connect(self._undo)
+        self.redo_button = QPushButton('Redo')
+        self.redo_button.clicked.connect(self._redo)
+        history_buttons.addWidget(self.undo_button)
+        history_buttons.addWidget(self.redo_button)
+        left_col.addLayout(history_buttons)
+
+        draw_buttons = QHBoxLayout()
+        self.draw_button = QPushButton('Draw In Scene View')
+        self.draw_button.clicked.connect(self._request_draw_mode)
+        self.finish_draw_button = QPushButton('Finish Draw')
+        self.finish_draw_button.clicked.connect(self.finish_draw_requested.emit)
+        self.cancel_draw_button = QPushButton('Cancel Draw')
+        self.cancel_draw_button.clicked.connect(self.cancel_draw_requested.emit)
+        draw_buttons.addWidget(self.draw_button)
+        draw_buttons.addWidget(self.finish_draw_button)
+        draw_buttons.addWidget(self.cancel_draw_button)
+        left_col.addLayout(draw_buttons)
 
         right_col = QVBoxLayout()
         main_row.addLayout(right_col, 2)
@@ -217,13 +248,96 @@ class SceneObjectEditorView(QWidget):
             f'Vegetation zones: {len(self._scene_data["vegetation_zones"])}',
         ]))
         self._suspend = False
+        self._undo_stack = []
+        self._redo_stack = []
         self._refresh_object_list()
+        self._update_history_buttons()
         self.set_status('Edit scene objects and use Save As to create a derived scenario.')
         self._emit_preview()
 
     def set_status(self, text: str) -> None:
         self.status_label.setText(text)
         self._apply_status_style(text)
+
+    def set_draw_status(self, text: str) -> None:
+        self.set_status(text)
+
+    def _capture_history_state(self) -> dict:
+        return {
+            'scene': deepcopy(self._scene_data),
+            'object_type': self.current_object_type(),
+            'selected': self._selected_object_key,
+        }
+
+    def _restore_history_state(self, state: dict) -> None:
+        self._scene_data = deepcopy(state.get('scene', self._scene_data))
+        target_type = state.get('object_type')
+        if target_type:
+            target_index = self.object_type_combo.findData(target_type)
+            if target_index >= 0 and self.object_type_combo.currentIndex() != target_index:
+                self.object_type_combo.setCurrentIndex(target_index)
+        self._refresh_object_list()
+        selected = state.get('selected')
+        if selected:
+            self.set_selected_object(selected[0], selected[1])
+        self._emit_preview()
+        self._update_history_buttons()
+
+    def _push_undo_state(self) -> None:
+        self._undo_stack.append(self._capture_history_state())
+        if len(self._undo_stack) > 50:
+            self._undo_stack = self._undo_stack[-50:]
+        self._redo_stack = []
+        self._update_history_buttons()
+
+    def _update_history_buttons(self) -> None:
+        self.undo_button.setEnabled(bool(self._undo_stack))
+        self.redo_button.setEnabled(bool(self._redo_stack))
+
+    def _undo(self) -> None:
+        if not self._undo_stack:
+            return
+        self._redo_stack.append(self._capture_history_state())
+        state = self._undo_stack.pop()
+        self._restore_history_state(state)
+        self.set_status('Undid scene-object edit.')
+
+    def _redo(self) -> None:
+        if not self._redo_stack:
+            return
+        self._undo_stack.append(self._capture_history_state())
+        state = self._redo_stack.pop()
+        self._restore_history_state(state)
+        self.set_status('Redid scene-object edit.')
+
+    def add_drawn_object(self, object_type: str, payload: dict) -> None:
+        if object_type not in self._scene_data:
+            return
+        self._push_undo_state()
+        item = deepcopy(payload)
+        item['id'] = self._generate_unique_id(object_type, str(item.get('id', '')).strip())
+        self._scene_data.setdefault(object_type, []).append(item)
+        target_index = self.object_type_combo.findData(object_type)
+        if target_index >= 0 and self.object_type_combo.currentIndex() != target_index:
+            self.object_type_combo.setCurrentIndex(target_index)
+        self._refresh_object_list()
+        self.set_selected_object(object_type, item['id'])
+        self.set_status(f'Added {item["id"]} from Scene View.')
+        self._emit_preview()
+
+    def update_object_geometry(self, object_type: str, object_id: str, geometry_payload: dict) -> None:
+        items = self._scene_data.get(object_type, [])
+        for index, item in enumerate(items):
+            if str(item.get('id', '')) != object_id:
+                continue
+            self._push_undo_state()
+            updated = deepcopy(item)
+            updated.update(geometry_payload)
+            items[index] = updated
+            self._refresh_object_list()
+            self.set_selected_object(object_type, object_id)
+            self._emit_preview()
+            return
 
     def _refresh_object_list(self) -> None:
         self.object_list.clear()
@@ -235,6 +349,56 @@ class SceneObjectEditorView(QWidget):
         else:
             self._reset_form()
         self._refresh_field_visibility()
+
+    def set_selected_object(self, object_type: str, object_id: str) -> None:
+        if not object_type or not object_id:
+            return
+        target_index = self.object_type_combo.findData(object_type)
+        if target_index >= 0 and self.object_type_combo.currentIndex() != target_index:
+            self.object_type_combo.setCurrentIndex(target_index)
+        items = self._scene_data.get(object_type, [])
+        for row, item in enumerate(items):
+            if str(item.get('id', '')) == object_id:
+                self.object_list.setCurrentRow(row)
+                self.set_status(f'Selected {object_id} from scene view.')
+                return
+
+    def _request_draw_mode(self) -> None:
+        payload = {
+            'object_type': self.current_object_type(),
+            'template': self._build_draw_template(self.current_object_type()),
+        }
+        self.draw_mode_requested.emit(payload)
+        object_type = payload['object_type']
+        if object_type in {'noise_barriers', 'terrain_edges'}:
+            self.set_status(f'Draw mode active for {object_type}: click two points in Scene View.')
+        else:
+            self.set_status(f'Draw mode active for {object_type}: click polygon vertices, then Finish Draw.')
+
+    def _build_draw_template(self, object_type: str) -> dict:
+        template = self._default_object(object_type)
+        proposed_id = self.object_id_edit.text().strip()
+        if proposed_id:
+            template['id'] = proposed_id
+        material = self.material_edit.text().strip()
+        if material:
+            template['material'] = material
+        if object_type in {'noise_barriers', 'terrain_edges', 'buildings', 'vegetation_zones'}:
+            template['height_meters'] = float(self.height_spin.value() or template.get('height_meters', 0.0))
+            template['attenuation_db'] = float(self.attenuation_spin.value() or template.get('attenuation_db', 0.0))
+        return template
+
+    def _generate_unique_id(self, object_type: str, proposed_id: str) -> str:
+        default_id = self._default_object(object_type)['id']
+        base = proposed_id or default_id
+        existing = {str(item.get('id', '')) for item in self._scene_data.get(object_type, [])}
+        if base not in existing:
+            return base
+        prefix = base.rsplit('_', 1)[0] if '_' in base else base
+        counter = 2
+        while f'{prefix}_{counter}' in existing:
+            counter += 1
+        return f'{prefix}_{counter}'
 
     def _refresh_field_visibility(self) -> None:
         object_type = self.current_object_type()
@@ -277,6 +441,8 @@ class SceneObjectEditorView(QWidget):
         self.attenuation_spin.setValue(float(item.get('attenuation_db', 0.0)))
         self.footprint_edit.setPlainText('\n'.join(f'{p[0]},{p[1]}' for p in item.get('footprint', [])))
         self._suspend = False
+        self._selected_object_key = (object_type, str(item.get('id', '')))
+        self.object_selected.emit(object_type, str(item.get('id', '')))
 
     def _reset_form(self) -> None:
         self._suspend = True
@@ -299,6 +465,7 @@ class SceneObjectEditorView(QWidget):
 
     def _add_new_object(self) -> None:
         object_type = self.current_object_type()
+        self._push_undo_state()
         items = self._scene_data.setdefault(object_type, [])
         obj = self._default_object(object_type)
         prefix = obj['id'].rsplit('_', 1)[0]
@@ -308,6 +475,23 @@ class SceneObjectEditorView(QWidget):
         self.object_list.setCurrentRow(len(items) - 1)
         self._emit_preview()
 
+    def _duplicate_selected_object(self) -> None:
+        row = self.object_list.currentRow()
+        if row < 0:
+            return
+        object_type = self.current_object_type()
+        items = self._scene_data.get(object_type, [])
+        if row >= len(items):
+            return
+        self._push_undo_state()
+        duplicate = deepcopy(items[row])
+        duplicate['id'] = self._generate_unique_id(object_type, str(duplicate.get('id', '')).strip())
+        items.insert(row + 1, duplicate)
+        self._refresh_object_list()
+        self.object_list.setCurrentRow(row + 1)
+        self.set_status(f'Duplicated {duplicate["id"]}.')
+        self._emit_preview()
+
     def _delete_selected_object(self) -> None:
         row = self.object_list.currentRow()
         if row < 0:
@@ -315,6 +499,7 @@ class SceneObjectEditorView(QWidget):
         object_type = self.current_object_type()
         items = self._scene_data.get(object_type, [])
         if row < len(items):
+            self._push_undo_state()
             items.pop(row)
         self._refresh_object_list()
         self._emit_preview()
@@ -330,6 +515,7 @@ class SceneObjectEditorView(QWidget):
             self.set_status(f'Cannot apply object: {errors[0]}')
             QMessageBox.warning(self, 'Scene Object Validation', '\n'.join(errors))
             return
+        self._push_undo_state()
         self._scene_data[object_type][row] = payload
         self._refresh_object_list()
         self.object_list.setCurrentRow(row)

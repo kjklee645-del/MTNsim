@@ -60,6 +60,7 @@ class MainWindow(QMainWindow):
         self.current_result_summary_path: Path | None = None
         self.dynamic_heatmap_context = None
         self.preview_scenario = None
+        self.selected_scene_object_key: tuple[str, str] | None = None
         self._playback_prefetch_timer = QTimer(self)
         self._playback_prefetch_timer.setSingleShot(True)
         self._playback_prefetch_timer.timeout.connect(self._run_playback_prefetch)
@@ -274,6 +275,14 @@ class MainWindow(QMainWindow):
         self.scenario_editor_view.preview_requested.connect(self.apply_scenario_preview)
         self.scene_object_editor_view.save_as_requested.connect(self.save_scene_object_variant)
         self.scene_object_editor_view.preview_requested.connect(self.apply_scene_object_preview)
+        self.scene_object_editor_view.object_selected.connect(self.handle_scene_object_editor_selection)
+        self.scene_object_editor_view.draw_mode_requested.connect(self.start_scene_object_draw_mode)
+        self.scene_object_editor_view.finish_draw_requested.connect(self.finish_scene_object_draw_mode)
+        self.scene_object_editor_view.cancel_draw_requested.connect(self.cancel_scene_object_draw_mode)
+        self.scene_view.canvas.scene_object_selected.connect(self.handle_scene_view_object_selection)
+        self.scene_view.canvas.scene_object_drawn.connect(self.handle_scene_object_drawn)
+        self.scene_view.canvas.scene_object_geometry_edited.connect(self.handle_scene_object_geometry_edited)
+        self.vehicle_playback_view.canvas.scene_object_selected.connect(self.handle_scene_view_object_selection)
         self.scenario_comparison_view.compare_requested.connect(self.compare_selected_scenarios)
         self.scenario_comparison_view.run_compare_requested.connect(self.run_compare_selected_scenarios)
         self.scenario_comparison_view.receiver_selected.connect(self.load_comparison_receiver_series)
@@ -1117,6 +1126,59 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, 'Scenario Save Failed', str(exc))
             self._append_log(f'[error] Failed to save scenario variant: {exc}')
 
+    def handle_scene_view_object_selection(self, object_type: str, object_id: str) -> None:
+        self.selected_scene_object_key = (object_type, object_id) if object_type and object_id else None
+        self.scene_view.set_selected_scene_object(object_type or None, object_id or None)
+        self.vehicle_playback_view.set_selected_scene_object(object_type or None, object_id or None)
+        if object_type and object_id:
+            self.scene_object_editor_view.set_selected_object(object_type, object_id)
+            self._append_log(f'[info] Selected scene object from view: {object_type}:{object_id}')
+            self.statusBar().showMessage(f'Selected scene object: {object_id}')
+            self.show_scene_object_editor()
+
+    def handle_scene_object_editor_selection(self, object_type: str, object_id: str) -> None:
+        self.selected_scene_object_key = (object_type, object_id) if object_type and object_id else None
+        self.scene_view.set_selected_scene_object(object_type or None, object_id or None)
+        self.vehicle_playback_view.set_selected_scene_object(object_type or None, object_id or None)
+
+    def start_scene_object_draw_mode(self, payload: dict) -> None:
+        object_type = str(payload.get('object_type', '')).strip()
+        if not object_type:
+            return
+        self.scene_view.start_draw_mode(object_type, payload.get('template'))
+        self.show_scene_view()
+        if object_type in {'noise_barriers', 'terrain_edges'}:
+            message = f'Draw mode active for {object_type}: click two points in Scene View.'
+        else:
+            message = f'Draw mode active for {object_type}: click vertices, then Finish Draw.'
+        self.scene_object_editor_view.set_draw_status(message)
+        self.statusBar().showMessage(message)
+        self._append_log(f'[info] Started draw mode for {object_type}')
+
+    def finish_scene_object_draw_mode(self) -> None:
+        self.scene_view.finish_draw_mode()
+
+    def cancel_scene_object_draw_mode(self) -> None:
+        self.scene_view.cancel_draw_mode()
+        self.scene_object_editor_view.set_draw_status('Draw mode cancelled.')
+        self.statusBar().showMessage('Scene-object draw mode cancelled.')
+
+    def handle_scene_object_drawn(self, object_type: str, payload: dict) -> None:
+        self.scene_object_editor_view.add_drawn_object(object_type, payload)
+        object_id = str(payload.get('id', '')).strip()
+        self.selected_scene_object_key = (object_type, object_id) if object_id else None
+        self.scene_view.cancel_draw_mode()
+        self.show_scene_object_editor()
+        self.statusBar().showMessage(f'Drawn new {object_type} object.')
+        self._append_log(f'[info] Added scene object from Scene View: {object_type}:{object_id}')
+
+    def handle_scene_object_geometry_edited(self, object_type: str, object_id: str, geometry_payload: dict) -> None:
+        self.scene_object_editor_view.update_object_geometry(object_type, object_id, geometry_payload)
+        self.selected_scene_object_key = (object_type, object_id)
+        self.scene_view.set_selected_scene_object(object_type, object_id)
+        self.vehicle_playback_view.set_selected_scene_object(object_type, object_id)
+        self.statusBar().showMessage(f'Edited scene object geometry: {object_id}')
+
     def apply_scene_object_preview(self, payload: dict) -> None:
         project_state = self.session_state.project_state
         if project_state.project is None or project_state.selected_scenario is None:
@@ -1160,6 +1222,12 @@ class MainWindow(QMainWindow):
         snapshot = self.scene_controller.build_snapshot(project_state.project, preview)
         self.scene_view.set_snapshot(snapshot)
         self.vehicle_playback_view.set_snapshot(snapshot)
+        if self.selected_scene_object_key is not None:
+            self.scene_view.set_selected_scene_object(*self.selected_scene_object_key)
+            self.vehicle_playback_view.set_selected_scene_object(*self.selected_scene_object_key)
+        else:
+            self.scene_view.set_selected_scene_object(None, None)
+            self.vehicle_playback_view.set_selected_scene_object(None, None)
         self.scene_view.canvas.set_heatmap_cells([])
         self.vehicle_playback_view.set_heatmap_cells([])
         self._append_log('[info] Updated unsaved scene-object preview in scene/details view')
@@ -1254,6 +1322,12 @@ class MainWindow(QMainWindow):
         snapshot = self.scene_controller.build_snapshot(project_state.project, scenario)
         self.scene_view.set_snapshot(snapshot)
         self.vehicle_playback_view.set_snapshot(snapshot)
+        if self.selected_scene_object_key is not None:
+            self.scene_view.set_selected_scene_object(*self.selected_scene_object_key)
+            self.vehicle_playback_view.set_selected_scene_object(*self.selected_scene_object_key)
+        else:
+            self.scene_view.set_selected_scene_object(None, None)
+            self.vehicle_playback_view.set_selected_scene_object(None, None)
         if self.preview_scenario is None and self.current_result_summary is not None:
             self._load_heatmap_from_result_summary(self.current_result_summary)
         else:

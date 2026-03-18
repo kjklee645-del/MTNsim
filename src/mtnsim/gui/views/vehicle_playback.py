@@ -299,6 +299,9 @@ class VehiclePlaybackView(QWidget):
         self.heatmap_min_spin.setEnabled(not checked)
         self.heatmap_max_spin.setEnabled(not checked)
 
+    def set_selected_scene_object(self, object_type: str | None, object_id: str | None) -> None:
+        self.canvas.set_selected_scene_object(object_type, object_id)
+
     def set_snapshot(self, snapshot: SceneSnapshot | None) -> None:
         self.snapshot = snapshot
         self._apply_display_state()

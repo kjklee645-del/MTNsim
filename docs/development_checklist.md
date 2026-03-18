@@ -113,7 +113,7 @@ Status legend:
 | Visualization | GUI Scene View | [x] | SUMO road polylines, receivers, and scenario geometry layers rendered in a 2D scene view |
 | Visualization | GUI Vehicle Playback | [x] | GUI-triggered runs now record vehicle traces and replay them with a time slider on top of the 2D scene view |
 | Visualization | GUI implementation | [~] | active track; core GUI flows exist; preview UX polish items are deferred in `docs/deferred_enhancement_backlog.md` |
-| Visualization | Scene Object Editor for barriers, buildings, terrain, ground, and vegetation | [~] | first-pass GUI view now supports list/form editing, Save As, and live scene preview; deeper geometry editing still remains |
+| Visualization | Scene Object Editor for barriers, buildings, terrain, ground, and vegetation | [~] | first-pass GUI view now supports list/form editing, Save As, live scene preview, Scene View-linked selection/highlight, click-to-draw creation, and basic direct manipulation; deeper geometry editing still remains |
 | Visualization | 3D scene and noise visualization layer | [ ] | future visualization track beyond the current 2D scene/heatmap implementation |
 | Visualization | Volumetric/directional source-field visualization | [ ] | support spherical, wedge-like, or other directional source-region displays with selectable modes |
 | API | Local API layer | [~] | thin local layer exists |
@@ -127,7 +127,7 @@ Status legend:
 | --- | --- | --- | --- |
 | 1 | Fix the GUI scene/playback aspect-ratio problem | [x] | completed; 2D rendering now preserves SUMO proportions with uniform scale and centered content |
 | 2 | Raise GUI visual polish and operator-facing design quality | [~] | major shell and core view polish completed, but product-level refinement still remains |
-| 3 | Add a Scene Object Editor so users can define barriers, buildings, terrain, ground, and vegetation without manual TOML editing | [~] | first-pass scene-object editing now exists, but it is still form-first and not yet a richer 2D geometry authoring workflow |
+| 3 | Add a Scene Object Editor so users can define barriers, buildings, terrain, ground, and vegetation without manual TOML editing | [~] | first-pass scene-object editing now exists with Scene View-linked selection, click-to-draw creation, and basic direct manipulation, but it is still not yet a richer 2D geometry authoring workflow with full polish and reshape tooling |
 | 4 | Continue project/run/result UX polish after the new project/import flow | [~] | project entry is now usable, so the next value comes from smoother recent-project, run, and result navigation |
 | 5 | Plan and then implement a 3D scene/noise visualization layer | [ ] | the current 2D-only scene is useful but no longer sufficient for the intended long-term product direction |
 | 6 | Treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion | [ ] | source radiation still appears effectively flat-height in the GUI and should evolve toward selectable 3D/directive field shapes |

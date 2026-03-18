@@ -443,4 +443,4 @@ The GUI now uses clearer card-style summary panels and status badges in key work
 
 - Scenario Editor / Compare / Campaign Validation / Playback views polished with card layout and consistent status styling.
 
-- Scene Object Editor first pass added for list/form editing of barriers, buildings, terrain edges, ground surfaces, and vegetation zones with Save As and live scene preview.
+- Scene Object Editor first pass added for list/form editing of barriers, buildings, terrain edges, ground surfaces, and vegetation zones with Save As, live scene preview, Scene View-linked selection/highlight, first-pass 2D click-to-draw geometry authoring, and direct geometry manipulation for selected objects.

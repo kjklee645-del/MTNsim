@@ -408,7 +408,7 @@ Goal:
 7. add comparison panel [done]
 8. add campaign validation panel [done]
 9. add limited scenario editor only after read-only flows are stable [started]
-10. add Scene Object Editor for user-authored propagation geometry [started]
+10. add Scene Object Editor for user-authored propagation geometry with Scene View-linked selection/highlight, click-to-draw geometry creation, and basic direct manipulation [started]
 
 ## 9. Success Criteria for the GUI MVP
 

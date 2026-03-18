@@ -14,12 +14,14 @@ class PolylineLayer:
     name: str
     polylines: list[list[tuple[float, float]]] = field(default_factory=list)
     widths: list[float] = field(default_factory=list)
+    ids: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
 class PolygonLayer:
     name: str
     polygons: list[list[tuple[float, float]]] = field(default_factory=list)
+    ids: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -52,29 +54,43 @@ class SceneController:
             road_polylines, road_widths, junction_polygons = [], [], []
         scene_model = build_scene_model(scenario.scene)
 
-        road_layer = PolylineLayer(name='Road Network', polylines=road_polylines, widths=road_widths)
-        junction_layer = PolygonLayer(name='Junctions', polygons=junction_polygons)
+        road_layer = PolylineLayer(
+            name='Road Network',
+            polylines=road_polylines,
+            widths=road_widths,
+            ids=[f'lane_{index + 1}' for index in range(len(road_polylines))],
+        )
+        junction_layer = PolygonLayer(
+            name='Junctions',
+            polygons=junction_polygons,
+            ids=[f'junction_{index + 1}' for index in range(len(junction_polygons))],
+        )
         barrier_layer = PolylineLayer(
             name='Noise Barriers',
             polylines=[[item.start_xy, item.end_xy] for item in scene_model.noise_barriers],
             widths=[item.height_meters for item in scene_model.noise_barriers],
+            ids=[item.id for item in scene_model.noise_barriers],
         )
         terrain_layer = PolylineLayer(
             name='Terrain Edges',
             polylines=[[item.start_xy, item.end_xy] for item in scene_model.terrain_edges],
             widths=[item.height_meters for item in scene_model.terrain_edges],
+            ids=[item.id for item in scene_model.terrain_edges],
         )
         building_layer = PolygonLayer(
             name='Buildings',
             polygons=[list(item.footprint) for item in scene_model.buildings],
+            ids=[item.id for item in scene_model.buildings],
         )
         ground_layer = PolygonLayer(
             name='Ground Surfaces',
             polygons=[list(item.footprint) for item in scene_model.ground_surfaces],
+            ids=[item.id for item in scene_model.ground_surfaces],
         )
         vegetation_layer = PolygonLayer(
             name='Vegetation Zones',
             polygons=[list(item.footprint) for item in scene_model.vegetation_zones],
+            ids=[item.id for item in scene_model.vegetation_zones],
         )
         receiver_layer = PointLayer(
             name='Receivers',
