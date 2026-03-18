@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -42,7 +43,7 @@ class CampaignValidationView(QWidget):
         root.setSpacing(12)
 
         title = QLabel('Campaign Validation')
-        title.setStyleSheet('font-size: 22px; font-weight: 700;')
+        title.setObjectName('pageTitle')
         root.addWidget(title)
 
         controls = QHBoxLayout()
@@ -67,6 +68,7 @@ class CampaignValidationView(QWidget):
         root.addLayout(controls)
 
         self.status_label = QLabel('Open a campaign manifest to inspect or validate it.')
+        self.status_label.setObjectName('statusBadgeNeutral')
         root.addWidget(self.status_label)
 
         action_row = QHBoxLayout()
@@ -93,6 +95,16 @@ class CampaignValidationView(QWidget):
         action_row.addStretch(1)
         root.addLayout(action_row)
 
+        summary_title = QLabel('Campaign Summary')
+        summary_title.setObjectName('sectionTitle')
+        root.addWidget(summary_title)
+
+        summary_card = QFrame()
+        summary_card.setObjectName('infoCard')
+        summary_card_layout = QVBoxLayout(summary_card)
+        summary_card_layout.setContentsMargins(14, 14, 14, 14)
+        summary_card_layout.setSpacing(8)
+
         summary_form = QFormLayout()
         self.campaign_file_label = QLabel('-')
         self.campaign_id_label = QLabel('-')
@@ -104,21 +116,33 @@ class CampaignValidationView(QWidget):
         summary_form.addRow('Scenario', self.scenario_label)
         summary_form.addRow('Acceptance', self.acceptance_label)
         summary_form.addRow('Output Dir', self.output_dir_label)
-        root.addLayout(summary_form)
+        summary_card_layout.addLayout(summary_form)
+        root.addWidget(summary_card)
 
         self.summary_box = QTextEdit()
+        self.summary_box.setObjectName('infoCard')
         self.summary_box.setReadOnly(True)
         self.summary_box.setMaximumHeight(180)
         root.addWidget(self.summary_box)
 
+        threshold_title = QLabel('Acceptance Checks')
+        threshold_title.setObjectName('sectionTitle')
+        root.addWidget(threshold_title)
+
         self.threshold_table = QTableWidget(0, 3)
+        self.threshold_table.setObjectName('infoCard')
         self.threshold_table.setHorizontalHeaderLabels(['Check', 'Passed', 'Details'])
         self.threshold_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.threshold_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.threshold_table.horizontalHeader().setStretchLastSection(True)
         root.addWidget(self.threshold_table, 1)
 
+        recommendation_title = QLabel('Recommendations')
+        recommendation_title.setObjectName('sectionTitle')
+        root.addWidget(recommendation_title)
+
         self.recommendation_box = QTextEdit()
+        self.recommendation_box.setObjectName('infoCard')
         self.recommendation_box.setReadOnly(True)
         self.recommendation_box.setPlaceholderText('Recommendations and next actions will appear here.')
         root.addWidget(self.recommendation_box, 1)
@@ -148,10 +172,16 @@ class CampaignValidationView(QWidget):
 
     def set_status(self, text: str) -> None:
         self.status_label.setText(text)
+        object_name = 'statusBadgeReady' if 'completed' in text.lower() else 'statusBadgeNeutral'
+        if self.status_label.objectName() != object_name:
+            self.status_label.setObjectName(object_name)
+            self.status_label.style().unpolish(self.status_label)
+            self.status_label.style().polish(self.status_label)
 
     def set_inspection_result(self, payload: dict) -> None:
         summary = payload['summary']
         self.acceptance_label.setText('inspect ok' if summary.get('passed') else 'inspect failed')
+        self._apply_acceptance_style(summary.get('passed'))
         self.output_dir_label.setText(payload.get('output_dir', '-'))
         self._summary_file = str(payload.get('summary_file') or '')
         self._report_file = str(payload.get('report_file') or '')
@@ -176,6 +206,7 @@ class CampaignValidationView(QWidget):
     def set_validation_result(self, payload: dict) -> None:
         summary = payload['summary']
         self.acceptance_label.setText(str(summary.get('acceptance_status', '-')))
+        self._apply_acceptance_style(str(summary.get('acceptance_status', '-')).lower() in {'accepted', 'pass', 'passed'})
         self._summary_file = str(payload.get('summary_file') or '')
         self._report_file = str(payload.get('report_file') or '')
         self._result_summary_file = str(payload.get('result_summary_file') or '')
@@ -226,3 +257,13 @@ class CampaignValidationView(QWidget):
         campaign_file = self.campaign_file_label.text()
         if campaign_file and campaign_file != '-':
             self.validate_requested.emit(campaign_file, self.scenario_combo.currentData() or '', self.use_gpu_check.isChecked())
+
+    def _apply_acceptance_style(self, passed: bool | None) -> None:
+        if passed is None:
+            object_name = 'statusBadgeNeutral'
+        else:
+            object_name = 'statusBadgeReady' if passed else 'statusBadgeWarning'
+        if self.acceptance_label.objectName() != object_name:
+            self.acceptance_label.setObjectName(object_name)
+            self.acceptance_label.style().unpolish(self.acceptance_label)
+            self.acceptance_label.style().polish(self.acceptance_label)

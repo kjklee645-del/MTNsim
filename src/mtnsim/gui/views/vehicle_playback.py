@@ -8,13 +8,14 @@ from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDoubleSpinBox,
     QFormLayout,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QSlider,
-    QDoubleSpinBox,
     QSplitter,
     QTextEdit,
     QVBoxLayout,
@@ -132,7 +133,7 @@ class VehiclePlaybackView(QWidget):
         layout.setSpacing(12)
 
         title = QLabel('Vehicle Playback')
-        title.setStyleSheet('font-size: 22px; font-weight: 700;')
+        title.setObjectName('pageTitle')
         layout.addWidget(title)
 
         controls = QHBoxLayout()
@@ -140,7 +141,9 @@ class VehiclePlaybackView(QWidget):
         self.play_button = QPushButton('Play')
         self.play_button.clicked.connect(self.toggle_playback)
         self.frame_label = QLabel('Frame: -')
+        self.frame_label.setObjectName('statusBadgeNeutral')
         self.vehicle_label = QLabel('Vehicles: -')
+        self.vehicle_label.setObjectName('statusBadgeNeutral')
         self.speed_selector = QComboBox()
         self.speed_selector.addItems(['0.5x', '1.0x', '2.0x', '4.0x'])
         self.speed_selector.setCurrentText('1.0x')
@@ -240,10 +243,22 @@ class VehiclePlaybackView(QWidget):
         heatmap_form.addRow('Contribution', self.selected_vehicle_contribution_check)
         right_layout.addWidget(heatmap_group)
 
+        info_title = QLabel('Playback Details')
+        info_title.setObjectName('sectionTitle')
+        right_layout.addWidget(info_title)
+
+        info_card = QFrame()
+        info_card.setObjectName('infoCard')
+        info_card_layout = QVBoxLayout(info_card)
+        info_card_layout.setContentsMargins(10, 10, 10, 10)
+        info_card_layout.setSpacing(0)
+
         self.info_box = QTextEdit()
+        self.info_box.setObjectName('infoCard')
         self.info_box.setReadOnly(True)
         self.info_box.setMaximumWidth(340)
-        right_layout.addWidget(self.info_box, 1)
+        info_card_layout.addWidget(self.info_box)
+        right_layout.addWidget(info_card, 1)
 
         splitter.addWidget(right_panel)
         splitter.setStretchFactor(0, 4)

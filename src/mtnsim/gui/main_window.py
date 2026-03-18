@@ -31,8 +31,8 @@ from PySide6.QtWidgets import (
 
 from mtnsim.gui.controllers import CampaignController, CompareController, PlaybackController, ProjectController, ResultController, RunController, SceneController
 from mtnsim.gui.state import GuiRunState, GuiSessionState
-from mtnsim.gui.views import CampaignValidationView, ProjectHomeView, ProjectSetupDialog, ResultViewerView, RunMonitorView, ScenarioComparisonView, ScenarioEditorView, SceneView, VehiclePlaybackView
-from mtnsim.schemas.scenario import Receiver
+from mtnsim.gui.views import CampaignValidationView, ProjectHomeView, ProjectSetupDialog, ResultViewerView, RunMonitorView, ScenarioComparisonView, ScenarioEditorView, SceneObjectEditorView, SceneView, VehiclePlaybackView
+from mtnsim.schemas.scenario import Building, GroundSurface, NoiseBarrier, Receiver, TerrainEdge, VegetationZone
 
 
 class MainWindow(QMainWindow):
@@ -82,6 +82,7 @@ class MainWindow(QMainWindow):
         self.project_home_view = ProjectHomeView()
         self.scene_view = SceneView()
         self.scenario_editor_view = ScenarioEditorView()
+        self.scene_object_editor_view = SceneObjectEditorView()
         self.scenario_comparison_view = ScenarioComparisonView()
         self.campaign_validation_view = CampaignValidationView()
         self.run_monitor_view = RunMonitorView()
@@ -92,6 +93,7 @@ class MainWindow(QMainWindow):
         self.central_stack.addWidget(self.project_home_view)
         self.central_stack.addWidget(self.scene_view)
         self.central_stack.addWidget(self.scenario_editor_view)
+        self.central_stack.addWidget(self.scene_object_editor_view)
         self.central_stack.addWidget(self.scenario_comparison_view)
         self.central_stack.addWidget(self.campaign_validation_view)
         self.central_stack.addWidget(self.run_monitor_view)
@@ -130,6 +132,9 @@ class MainWindow(QMainWindow):
         self.scenario_editor_action = QAction('Scenario Editor', self)
         self.scenario_editor_action.triggered.connect(self.show_scenario_editor)
         self.scenario_editor_action.setEnabled(False)
+        self.scene_object_editor_action = QAction('Scene Objects', self)
+        self.scene_object_editor_action.triggered.connect(self.show_scene_object_editor)
+        self.scene_object_editor_action.setEnabled(False)
 
         self.compare_view_action = QAction('Compare', self)
         self.compare_view_action.triggered.connect(self.show_scenario_comparison)
@@ -164,6 +169,7 @@ class MainWindow(QMainWindow):
             None,
             self.scene_view_action,
             self.scenario_editor_action,
+            self.scene_object_editor_action,
         ])
         self._add_toolbar_menu_button(toolbar, 'Run', [
             self.run_selected_action,
@@ -215,6 +221,7 @@ class MainWindow(QMainWindow):
         self.navigation_list = QListWidget()
         self.navigation_list.addItem(QListWidgetItem('Home'))
         self.navigation_list.addItem(QListWidgetItem('Scene'))
+        self.navigation_list.addItem(QListWidgetItem('Scene Objects'))
         self.navigation_list.addItem(QListWidgetItem('Editor'))
         self.navigation_list.addItem(QListWidgetItem('Compare'))
         self.navigation_list.addItem(QListWidgetItem('Validation'))
@@ -265,6 +272,8 @@ class MainWindow(QMainWindow):
         self.project_home_view.open_latest_output_requested.connect(self.open_latest_output_from_home)
         self.scenario_editor_view.save_as_requested.connect(self.save_scenario_variant)
         self.scenario_editor_view.preview_requested.connect(self.apply_scenario_preview)
+        self.scene_object_editor_view.save_as_requested.connect(self.save_scene_object_variant)
+        self.scene_object_editor_view.preview_requested.connect(self.apply_scene_object_preview)
         self.scenario_comparison_view.compare_requested.connect(self.compare_selected_scenarios)
         self.scenario_comparison_view.run_compare_requested.connect(self.run_compare_selected_scenarios)
         self.scenario_comparison_view.receiver_selected.connect(self.load_comparison_receiver_series)
@@ -558,6 +567,7 @@ class MainWindow(QMainWindow):
         if state.selected_scenario is not None:
             self._render_scenario_details(state.selected_scenario_path, state.selected_scenario)
             self.scenario_editor_view.set_scenario(state.selected_scenario_path, state.selected_scenario)
+            self.scene_object_editor_view.set_scenario(state.selected_scenario_path, state.selected_scenario)
             self._update_scene_view()
         self.statusBar().showMessage(f'Loaded project: {state.project.project.name}')
         self.show_project_home()
@@ -579,9 +589,11 @@ class MainWindow(QMainWindow):
         self.session_state.project_state.selected_scenario = loaded
         self._render_scenario_details(Path(scenario_path), loaded)
         self.scenario_editor_view.set_scenario(Path(scenario_path), loaded)
+        self.scene_object_editor_view.set_scenario(Path(scenario_path), loaded)
         self._update_scene_view()
         self.scene_view_action.setEnabled(True)
         self.scenario_editor_action.setEnabled(True)
+        self.scene_object_editor_action.setEnabled(True)
         self.compare_view_action.setEnabled(len(self.session_state.project_state.scenario_paths) >= 2)
         self.campaign_view_action.setEnabled(self.session_state.project_state.manifest_path is not None)
         self._update_run_enablement()
@@ -695,37 +707,43 @@ class MainWindow(QMainWindow):
     def show_scenario_editor(self) -> None:
         self.central_stack.setCurrentWidget(self.scenario_editor_view)
         self.navigation_list.blockSignals(True)
-        self.navigation_list.setCurrentRow(7)
+        self.navigation_list.setCurrentRow(3)
+        self.navigation_list.blockSignals(False)
+
+    def show_scene_object_editor(self) -> None:
+        self.central_stack.setCurrentWidget(self.scene_object_editor_view)
+        self.navigation_list.blockSignals(True)
+        self.navigation_list.setCurrentRow(2)
         self.navigation_list.blockSignals(False)
 
     def show_scenario_comparison(self) -> None:
         self.central_stack.setCurrentWidget(self.scenario_comparison_view)
         self.navigation_list.blockSignals(True)
-        self.navigation_list.setCurrentRow(2)
+        self.navigation_list.setCurrentRow(4)
         self.navigation_list.blockSignals(False)
 
     def show_campaign_validation(self) -> None:
         self.central_stack.setCurrentWidget(self.campaign_validation_view)
         self.navigation_list.blockSignals(True)
-        self.navigation_list.setCurrentRow(6)
+        self.navigation_list.setCurrentRow(5)
         self.navigation_list.blockSignals(False)
 
     def show_run_monitor(self) -> None:
         self.central_stack.setCurrentWidget(self.run_monitor_view)
         self.navigation_list.blockSignals(True)
-        self.navigation_list.setCurrentRow(3)
+        self.navigation_list.setCurrentRow(6)
         self.navigation_list.blockSignals(False)
 
     def show_result_viewer(self) -> None:
         self.central_stack.setCurrentWidget(self.result_viewer_view)
         self.navigation_list.blockSignals(True)
-        self.navigation_list.setCurrentRow(4)
+        self.navigation_list.setCurrentRow(7)
         self.navigation_list.blockSignals(False)
 
     def show_vehicle_playback(self) -> None:
         self.central_stack.setCurrentWidget(self.vehicle_playback_view)
         self.navigation_list.blockSignals(True)
-        self.navigation_list.setCurrentRow(5)
+        self.navigation_list.setCurrentRow(8)
         self.navigation_list.blockSignals(False)
 
     def _handle_navigation_change(self, row: int) -> None:
@@ -734,16 +752,18 @@ class MainWindow(QMainWindow):
         elif row == 1:
             self.central_stack.setCurrentWidget(self.scene_view)
         elif row == 2:
-            self.central_stack.setCurrentWidget(self.scenario_editor_view)
+            self.central_stack.setCurrentWidget(self.scene_object_editor_view)
         elif row == 3:
-            self.central_stack.setCurrentWidget(self.scenario_comparison_view)
+            self.central_stack.setCurrentWidget(self.scenario_editor_view)
         elif row == 4:
-            self.central_stack.setCurrentWidget(self.campaign_validation_view)
+            self.central_stack.setCurrentWidget(self.scenario_comparison_view)
         elif row == 5:
-            self.central_stack.setCurrentWidget(self.run_monitor_view)
+            self.central_stack.setCurrentWidget(self.campaign_validation_view)
         elif row == 6:
-            self.central_stack.setCurrentWidget(self.result_viewer_view)
+            self.central_stack.setCurrentWidget(self.run_monitor_view)
         elif row == 7:
+            self.central_stack.setCurrentWidget(self.result_viewer_view)
+        elif row == 8:
             self.central_stack.setCurrentWidget(self.vehicle_playback_view)
 
     def _on_run_progress(self, percent: int, label: str) -> None:
@@ -1097,6 +1117,98 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, 'Scenario Save Failed', str(exc))
             self._append_log(f'[error] Failed to save scenario variant: {exc}')
 
+    def apply_scene_object_preview(self, payload: dict) -> None:
+        project_state = self.session_state.project_state
+        if project_state.project is None or project_state.selected_scenario is None:
+            return
+        preview = deepcopy(project_state.selected_scenario)
+        preview.scenario.name = payload.get('scenario_name') or preview.scenario.name
+        preview.scenario.description = payload.get('description', preview.scenario.description)
+        scene_payload = payload.get('scene', {})
+        preview.scene.noise_barriers = [NoiseBarrier(**item) for item in scene_payload.get('noise_barriers', [])]
+        preview.scene.buildings = [
+            Building(
+                id=item['id'],
+                footprint=[tuple(point) for point in item.get('footprint', [])],
+                height_meters=float(item.get('height_meters', 0.0)),
+                attenuation_db=float(item.get('attenuation_db', 0.0)),
+                material=str(item.get('material', 'generic')),
+            )
+            for item in scene_payload.get('buildings', [])
+        ]
+        preview.scene.terrain_edges = [TerrainEdge(**item) for item in scene_payload.get('terrain_edges', [])]
+        preview.scene.ground_surfaces = [
+            GroundSurface(
+                id=item['id'],
+                footprint=[tuple(point) for point in item.get('footprint', [])],
+                material=str(item.get('material', 'grass')),
+            )
+            for item in scene_payload.get('ground_surfaces', [])
+        ]
+        preview.scene.vegetation_zones = [
+            VegetationZone(
+                id=item['id'],
+                footprint=[tuple(point) for point in item.get('footprint', [])],
+                height_meters=float(item.get('height_meters', 0.0)),
+                attenuation_db=float(item.get('attenuation_db', 0.0)),
+                material=str(item.get('material', 'generic')),
+            )
+            for item in scene_payload.get('vegetation_zones', [])
+        ]
+        self.preview_scenario = preview
+        self._render_scenario_details(project_state.selected_scenario_path, preview, is_preview=True)
+        snapshot = self.scene_controller.build_snapshot(project_state.project, preview)
+        self.scene_view.set_snapshot(snapshot)
+        self.vehicle_playback_view.set_snapshot(snapshot)
+        self.scene_view.canvas.set_heatmap_cells([])
+        self.vehicle_playback_view.set_heatmap_cells([])
+        self._append_log('[info] Updated unsaved scene-object preview in scene/details view')
+
+    def save_scene_object_variant(self, payload: dict) -> None:
+        project_state = self.session_state.project_state
+        source_path = payload.get('source_path')
+        if project_state.manifest_path is None or not source_path:
+            QMessageBox.information(self, 'Scene Object Editor', 'Load a project and select a scenario first.')
+            return
+        suggested_name = (payload.get('scenario_name') or Path(source_path).stem or 'scene_variant').strip()
+        default_path = Path(source_path).resolve().parent / f'{suggested_name}.toml'
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            'Save Scene-Object Scenario As',
+            str(default_path),
+            'TOML Files (*.toml)',
+        )
+        if not file_path:
+            return
+        try:
+            self.preview_scenario = None
+            saved_path = self.project_controller.save_scene_object_variant(source_path, file_path, payload)
+            reloaded = self.project_controller.load_project(project_state.manifest_path)
+            reloaded.selected_scenario_path = saved_path
+            reloaded.selected_scenario = self.project_controller.load_scenario(saved_path)
+            self.session_state.project_state = reloaded
+            self.project_home_view.set_project_state(reloaded)
+            self.scenario_comparison_view.set_scenarios(reloaded.scenario_paths, reloaded.selected_scenario_path)
+            self.scenario_comparison_view.set_selected_pair(source_path, saved_path)
+            self._update_run_enablement()
+            self.scene_view_action.setEnabled(True)
+            self.scenario_editor_action.setEnabled(True)
+            self.scene_object_editor_action.setEnabled(True)
+            self.compare_view_action.setEnabled(len(reloaded.scenario_paths) >= 2)
+            self._render_scenario_details(saved_path, reloaded.selected_scenario)
+            self.scenario_editor_view.set_scenario(saved_path, reloaded.selected_scenario)
+            self.scene_object_editor_view.set_scenario(saved_path, reloaded.selected_scenario)
+            self._update_scene_view()
+            self.scene_object_editor_view.set_status(f'Saved scene-object scenario: {saved_path.name}')
+            self._append_log(f'[info] Saved scene-object scenario: {saved_path}')
+            self.statusBar().showMessage(f'Saved scene-object scenario: {saved_path.name}')
+            self.compare_selected_scenarios(str(source_path), str(saved_path))
+            self.scenario_comparison_view.set_status(f'Derived scene-object scenario saved. Comparing {Path(source_path).stem} vs {saved_path.stem}')
+            self.show_scenario_comparison()
+        except Exception as exc:  # pragma: no cover
+            QMessageBox.critical(self, 'Scene Object Save Failed', str(exc))
+            self._append_log(f'[error] Failed to save scene-object scenario: {exc}')
+
     def _render_scenario_details(self, scenario_path: Path | None, scenario, is_preview: bool = False) -> None:
         receiver_lines = [f'- {receiver.id}: ({receiver.x:.1f}, {receiver.y:.1f}, {receiver.z:.1f})' for receiver in scenario.receivers]
         project = self.session_state.project_state.project
@@ -1106,6 +1218,13 @@ class MainWindow(QMainWindow):
             '- Preview: unsaved editor values' if is_preview else '- Preview: saved scenario values',
             f'Source file: {scenario_path}',
             f'SUMO attached: {'yes' if sumo_ready else 'no'}',
+            '',
+            'Scene Objects',
+            f'- Noise barriers: {len(scenario.scene.noise_barriers)}',
+            f'- Buildings: {len(scenario.scene.buildings)}',
+            f'- Terrain edges: {len(scenario.scene.terrain_edges)}',
+            f'- Ground surfaces: {len(scenario.scene.ground_surfaces)}',
+            f'- Vegetation zones: {len(scenario.scene.vegetation_zones)}',
             '',
             'Traffic',
             f'- Max vehicles: {scenario.traffic.max_vehicles}',

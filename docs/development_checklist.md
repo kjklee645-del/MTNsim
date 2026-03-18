@@ -113,6 +113,7 @@ Status legend:
 | Visualization | GUI Scene View | [x] | SUMO road polylines, receivers, and scenario geometry layers rendered in a 2D scene view |
 | Visualization | GUI Vehicle Playback | [x] | GUI-triggered runs now record vehicle traces and replay them with a time slider on top of the 2D scene view |
 | Visualization | GUI implementation | [~] | active track; core GUI flows exist; preview UX polish items are deferred in `docs/deferred_enhancement_backlog.md` |
+| Visualization | Scene Object Editor for barriers, buildings, terrain, ground, and vegetation | [~] | first-pass GUI view now supports list/form editing, Save As, and live scene preview; deeper geometry editing still remains |
 | Visualization | 3D scene and noise visualization layer | [ ] | future visualization track beyond the current 2D scene/heatmap implementation |
 | Visualization | Volumetric/directional source-field visualization | [ ] | support spherical, wedge-like, or other directional source-region displays with selectable modes |
 | API | Local API layer | [~] | thin local layer exists |
@@ -124,12 +125,13 @@ Status legend:
 
 | Priority | Next item | Status | Why next |
 | --- | --- | --- | --- |
-| 1 | Fix the GUI scene/playback aspect-ratio problem | [ ] | current 2D rendering can visually distort roads and noise fields, which directly hurts trust in the playback and heatmap views |
-| 2 | Raise GUI visual polish and operator-facing design quality | [ ] | the workflow is broad enough now that visual clarity and product feel matter more than another large backend feature |
-| 3 | Continue project/run/result UX polish after the new project/import flow | [~] | project entry is now usable, so the next value comes from smoother recent-project, run, and result navigation |
-| 4 | Plan and then implement a 3D scene/noise visualization layer | [ ] | the current 2D-only scene is useful but no longer sufficient for the intended long-term product direction |
-| 5 | Treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion | [ ] | source radiation still appears effectively flat-height in the GUI and should evolve toward selectable 3D/directive field shapes |
-| 6 | Keep deeper validation, calibration, scene-physics, and GPU work on the deferred backlog while GUI/product usability is the mainline focus | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
+| 1 | Fix the GUI scene/playback aspect-ratio problem | [x] | completed; 2D rendering now preserves SUMO proportions with uniform scale and centered content |
+| 2 | Raise GUI visual polish and operator-facing design quality | [~] | major shell and core view polish completed, but product-level refinement still remains |
+| 3 | Add a Scene Object Editor so users can define barriers, buildings, terrain, ground, and vegetation without manual TOML editing | [~] | first-pass scene-object editing now exists, but it is still form-first and not yet a richer 2D geometry authoring workflow |
+| 4 | Continue project/run/result UX polish after the new project/import flow | [~] | project entry is now usable, so the next value comes from smoother recent-project, run, and result navigation |
+| 5 | Plan and then implement a 3D scene/noise visualization layer | [ ] | the current 2D-only scene is useful but no longer sufficient for the intended long-term product direction |
+| 6 | Treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion | [ ] | source radiation still appears effectively flat-height in the GUI and should evolve toward selectable 3D/directive field shapes |
+| 7 | Keep deeper validation, calibration, scene-physics, and GPU work on the deferred backlog while GUI/product usability is the mainline focus | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
 
 ## 10. Maintenance Rule
 

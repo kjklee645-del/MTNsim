@@ -436,3 +436,11 @@ The left dock now acts as a workspace switcher rather than an action toolbar.
 - `Playback`
 
 Project creation/import/attach actions live in the top toolbar menus, while Project Home focuses on status, recent work, and next-step shortcuts.
+
+## Visual Layout Notes
+
+The GUI now uses clearer card-style summary panels and status badges in key workflow screens such as Project Home, Run Monitor, and Result Viewer. This does not change the workflow, but it should make project state, run state, and result context easier to read.
+
+- Scenario Editor / Compare / Campaign Validation / Playback views polished with card layout and consistent status styling.
+
+- Scene Object Editor first pass added for list/form editing of barriers, buildings, terrain edges, ground surfaces, and vegetation zones with Save As and live scene preview.

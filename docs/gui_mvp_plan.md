@@ -13,6 +13,7 @@ Build a desktop GUI prototype that lets a general user:
 - compare scenarios
 - inspect receiver-level results
 - open campaign validation outputs
+- create and edit scene objects such as barriers, buildings, ground surfaces, terrain edges, and vegetation zones without manual TOML editing
 
 The GUI MVP is not a full professional acoustic workstation. It is a usable operator shell around the existing MTNsim engine.
 
@@ -185,6 +186,40 @@ Must-have elements:
 - receiver/group diagnostics table
 - open generated Markdown/JSON reports
 
+### 3.8 Screen H: Scene Object Editor
+
+Purpose:
+- let a user create and edit scene geometry that changes propagation without hand-editing scenario TOML
+
+Must-have elements:
+- object-type selector
+  - noise barrier
+  - building
+  - terrain edge
+  - ground surface
+  - vegetation zone
+- add / edit / remove object actions
+- simple 2D geometry editing or coordinate-based forms
+- height / attenuation / material controls where relevant
+- object list tied to the current scenario
+- save back into the selected scenario
+
+Design note:
+- the first version can be form-first and list-driven rather than a full CAD-like drawing tool
+- tight Scene View integration is more important than rich geometry authoring in the first pass
+
+
+Purpose:
+- inspect campaign quality and validation outcomes
+
+Must-have elements:
+- open campaign manifest
+- run inspect / run validate actions
+- acceptance status badge
+- calibration recommendation list
+- receiver/group diagnostics table
+- open generated Markdown/JSON reports
+
 ## 4. MVP Functional Scope
 
 ### 4.1 Must Have
@@ -198,6 +233,7 @@ Must-have elements:
 - compare two scenarios
 - inspect one campaign package
 - run one campaign validation and view the report
+- create and edit basic scene objects for the active scenario
 
 ### 4.2 Should Have
 
@@ -372,6 +408,7 @@ Goal:
 7. add comparison panel [done]
 8. add campaign validation panel [done]
 9. add limited scenario editor only after read-only flows are stable [started]
+10. add Scene Object Editor for user-authored propagation geometry [started]
 
 ## 9. Success Criteria for the GUI MVP
 

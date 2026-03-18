@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -29,7 +30,7 @@ class RunMonitorView(QWidget):
         layout.setSpacing(12)
 
         title = QLabel('Run Monitor')
-        title.setStyleSheet('font-size: 22px; font-weight: 700;')
+        title.setObjectName('pageTitle')
         layout.addWidget(title)
 
         button_row = QHBoxLayout()
@@ -44,6 +45,7 @@ class RunMonitorView(QWidget):
         layout.addLayout(button_row)
 
         self.status_label = QLabel('Idle')
+        self.status_label.setObjectName('statusBadgeNeutral')
         layout.addWidget(self.status_label)
 
         self.progress_bar = QProgressBar()
@@ -51,6 +53,14 @@ class RunMonitorView(QWidget):
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 
+        info_card = QFrame()
+        info_card.setObjectName('infoCard')
+        info_layout = QVBoxLayout(info_card)
+        info_layout.setContentsMargins(14, 12, 14, 12)
+        info_layout.setSpacing(8)
+        info_title = QLabel('Run Summary')
+        info_title.setObjectName('sectionTitle')
+        info_layout.addWidget(info_title)
         form = QFormLayout()
         self.project_label = QLabel('-')
         self.scenario_label = QLabel('-')
@@ -69,14 +79,17 @@ class RunMonitorView(QWidget):
         form.addRow('Output Dir', self.output_dir_label)
         form.addRow('Manifest File', self.manifest_file_label)
         form.addRow('Result Summary', self.result_summary_label)
-        layout.addLayout(form)
+        info_layout.addLayout(form)
+        layout.addWidget(info_card)
 
         self.completion_summary_box = QTextEdit()
+        self.completion_summary_box.setObjectName('infoCard')
         self.completion_summary_box.setReadOnly(True)
         self.completion_summary_box.setPlaceholderText('Run readiness and completion summary will appear here.')
         layout.addWidget(self.completion_summary_box, 1)
 
         self.receiver_files_box = QTextEdit()
+        self.receiver_files_box.setObjectName('infoCard')
         self.receiver_files_box.setReadOnly(True)
         self.receiver_files_box.setPlaceholderText('Receiver output files will appear here after completion.')
         layout.addWidget(self.receiver_files_box, 1)

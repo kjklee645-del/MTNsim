@@ -107,10 +107,11 @@ At the same time, MTNsim is not yet a finished professional product. The biggest
 
 1. Fix the GUI scene/playback aspect-ratio problem.
 2. Improve GUI visual polish.
-3. Continue project/run/result UX polish.
-4. Design and implement a 3D scene/noise visualization layer.
-5. Design and implement volumetric/directional source-field modeling and user-facing selection of source-shape modes.
-6. Keep deeper validation, calibration, GPU, and physics hardening on the deferred backlog unless a milestone pulls them forward.
+3. Add a Scene Object Editor so users can define barriers, buildings, terrain edges, ground surfaces, and vegetation zones directly in the product.
+4. Continue project/run/result UX polish.
+5. Design and implement a 3D scene/noise visualization layer.
+6. Design and implement volumetric/directional source-field modeling and user-facing selection of source-shape modes.
+7. Keep deeper validation, calibration, GPU, and physics hardening on the deferred backlog unless a milestone pulls them forward.
 
 ## 6. Bottom Line
 

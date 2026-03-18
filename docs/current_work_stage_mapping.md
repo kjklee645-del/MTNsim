@@ -63,3 +63,7 @@ Update this document whenever one of the following happens:
 - a stage moves from `partial` to `completed`
 - the recommended execution priority changes
 - a new subsystem shifts the center of gravity across multiple original stages
+
+Current GUI plan update:
+- a dedicated `Scene Object Editor` is now part of the mainline product plan because scene-aware propagation features already exist in the engine but still depend on manual scenario-file editing
+- in the original 13-step model, this sits primarily under `12. GUI`, while enabling fuller use of `8. scene hierarchy`, `9. material-aware calculation`, and `10. reflection/diffraction` from a user-facing workflow

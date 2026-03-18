@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -125,7 +126,7 @@ class ScenarioComparisonView(QWidget):
         root.setSpacing(12)
 
         title = QLabel('Scenario Comparison')
-        title.setStyleSheet('font-size: 22px; font-weight: 700;')
+        title.setObjectName('pageTitle')
         root.addWidget(title)
 
         controls = QHBoxLayout()
@@ -148,6 +149,7 @@ class ScenarioComparisonView(QWidget):
         root.addLayout(controls)
 
         self.status_label = QLabel('Select two scenarios to compare their configuration differences.')
+        self.status_label.setObjectName('statusBadgeNeutral')
         root.addWidget(self.status_label)
 
         action_row = QHBoxLayout()
@@ -178,6 +180,16 @@ class ScenarioComparisonView(QWidget):
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(10)
 
+        summary_title = QLabel('Comparison Summary')
+        summary_title.setObjectName('sectionTitle')
+        left_layout.addWidget(summary_title)
+
+        summary_card = QFrame()
+        summary_card.setObjectName('infoCard')
+        summary_card_layout = QVBoxLayout(summary_card)
+        summary_card_layout.setContentsMargins(14, 14, 14, 14)
+        summary_card_layout.setSpacing(8)
+
         summary_form = QFormLayout()
         self.project_label = QLabel('-')
         self.scenario_a_label = QLabel('-')
@@ -189,14 +201,21 @@ class ScenarioComparisonView(QWidget):
         summary_form.addRow('Scenario B', self.scenario_b_label)
         summary_form.addRow('Config Diffs', self.diff_count_label)
         summary_form.addRow('Receiver Deltas', self.receiver_delta_count_label)
-        left_layout.addLayout(summary_form)
+        summary_card_layout.addLayout(summary_form)
+        left_layout.addWidget(summary_card)
 
         self.summary_box = QTextEdit()
+        self.summary_box.setObjectName('infoCard')
         self.summary_box.setReadOnly(True)
         self.summary_box.setMaximumHeight(120)
         left_layout.addWidget(self.summary_box)
 
+        diff_title = QLabel('Configuration Differences')
+        diff_title.setObjectName('sectionTitle')
+        left_layout.addWidget(diff_title)
+
         self.diff_table = QTableWidget(0, 3)
+        self.diff_table.setObjectName('infoCard')
         self.diff_table.setHorizontalHeaderLabels(['Field', 'Scenario A', 'Scenario B'])
         self.diff_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.diff_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -210,14 +229,19 @@ class ScenarioComparisonView(QWidget):
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(10)
 
+        result_title = QLabel('Result Differences')
+        result_title.setObjectName('sectionTitle')
+        right_layout.addWidget(result_title)
+
         self.delta_summary_box = QTextEdit()
+        self.delta_summary_box.setObjectName('infoCard')
         self.delta_summary_box.setReadOnly(True)
         self.delta_summary_box.setMaximumHeight(120)
         self.delta_summary_box.setPlaceholderText('Run-and-compare output will appear here.')
         right_layout.addWidget(self.delta_summary_box)
 
         self.receiver_delta_table = QTableWidget(0, 4)
-        self.receiver_delta_table.setHorizontalHeaderLabels(['Receiver', 'Mean dB Δ', 'Min dB Δ', 'Max dB Δ'])
+        self.receiver_delta_table.setHorizontalHeaderLabels(['Receiver', 'Mean Delta dB', 'Min Delta dB', 'Max Delta dB'])
         self.receiver_delta_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.receiver_delta_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.receiver_delta_table.itemSelectionChanged.connect(self._emit_selected_receiver)
@@ -287,6 +311,11 @@ class ScenarioComparisonView(QWidget):
 
     def set_status(self, text: str) -> None:
         self.status_label.setText(text)
+        object_name = 'statusBadgeReady' if 'completed' in text.lower() else 'statusBadgeNeutral'
+        if self.status_label.objectName() != object_name:
+            self.status_label.setObjectName(object_name)
+            self.status_label.style().unpolish(self.status_label)
+            self.status_label.style().polish(self.status_label)
 
     def set_comparison(self, comparison: ScenarioComparison | None) -> None:
         if comparison is None:
@@ -390,3 +419,4 @@ class ScenarioComparisonView(QWidget):
             return '-'
         text = str(value)
         return text if len(text) <= 120 else text[:117] + '...'
+

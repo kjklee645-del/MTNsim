@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QComboBox,
+    QFrame,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -134,7 +135,7 @@ class ResultViewerView(QWidget):
         outer.setSpacing(12)
 
         title = QLabel('Result Viewer')
-        title.setStyleSheet('font-size: 22px; font-weight: 700;')
+        title.setObjectName('pageTitle')
         outer.addWidget(title)
 
         action_row = QHBoxLayout()
@@ -166,14 +167,16 @@ class ResultViewerView(QWidget):
         left_layout.setSpacing(10)
 
         recent_label = QLabel('Recent Results')
-        recent_label.setStyleSheet('font-size: 15px; font-weight: 600;')
+        recent_label.setObjectName('sectionTitle')
         left_layout.addWidget(recent_label)
 
         self.recent_results_list = QListWidget()
+        self.recent_results_list.setObjectName('infoCard')
         self.recent_results_list.currentItemChanged.connect(self._emit_recent_result)
         left_layout.addWidget(self.recent_results_list, 1)
 
         self.metadata_box = QTextEdit()
+        self.metadata_box.setObjectName('infoCard')
         self.metadata_box.setReadOnly(True)
         self.metadata_box.setPlaceholderText('Result metadata will appear here.')
         left_layout.addWidget(self.metadata_box, 1)
@@ -185,6 +188,14 @@ class ResultViewerView(QWidget):
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(10)
 
+        summary_card = QFrame()
+        summary_card.setObjectName('infoCard')
+        summary_card_layout = QVBoxLayout(summary_card)
+        summary_card_layout.setContentsMargins(14, 12, 14, 12)
+        summary_card_layout.setSpacing(8)
+        summary_title = QLabel('Run Details')
+        summary_title.setObjectName('sectionTitle')
+        summary_card_layout.addWidget(summary_title)
         summary_form = QFormLayout()
         self.run_id_label = QLabel('-')
         self.scenario_label = QLabel('-')
@@ -199,9 +210,11 @@ class ResultViewerView(QWidget):
         summary_form.addRow('Execution', self.execution_label)
         summary_form.addRow('Receivers', self.receiver_count_label)
         summary_form.addRow('Playback Cursor', self.playback_cursor_label)
-        right_layout.addLayout(summary_form)
+        summary_card_layout.addLayout(summary_form)
+        right_layout.addWidget(summary_card)
 
         self.receiver_table = QTableWidget(0, 4)
+        self.receiver_table.setObjectName('infoCard')
         self.receiver_table.setHorizontalHeaderLabels(['Receiver', 'Min dB', 'Max dB', 'Mean dB'])
         self.receiver_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.receiver_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -209,7 +222,9 @@ class ResultViewerView(QWidget):
         right_layout.addWidget(self.receiver_table, 1)
 
         receiver_row = QHBoxLayout()
-        receiver_row.addWidget(QLabel('Receiver Series'))
+        receiver_series_label = QLabel('Receiver Series')
+        receiver_series_label.setObjectName('sectionTitle')
+        receiver_row.addWidget(receiver_series_label)
         self.receiver_selector = QComboBox()
         self.receiver_selector.currentTextChanged.connect(self._emit_combo_receiver)
         receiver_row.addWidget(self.receiver_selector, 1)

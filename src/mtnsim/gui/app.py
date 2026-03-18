@@ -93,6 +93,52 @@ def _build_stylesheet() -> str:
     QLabel {
         background: transparent;
     }
+    QLabel#pageTitle {
+        font-size: 24px;
+        font-weight: 800;
+        color: #18212f;
+        padding-bottom: 2px;
+    }
+    QLabel#sectionTitle {
+        font-size: 15px;
+        font-weight: 700;
+        color: #344256;
+        padding-top: 4px;
+    }
+    QLabel#homeHelperLabel {
+        color: #5b6472;
+        padding: 2px 0 6px 0;
+    }
+    QLabel#statusBadgeReady, QLabel#statusBadgeWarning, QLabel#statusBadgeNeutral {
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-weight: 700;
+    }
+    QLabel#statusBadgeReady {
+        background: #dff3e5;
+        color: #166534;
+        border: 1px solid #b8dfc4;
+    }
+    QLabel#statusBadgeWarning {
+        background: #fce8d7;
+        color: #9a3412;
+        border: 1px solid #efd0b5;
+    }
+    QLabel#statusBadgeNeutral {
+        background: #ece8e1;
+        color: #5b6472;
+        border: 1px solid #ddd2c0;
+    }
+    QWidget#infoCard {
+        background: #fbf7f0;
+        border: 1px solid #dbcdb8;
+        border-radius: 12px;
+    }
+    QTextEdit#infoCard, QPlainTextEdit#infoCard, QListWidget#infoCard, QTableWidget#infoCard {
+        background: #fbf7f0;
+        border: 1px solid #dbcdb8;
+        border-radius: 12px;
+    }
     QGroupBox {
         background: #f9f4eb;
         border: 1px solid #d8cbb4;

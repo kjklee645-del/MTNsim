@@ -1,0 +1,31 @@
+[project]
+name = "test_barrier"
+version = "0.1"
+description = "scene objects making test"
+default_scenario = "baseline"
+
+[paths]
+network = "data\\sumo\\4lane.net.xml"
+route = "data\\sumo\\4lane.rou.xml"
+sumo_config = "data\\sumo\\4lane.sumocfg"
+scene = "data/scene/scene.geojson"
+measurements = "data/measurements/sensors.csv"
+measurement_metadata = "data/measurements/sensor_metadata.csv"
+outputs = "outputs"
+
+[simulation_defaults]
+time_step_seconds = 1.0
+max_steps = 600
+random_seed = 42
+engine = "sumo"
+
+[agent]
+enabled = true
+mode = "bounded"
+requires_approval_for = [ "run_simulation", "overwrite_outputs", "export_report",]
+
+[outputs]
+store_run_manifest = true
+store_receiver_timeseries = true
+store_grid_timeseries = false
+format = [ "json", "csv",]

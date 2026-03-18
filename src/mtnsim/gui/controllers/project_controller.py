@@ -369,6 +369,29 @@ class ProjectController:
         destination_path.write_text(toml.dumps(data), encoding='utf-8')
         return destination_path
 
+    def save_scene_object_variant(self, source_path: str | Path, destination_path: str | Path, updates: dict) -> Path:
+        source_path = Path(source_path).resolve()
+        destination_path = Path(destination_path).resolve()
+        with source_path.open('rb') as handle:
+            data = tomllib.load(handle)
+
+        scenario_block = data.setdefault('scenario', {})
+        scenario_block['name'] = updates.get('scenario_name') or scenario_block.get('name') or destination_path.stem
+        scenario_block['description'] = updates.get('description', scenario_block.get('description', ''))
+
+        scene_block = data.setdefault('scene', {})
+        scene_block.pop('barriers', None)
+        scene_payload = updates.get('scene', {})
+        scene_block['noise_barriers'] = list(scene_payload.get('noise_barriers', []))
+        scene_block['buildings'] = list(scene_payload.get('buildings', []))
+        scene_block['terrain_edges'] = list(scene_payload.get('terrain_edges', []))
+        scene_block['ground_surfaces'] = list(scene_payload.get('ground_surfaces', []))
+        scene_block['vegetation_zones'] = list(scene_payload.get('vegetation_zones', []))
+
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        destination_path.write_text(toml.dumps(data), encoding='utf-8')
+        return destination_path
+
     def _materialize_optional_project_assets(
         self,
         project_root: Path,
