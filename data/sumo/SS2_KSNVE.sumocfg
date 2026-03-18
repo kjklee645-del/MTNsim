@@ -1,0 +1,5 @@
+<configuration>
+    <net-file value="map_SS2_KSNVE.net.xml"/>
+    <route-files value="map_SS2_KSNVE.rou.xml"/>
+
+</configuration>

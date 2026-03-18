@@ -1,0 +1,8 @@
+<configuration>
+	<input>
+		<net-file value="YS_map_edit.net.xml"/>
+		<route-files value="YS_map_edit_BUS2.rou.xml"/>
+		<junction-taz value="true"/>
+	</input>
+	
+</configuration>

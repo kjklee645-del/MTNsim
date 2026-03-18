@@ -1,0 +1,4 @@
+<configuration>
+    <net-file value="D:\연구원 과제관련\06_본부목적형RNR\05_시뮬레이션 테스트\NP_2024_totalGrid\test3_1.net.xml"/>
+    <route-files value="D:\연구원 과제관련\06_본부목적형RNR\05_시뮬레이션 테스트\NP_2024_totalGrid\test3.rou.xml"/>
+</configuration>
