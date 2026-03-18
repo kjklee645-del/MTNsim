@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QListWidget,
     QListWidgetItem,
+    QDialog,
     QDockWidget,
     QMainWindow,
     QMessageBox,
@@ -264,7 +265,7 @@ class MainWindow(QMainWindow):
             initial_scenario_name=initial_scenario_name,
             parent=self,
         )
-        if dialog.exec() != dialog.Accepted:
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         payload = dialog.payload()
         project_root = Path(payload['project_root']).resolve()
