@@ -1,6 +1,6 @@
 # MTNsim Current Status
 
-Date: 2026-03-18
+Date: 2026-03-19
 
 ## 1. Summary
 
@@ -18,7 +18,7 @@ The codebase now supports:
 - path-specific material-aware propagation effects
 - scene-aware hybrid GPU execution for attenuation and accumulation
 - a GUI prototype with project loading, 2D scene viewing, background run execution, progress monitoring, result viewing, and receiver-series plotting
-- first-pass GUI-wide visual polish via a shared desktop stylesheet, cleaner operator-shell presentation, a menu-driven top-toolbar structure, workspace-oriented navigation semantics, card-like summary sections in key operator views, and a darker dashboard-style shell with `Tools & Config`, `Integrated Viewer`, and `Analysis & Data` regions
+- first-pass GUI-wide visual polish via a shared desktop stylesheet, cleaner operator-shell presentation, a menu-driven top-toolbar structure, workspace-oriented navigation semantics, card-like summary sections in key operator views, a darker dashboard-style shell with `Workspace`, `Integrated Viewer`, and `Analysis & Data` regions, and a layout fix that now allows the overall GUI window to shrink based on the currently active workspace instead of the largest hidden page in the central stack
 - first-pass directional emission in the actual engine with `isotropic`, `wedge`, and `dual_wedge` modes, plus 3D source-field controls that can now link to the calculation-side directivity used by the run
 
 ## 2. What Has Been Implemented
@@ -257,7 +257,8 @@ These values are prototype-level engineering checks, not yet validated against m
 ### 4.3 Product Limitations
 
 - GUI can browse scenarios, inspect a 2D scene view, run scenarios, inspect results, replay recorded vehicle motion, compare two scenarios through config diff and run-result comparison, and inspect/validate field campaigns through a dedicated desktop UI
-- current GUI styling is functional but still prototype-grade rather than polished product UI
+- current GUI styling is much stronger than the original prototype, and the main window now resizes more naturally because the central workspace stack reports size hints from the active page only, but product-level polish still remains in some views
+- 3D view and source-field visualization are now part of the main operator workflow, but still need deeper refinement and export/presentation polish
 - scene objects such as noise barriers, terrain edges, ground surfaces, vegetation zones, and buildings can now be authored in a first-pass GUI editor with click-to-draw geometry creation, basic direct manipulation, and duplicate plus undo/redo support; deeper geometry-authoring polish such as vertex add/remove, duplicate-and-drag, snapping, and richer reshape tooling is deferred in the backlog
 - a first 3D scene shell now exists through `Scene3DView`, `Scene3DController`, and the scene-to-3D adapter layer; it now renders static 3D scene primitives for roads, receivers, barriers, buildings, ground, vegetation, the grid-region overlay, and a static or playback-synced 3D noise surface derived from grid outputs, with orbit/pan/zoom/reset camera controls, dB legend/range controls, color-plate versus raised-surface rendering modes, direct Result Viewer-to-3D linking with run metadata, and a deeper playback-aware slice that adds frame-synced 3D vehicle markers, short 3D trails, selected-vehicle highlighting, and basic 3D camera follow
 - current source radiation in the engine is still effectively a simplified approximation, but the GUI now includes first-pass selectable 3D source-field overlays for the selected playback vehicle using `off`, `sphere`, `wedge`, and `dual_wedge` visualization modes plus size, height, opacity, and wedge-span controls; the 3D view can also highlight receivers affected by the selected source-field footprint and draw receiver-link overlays back to the selected vehicle

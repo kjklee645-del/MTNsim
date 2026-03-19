@@ -30,7 +30,7 @@ class ReceiverSeriesChart(QWidget):
         self.title = 'Receiver Time Series'
         self.active_time_index: int | None = None
         self.active_value_db: float | None = None
-        self.setMinimumHeight(260)
+        self.setMinimumHeight(100)
 
     def set_series(self, receiver_id: str, points: list[tuple[int, float]]) -> None:
         self.points = points

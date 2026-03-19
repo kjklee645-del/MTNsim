@@ -37,7 +37,7 @@ class Scene3DCanvas(QWidget):
         self._drag_last_pos: QPoint | None = None
         self._drag_mode: str | None = None
         self._last_noise_range: tuple[float, float] | None = None
-        self.setMinimumSize(640, 420)
+        self.setMinimumSize(240, 140)
         self.setMouseTracking(True)
 
     @property

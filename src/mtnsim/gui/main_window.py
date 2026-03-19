@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSizePolicy,
+    QSplitter,
     QStackedWidget,
     QTextEdit,
     QToolBar,
@@ -39,6 +40,20 @@ from mtnsim.gui.controllers import CampaignController, CompareController, Playba
 from mtnsim.gui.state import GuiRunState, GuiSessionState
 from mtnsim.gui.views import CampaignValidationView, ProjectHomeView, ProjectSetupDialog, ResultViewerView, RunMonitorView, ScenarioComparisonView, ScenarioEditorView, Scene3DView, SceneObjectEditorView, SceneView, VehiclePlaybackView
 from mtnsim.schemas.scenario import Building, GroundSurface, NoiseBarrier, Receiver, TerrainEdge, VegetationZone
+
+
+class WorkspaceStack(QStackedWidget):
+    def minimumSizeHint(self):  # noqa: N802
+        current = self.currentWidget()
+        if current is not None:
+            return current.minimumSizeHint()
+        return super().minimumSizeHint()
+
+    def sizeHint(self):  # noqa: N802
+        current = self.currentWidget()
+        if current is not None:
+            return current.sizeHint()
+        return super().sizeHint()
 
 
 class MainWindow(QMainWindow):
@@ -97,7 +112,7 @@ class MainWindow(QMainWindow):
         self.run_monitor_view = RunMonitorView()
         self.result_viewer_view = ResultViewerView()
         self.vehicle_playback_view = VehiclePlaybackView()
-        self.central_stack = QStackedWidget()
+        self.central_stack = WorkspaceStack()
         self.central_stack.setObjectName('CentralWorkspace')
         self.central_stack.addWidget(self.project_home_view)
         self.central_stack.addWidget(self.scene_view)
@@ -236,50 +251,14 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(12)
 
-        title = QLabel('Tools & Config')
+        title = QLabel('Workspace')
         title.setObjectName('panelTitle')
         layout.addWidget(title)
 
-        project_label = self._build_shell_section_label('PROJECT')
-        layout.addWidget(project_label)
-
-        project_grid = QGridLayout()
-        project_grid.setHorizontalSpacing(8)
-        project_grid.setVerticalSpacing(8)
-        project_grid.addWidget(self._build_action_tile('New', self.new_project_action), 0, 0)
-        project_grid.addWidget(self._build_action_tile('Open', self.open_project_action), 0, 1)
-        project_grid.addWidget(self._build_action_tile('Import', self.import_project_action), 0, 2)
-        project_grid.addWidget(self._build_action_tile('Attach', self.attach_sumo_action), 1, 0)
-        project_grid.addWidget(self._build_action_tile('Run', self.run_selected_action), 1, 1)
-        project_grid.addWidget(self._build_action_tile('Monitor', self.run_monitor_action), 1, 2)
-        layout.addLayout(project_grid)
-
-        edit_label = self._build_shell_section_label('MAP EDITOR')
-        layout.addWidget(edit_label)
-
-        edit_grid = QGridLayout()
-        edit_grid.setHorizontalSpacing(8)
-        edit_grid.setVerticalSpacing(8)
-        edit_grid.addWidget(self._build_action_tile('Scene', self.scene_view_action), 0, 0)
-        edit_grid.addWidget(self._build_action_tile('Objects', self.scene_object_editor_action), 0, 1)
-        edit_grid.addWidget(self._build_action_tile('Scenario', self.scenario_editor_action), 0, 2)
-        edit_grid.addWidget(self._build_action_tile('Compare', self.compare_view_action), 1, 0)
-        edit_grid.addWidget(self._build_action_tile('Results', self.result_viewer_action), 1, 1)
-        edit_grid.addWidget(self._build_action_tile('Playback', self.playback_action), 1, 2)
-        edit_grid.addWidget(self._build_action_tile('3D View', self.scene_3d_view_action), 2, 0)
-        layout.addLayout(edit_grid)
-
-        validation_label = self._build_shell_section_label('VALIDATION')
-        layout.addWidget(validation_label)
-        validation_row = QHBoxLayout()
-        validation_row.setSpacing(8)
-        validation_row.addWidget(self._build_action_tile('Campaign', self.campaign_view_action))
-        validation_row.addWidget(self._build_action_tile('Manifest', self.open_campaign_action))
-        validation_row.addStretch(1)
-        layout.addLayout(validation_row)
-
-        workspace_label = self._build_shell_section_label('WORKSPACE')
-        layout.addWidget(workspace_label)
+        helper = QLabel('Use the top menu for project, run, results, and validation actions. Use this list only to switch workspaces.')
+        helper.setWordWrap(True)
+        helper.setObjectName('homeHelperLabel')
+        layout.addWidget(helper)
 
         self.navigation_list = QListWidget()
         self.navigation_list.setObjectName('WorkspaceList')
@@ -296,9 +275,10 @@ class MainWindow(QMainWindow):
         self.navigation_list.setCurrentRow(0)
         layout.addWidget(self.navigation_list, 1)
 
-        dock = QDockWidget('Tools & Config', self)
+        dock = QDockWidget('Workspace', self)
         dock.setObjectName('NavigationDock')
         dock.setAllowedAreas(Qt.LeftDockWidgetArea)
+        dock.setMinimumHeight(0)
         dock.setWidget(panel)
         self.addDockWidget(Qt.LeftDockWidgetArea, dock)
 
@@ -346,17 +326,20 @@ class MainWindow(QMainWindow):
         dock = QDockWidget('Analysis & Data', self)
         dock.setObjectName('DetailsDock')
         dock.setAllowedAreas(Qt.RightDockWidgetArea)
+        dock.setMinimumHeight(0)
         dock.setWidget(panel)
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
 
     def _build_log_dock(self) -> None:
         self.log_panel = QPlainTextEdit()
         self.log_panel.setReadOnly(True)
+        self.log_panel.setMinimumHeight(0)
         self.log_panel.setPlaceholderText('Logs and status messages will appear here.')
 
         dock = QDockWidget('Status / Logs', self)
         dock.setObjectName('LogDock')
         dock.setAllowedAreas(Qt.BottomDockWidgetArea)
+        dock.setMinimumHeight(0)
         dock.setWidget(self.log_panel)
         self.addDockWidget(Qt.BottomDockWidgetArea, dock)
 
@@ -369,6 +352,8 @@ class MainWindow(QMainWindow):
 
         header_card = QFrame()
         header_card.setObjectName('viewerHeaderCard')
+        header_card.setMinimumHeight(0)
+        header_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         header_layout = QVBoxLayout(header_card)
         header_layout.setContentsMargins(16, 14, 16, 14)
         header_layout.setSpacing(10)
@@ -400,7 +385,11 @@ class MainWindow(QMainWindow):
         tabs_row.addStretch(1)
         header_layout.addLayout(tabs_row)
 
-        layout.addWidget(header_card)
+        header_card.setMinimumHeight(0)
+        header_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.central_stack.setMinimumHeight(0)
+
+        layout.addWidget(header_card, 0)
         layout.addWidget(self.central_stack, 1)
         self.setCentralWidget(container)
 

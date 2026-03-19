@@ -31,7 +31,7 @@ class ComparisonSeriesChart(QWidget):
         self.label_a = 'Scenario A'
         self.label_b = 'Scenario B'
         self.receiver_id = '-'
-        self.setMinimumHeight(260)
+        self.setMinimumHeight(100)
 
     def set_series(
         self,
