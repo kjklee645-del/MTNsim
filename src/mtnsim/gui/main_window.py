@@ -530,6 +530,14 @@ class MainWindow(QMainWindow):
         self.result_viewer_view.open_manifest_requested.connect(self.open_current_run_manifest_file)
         self.result_viewer_view.open_3d_view_requested.connect(self.open_current_result_in_3d_view)
         self.result_viewer_view.export_markdown_requested.connect(self.export_current_result_markdown)
+        self.scene_3d_view.source_field_mode_combo.currentIndexChanged.connect(self._refresh_playback_contribution_view)
+        self.scene_3d_view.link_calc_directivity_check.toggled.connect(self._refresh_playback_contribution_view)
+        self.scene_3d_view.source_field_scale_spin.valueChanged.connect(self._refresh_playback_contribution_view)
+        self.scene_3d_view.source_field_height_spin.valueChanged.connect(self._refresh_playback_contribution_view)
+        self.scene_3d_view.source_field_opacity_spin.valueChanged.connect(self._refresh_playback_contribution_view)
+        self.scene_3d_view.source_field_wedge_angle_spin.valueChanged.connect(self._refresh_playback_contribution_view)
+        self.scene_3d_view.highlight_receivers_check.toggled.connect(self._refresh_playback_contribution_view)
+        self.scene_3d_view.receiver_links_check.toggled.connect(self._refresh_playback_contribution_view)
         self.vehicle_playback_view.playback_frame_changed.connect(self._sync_heatmap_to_playback_frame)
         self.vehicle_playback_view.contribution_view_changed.connect(self._refresh_playback_contribution_view)
         self.vehicle_playback_view.export_png_sequence_requested.connect(self.export_playback_png_sequence)
@@ -1335,6 +1343,9 @@ class MainWindow(QMainWindow):
         preview.noise.max_area_meters = float(payload['noise.max_area_meters'])
         preview.noise.grid_size_meters = float(payload['noise.grid_size_meters'])
         preview.noise.receiver_height_meters = float(payload['noise.receiver_height_meters'])
+        preview.noise.directivity.mode = str(payload['noise.directivity.mode'])
+        preview.noise.directivity.strength_db = float(payload['noise.directivity.strength_db'])
+        preview.noise.directivity.wedge_angle_deg = float(payload['noise.directivity.wedge_angle_deg'])
         preview.grid.margin_x_start = float(payload['grid.margin_x_start'])
         preview.grid.margin_x_end = float(payload['grid.margin_x_end'])
         preview.grid.extra_y_extent = float(payload['grid.extra_y_extent'])
@@ -1709,11 +1720,11 @@ class MainWindow(QMainWindow):
         contribution_only = self.vehicle_playback_view.is_selected_vehicle_contribution_only()
 
         if contribution_only and selected_vehicle_id:
-            cells = self.result_controller.compute_vehicle_contribution_heatmap(self.dynamic_heatmap_context, frame, selected_vehicle_id)
+            cells = self.result_controller.compute_vehicle_contribution_heatmap(self.dynamic_heatmap_context, frame, selected_vehicle_id, dataset=dataset, frame_index=frame_index)
         elif contribution_only:
             cells = []
         else:
-            cells = self.result_controller.compute_dynamic_heatmap(self.dynamic_heatmap_context, frame)
+            cells = self.result_controller.compute_dynamic_heatmap(self.dynamic_heatmap_context, frame, dataset=dataset, frame_index=frame_index)
             self._schedule_playback_prefetch(frame_index)
 
         self.scene_view.canvas.set_heatmap_cells(cells)
@@ -1727,6 +1738,21 @@ class MainWindow(QMainWindow):
                 dataset=dataset,
                 frame_index=frame_index,
                 selected_vehicle_id=selected_vehicle_id,
+            )
+            source_field_settings = self.scene_3d_view.current_source_field_settings()
+            scene3d_frame = self.scene3d_controller.apply_source_field_overlay(
+                scene3d_frame,
+                frame,
+                dataset=dataset,
+                frame_index=frame_index,
+                selected_vehicle_id=selected_vehicle_id,
+                mode=self.scene_3d_view.current_source_field_mode(),
+                scale=source_field_settings['scale'],
+                height_scale=source_field_settings['height_scale'],
+                opacity=source_field_settings['opacity'],
+                wedge_span_deg=source_field_settings['wedge_span_deg'],
+                highlight_receivers=bool(source_field_settings['highlight_receivers']),
+                show_receiver_links=bool(source_field_settings['show_receiver_links']),
             )
             self.scene_3d_view.set_frame(scene3d_frame)
         self.scene_3d_view.set_playback_context(frame.time_index, frame.sim_time_seconds, len(frame.vehicles))
@@ -1745,6 +1771,8 @@ class MainWindow(QMainWindow):
             frame,
             selected_vehicle_id,
             receiver_positions,
+            dataset=dataset,
+            frame_index=frame_index,
         )
         self.vehicle_playback_view.set_selected_vehicle_receiver_contributions(contributions)
 
@@ -1780,7 +1808,7 @@ class MainWindow(QMainWindow):
             return
         next_index = self._pending_prefetch_frame_indices.pop(0)
         if 0 <= next_index < dataset.frame_count:
-            self.result_controller.prefetch_dynamic_heatmap_frames(context, [dataset.frames[next_index]], max_frames=1)
+            self.result_controller.prefetch_dynamic_heatmap_frames(context, dataset, [next_index], max_frames=1)
         if self._pending_prefetch_frame_indices:
             self._playback_prefetch_timer.start(1)
 

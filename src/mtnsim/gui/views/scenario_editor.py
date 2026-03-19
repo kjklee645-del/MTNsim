@@ -131,6 +131,23 @@ class ScenarioEditorView(QWidget):
         self.receiver_height_spin.setSuffix(' m')
         form.addRow('Receiver Height', self.receiver_height_spin)
 
+        self.directivity_mode_combo = QComboBox()
+        for option in ['isotropic', 'wedge', 'dual_wedge']:
+            self.directivity_mode_combo.addItem(option, option)
+        form.addRow('Directivity Mode', self.directivity_mode_combo)
+
+        self.directivity_strength_spin = QDoubleSpinBox()
+        self.directivity_strength_spin.setRange(0.0, 30.0)
+        self.directivity_strength_spin.setDecimals(1)
+        self.directivity_strength_spin.setSuffix(' dB')
+        form.addRow('Directivity Strength', self.directivity_strength_spin)
+
+        self.directivity_wedge_angle_spin = QDoubleSpinBox()
+        self.directivity_wedge_angle_spin.setRange(10.0, 180.0)
+        self.directivity_wedge_angle_spin.setDecimals(1)
+        self.directivity_wedge_angle_spin.setSuffix(' deg')
+        form.addRow('Directivity Wedge Angle', self.directivity_wedge_angle_spin)
+
         self.grid_margin_start_spin = QDoubleSpinBox()
         self.grid_margin_start_spin.setRange(0.0, 5000.0)
         self.grid_margin_start_spin.setDecimals(1)
@@ -236,6 +253,8 @@ class ScenarioEditorView(QWidget):
             self.max_area_spin,
             self.grid_size_spin,
             self.receiver_height_spin,
+            self.directivity_strength_spin,
+            self.directivity_wedge_angle_spin,
             self.grid_margin_start_spin,
             self.grid_margin_end_spin,
             self.grid_extra_y_spin,
@@ -248,6 +267,7 @@ class ScenarioEditorView(QWidget):
             widget.valueChanged.connect(self._schedule_preview)
         self.lane_change_mode_combo.currentIndexChanged.connect(self._schedule_preview)
         self.lane_change_strategy_combo.currentIndexChanged.connect(self._schedule_preview)
+        self.directivity_mode_combo.currentIndexChanged.connect(self._schedule_preview)
         self.post_distance_control_check.toggled.connect(self._schedule_preview)
         self.lane_change_force_check.toggled.connect(self._schedule_preview)
         self.grid_override_check.toggled.connect(self._schedule_preview)
@@ -269,6 +289,9 @@ class ScenarioEditorView(QWidget):
         self.max_area_spin.setValue(float(scenario.noise.max_area_meters))
         self.grid_size_spin.setValue(float(scenario.noise.grid_size_meters))
         self.receiver_height_spin.setValue(float(scenario.noise.receiver_height_meters))
+        self._set_combo_value(self.directivity_mode_combo, scenario.noise.directivity.mode)
+        self.directivity_strength_spin.setValue(float(scenario.noise.directivity.strength_db))
+        self.directivity_wedge_angle_spin.setValue(float(scenario.noise.directivity.wedge_angle_deg))
         self.grid_margin_start_spin.setValue(float(scenario.grid.margin_x_start))
         self.grid_margin_end_spin.setValue(float(scenario.grid.margin_x_end))
         self.grid_extra_y_spin.setValue(float(scenario.grid.extra_y_extent))
@@ -414,6 +437,9 @@ class ScenarioEditorView(QWidget):
             'noise.max_area_meters': float(self.max_area_spin.value()),
             'noise.grid_size_meters': float(self.grid_size_spin.value()),
             'noise.receiver_height_meters': float(self.receiver_height_spin.value()),
+            'noise.directivity.mode': str(self.directivity_mode_combo.currentData() or self.directivity_mode_combo.currentText()),
+            'noise.directivity.strength_db': float(self.directivity_strength_spin.value()),
+            'noise.directivity.wedge_angle_deg': float(self.directivity_wedge_angle_spin.value()),
             'grid.margin_x_start': float(self.grid_margin_start_spin.value()),
             'grid.margin_x_end': float(self.grid_margin_end_spin.value()),
             'grid.extra_y_extent': float(self.grid_extra_y_spin.value()),

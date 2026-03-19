@@ -19,6 +19,7 @@ The codebase now supports:
 - scene-aware hybrid GPU execution for attenuation and accumulation
 - a GUI prototype with project loading, 2D scene viewing, background run execution, progress monitoring, result viewing, and receiver-series plotting
 - first-pass GUI-wide visual polish via a shared desktop stylesheet, cleaner operator-shell presentation, a menu-driven top-toolbar structure, workspace-oriented navigation semantics, card-like summary sections in key operator views, and a darker dashboard-style shell with `Tools & Config`, `Integrated Viewer`, and `Analysis & Data` regions
+- first-pass directional emission in the actual engine with `isotropic`, `wedge`, and `dual_wedge` modes, plus 3D source-field controls that can now link to the calculation-side directivity used by the run
 
 ## 2. What Has Been Implemented
 
@@ -181,6 +182,7 @@ What it does now:
 - generates a new `project.toml` and starter `scenarios/baseline.toml` for empty or imported projects
 - keeps Scene View and Scenario Editor usable for empty projects while Run stays disabled until SUMO is attached, then re-enables Run after the attach flow refreshes manifest/scenario paths
 - shows first-run guidance after a project is created/imported
+- lets the user choose the starter scenario's default directional-emission settings during project creation/import
 - shows project readiness/status guidance on Project Home, richer Run Monitor completion summaries, and clearer result summary cards
 - discovers bundled scenarios
 - selects the default scenario automatically
@@ -258,7 +260,8 @@ These values are prototype-level engineering checks, not yet validated against m
 - current GUI styling is functional but still prototype-grade rather than polished product UI
 - scene objects such as noise barriers, terrain edges, ground surfaces, vegetation zones, and buildings can now be authored in a first-pass GUI editor with click-to-draw geometry creation, basic direct manipulation, and duplicate plus undo/redo support; deeper geometry-authoring polish such as vertex add/remove, duplicate-and-drag, snapping, and richer reshape tooling is deferred in the backlog
 - a first 3D scene shell now exists through `Scene3DView`, `Scene3DController`, and the scene-to-3D adapter layer; it now renders static 3D scene primitives for roads, receivers, barriers, buildings, ground, vegetation, the grid-region overlay, and a static or playback-synced 3D noise surface derived from grid outputs, with orbit/pan/zoom/reset camera controls, dB legend/range controls, color-plate versus raised-surface rendering modes, direct Result Viewer-to-3D linking with run metadata, and a deeper playback-aware slice that adds frame-synced 3D vehicle markers, short 3D trails, selected-vehicle highlighting, and basic 3D camera follow
-- current source radiation and visible heatmap logic are still effectively flat-height approximations rather than selectable volumetric or directional source-field models
+- current source radiation in the engine is still effectively a simplified approximation, but the GUI now includes first-pass selectable 3D source-field overlays for the selected playback vehicle using `off`, `sphere`, `wedge`, and `dual_wedge` visualization modes plus size, height, opacity, and wedge-span controls; the 3D view can also highlight receivers affected by the selected source-field footprint and draw receiver-link overlays back to the selected vehicle
+- directional emission Phase A has now started in the engine itself through scenario-level `isotropic / wedge / dual_wedge` settings, heading-aware emission attenuation, and first-pass Scenario Editor exposure so front/side/rear targets no longer always receive the same source level
 - no final report generator yet
 - campaign import standardization exists, but full production-grade GIS/CAD ingestion is still not implemented
 - AI-agent structures exist only as an architectural baseline, not as a working user-facing capability
@@ -269,7 +272,7 @@ These values are prototype-level engineering checks, not yet validated against m
 2. continue expanding the Scene Object Editor from form/list editing plus Scene View-linked selection, click-to-draw creation, direct manipulation, and duplicate plus undo/redo support toward a smoother geometry-authoring workflow
 3. continue project/run/result UX polish now that `New Project`, `Import SUMO Project`, and `Attach SUMO` are all usable
 4. continue the now-started 3D visualization plan in `docs/visualization_3d_plan.md`, moving from the current playback-aware 3D slice toward volumetric/directive overlays and later richer 3D playback behavior
-5. treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion after the 3D scene layer is defined
+5. deepen the now-started volumetric and directional source-field visualization work after the core 3D scene layer is defined
 6. keep deeper validation, calibration, scene-physics, and GPU work tracked as deferred backlog while GUI/product usability remains the mainline focus
 
 ## 6. Bottom Line

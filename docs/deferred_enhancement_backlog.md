@@ -145,6 +145,8 @@ Keep for a later phase:
 - volumetric source-field models for individual vehicles
 - selectable directivity/source-field display modes such as spherical and wedge-like patterns
 - tighter linkage between future 3D visualization and more realistic directional propagation models
+- source decomposition into tire, engine, and exhaust subcomponents after measurement-driven model design
+- calibration of subsource weights and directional patterns from dedicated measurement campaigns
 
 Why deferred:
 - the current 2D GUI prototype is already broad enough that immediate value comes first from fixing aspect ratio and improving visual polish

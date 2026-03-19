@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
+from mtnsim.acoustics.emission.road_vehicle import resolve_heading_vector
 from mtnsim.acoustics.field.noise_grid import update_noise_grid_cpu, update_noise_grid_gpu
 from mtnsim.acoustics.propagation.diffraction import DEFAULT_DIFFRACTION_SETTINGS, DiffractionModelSettings
 from mtnsim.acoustics.propagation.provider import SceneAwarePropagationProvider
@@ -120,6 +121,8 @@ class RunService:
         sim = SumoAdapter()
         deployed_vehicles = 0
         final_grid_snapshot: dict[str, float] = {}
+        previous_vehicle_positions: dict[str, tuple[float, float]] = {}
+        last_vehicle_headings: dict[str, tuple[float, float]] = {}
         vehicle_trace_file = output_dir / 'vehicle_trace.csv' if record_vehicle_trace else None
         random.seed(context.project.simulation_defaults.random_seed)
 
@@ -169,6 +172,7 @@ class RunService:
                     vehicle_positions = {}
                     vehicle_types = {}
                     vehicle_speeds = {}
+                    vehicle_headings: dict[str, tuple[float, float]] = {}
                     for snapshot in snapshots:
                         apply_speed_after_distance(
                             sim,
@@ -182,6 +186,11 @@ class RunService:
                         vehicle_positions[snapshot.vehicle_id] = snapshot.position
                         vehicle_types[snapshot.vehicle_id] = snapshot.vehicle_type
                         vehicle_speeds[snapshot.vehicle_id] = snapshot.speed_mps
+                        heading = resolve_heading_vector(previous_vehicle_positions.get(snapshot.vehicle_id), snapshot.position)
+                        if heading is None:
+                            heading = last_vehicle_headings.get(snapshot.vehicle_id)
+                        if heading is not None:
+                            vehicle_headings[snapshot.vehicle_id] = heading
                         if trace_writer is not None:
                             trace_writer.writerow(
                                 [
@@ -195,6 +204,8 @@ class RunService:
                                 ]
                             )
 
+                    previous_vehicle_positions = dict(vehicle_positions)
+                    last_vehicle_headings = {vehicle_id: vehicle_headings.get(vehicle_id, last_vehicle_headings.get(vehicle_id)) for vehicle_id in vehicle_positions.keys() if vehicle_headings.get(vehicle_id, last_vehicle_headings.get(vehicle_id)) is not None}
                     engine = update_noise_grid_gpu if effective_use_gpu else update_noise_grid_cpu
                     should_compute_grid = context.project.outputs.store_grid_timeseries or (time_step == context.project.simulation_defaults.max_steps - 1)
                     if should_compute_grid:
@@ -207,6 +218,8 @@ class RunService:
                             context.scenario.noise.background_noise_db,
                             context.scenario.noise.max_area_meters,
                             propagation_provider,
+                            vehicle_headings,
+                            context.scenario.noise.directivity,
                         )
                     receiver_snapshot = engine(
                         receiver_positions,
@@ -217,6 +230,8 @@ class RunService:
                         context.scenario.noise.background_noise_db,
                         context.scenario.noise.max_area_meters,
                         propagation_provider,
+                        vehicle_headings,
+                        context.scenario.noise.directivity,
                     )
                     for receiver_id, value in receiver_snapshot.items():
                         receiver_histories[receiver_id].append(value)
@@ -264,6 +279,7 @@ class RunService:
                 'gpu_used': effective_use_gpu,
                 'reflection_model_settings': asdict(reflection_settings),
                 'diffraction_model_settings': asdict(diffraction_settings),
+                'noise_directivity': asdict(context.scenario.noise.directivity),
             },
         )
         result_summary_file = write_run_result_summary(output_dir, result_summary)

@@ -218,6 +218,29 @@
             },
             "additionalProperties": false
           }
+        },
+        "directivity": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "isotropic",
+                "wedge",
+                "dual_wedge"
+              ]
+            },
+            "strength_db": {
+              "type": "number",
+              "minimum": 0
+            },
+            "wedge_angle_deg": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 180
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

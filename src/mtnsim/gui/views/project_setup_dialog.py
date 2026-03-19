@@ -5,7 +5,9 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
+    QComboBox,
     QDialogButtonBox,
+    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
     QGroupBox,
@@ -149,6 +151,26 @@ class ProjectSetupDialog(QDialog):
         metadata_widget.setLayout(metadata_row)
         form.addRow('Measurement metadata (optional)', metadata_widget)
 
+        self.directivity_mode_combo = QComboBox()
+        self.directivity_mode_combo.addItem('Isotropic', 'isotropic')
+        self.directivity_mode_combo.addItem('Wedge', 'wedge')
+        self.directivity_mode_combo.addItem('Dual Wedge', 'dual_wedge')
+        form.addRow('Default directivity', self.directivity_mode_combo)
+
+        self.directivity_strength_spin = QDoubleSpinBox()
+        self.directivity_strength_spin.setRange(0.0, 20.0)
+        self.directivity_strength_spin.setSingleStep(0.5)
+        self.directivity_strength_spin.setValue(6.0)
+        self.directivity_strength_spin.setSuffix(' dB')
+        form.addRow('Directivity strength', self.directivity_strength_spin)
+
+        self.directivity_wedge_angle_spin = QDoubleSpinBox()
+        self.directivity_wedge_angle_spin.setRange(20.0, 160.0)
+        self.directivity_wedge_angle_spin.setSingleStep(5.0)
+        self.directivity_wedge_angle_spin.setValue(70.0)
+        self.directivity_wedge_angle_spin.setSuffix(' deg')
+        form.addRow('Directivity wedge angle', self.directivity_wedge_angle_spin)
+
         root.addLayout(form)
 
         self.attach_refresh_group = QGroupBox('Attach Refresh Scope')
@@ -220,6 +242,9 @@ class ProjectSetupDialog(QDialog):
         self.attach_update_coefficients_checkbox.toggled.connect(self._refresh_validation_summary)
         self.attach_replace_receivers_checkbox.toggled.connect(self._refresh_validation_summary)
         self.attach_update_lane_targets_checkbox.toggled.connect(self._refresh_validation_summary)
+        self.directivity_mode_combo.currentIndexChanged.connect(self._refresh_validation_summary)
+        self.directivity_strength_spin.valueChanged.connect(self._refresh_validation_summary)
+        self.directivity_wedge_angle_spin.valueChanged.connect(self._refresh_validation_summary)
         self.sumo_config_edit.textChanged.connect(self._autofill_from_sumo)
         if self.mode == 'attach':
             self.project_name_edit.setEnabled(False)
@@ -321,6 +346,9 @@ class ProjectSetupDialog(QDialog):
             'scene_path': self.scene_path_edit.text().strip(),
             'measurements_path': self.measurements_path_edit.text().strip(),
             'measurement_metadata_path': self.measurement_metadata_path_edit.text().strip(),
+            'default_directivity_mode': str(self.directivity_mode_combo.currentData()),
+            'default_directivity_strength_db': float(self.directivity_strength_spin.value()),
+            'default_directivity_wedge_angle_deg': float(self.directivity_wedge_angle_spin.value()),
             'attach_refresh_selected_only': self.attach_selected_only_checkbox.isChecked(),
             'attach_update_traffic_metadata': self.attach_update_traffic_checkbox.isChecked(),
             'attach_update_vehicle_coefficients': self.attach_update_coefficients_checkbox.isChecked(),
@@ -354,6 +382,7 @@ class ProjectSetupDialog(QDialog):
         lines.append(f"Scene file: {payload['scene_path'] or '-'}")
         lines.append(f"Measurements file: {payload['measurements_path'] or '-'}")
         lines.append(f"Measurement metadata: {payload['measurement_metadata_path'] or '-'}")
+        lines.append(f"Default directivity: {payload['default_directivity_mode']} | strength {payload['default_directivity_strength_db']:.1f} dB | angle {payload['default_directivity_wedge_angle_deg']:.0f} deg")
 
         if not payload['project_name']:
             problems.append('Project name is required.')

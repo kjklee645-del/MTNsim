@@ -177,8 +177,9 @@ Goal:
 This 3D plan is the prerequisite for later source-field visualization work.
 
 Later directional/source-field modes should plug into the same 3D scene as optional overlays:
-- spherical source field
-- wedge-like/directive field
+- spherical source field [started in first visualization form with size/height/opacity controls]
+- wedge-like/directive field [started in first visualization form with size/height/opacity/span controls]
+- dual-wedge/directive field [started in first visualization form with receiver-highlighting and receiver-link overlays]
 - other user-selectable source-region shapes
 
 That later work should reuse:
@@ -210,7 +211,7 @@ Mitigation:
 
 The next coding task after the current slice is:
 1. deepen playback-aware 3D beyond the current first slice with better interaction polish
-2. then start volumetric/directive source-field overlays
+2. deepen the now-started volumetric/directive source-field overlays beyond the current sphere/wedge slice with richer shapes, receiver interaction overlays, and stronger physical meaning
 3. after that, evaluate whether true 3D acoustic field logic is needed
 4. keep layer states and camera resets manageable across longer 3D sessions
 
