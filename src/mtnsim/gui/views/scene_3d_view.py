@@ -461,6 +461,9 @@ class Scene3DView(QWidget):
         self._follow_selected_vehicle: bool = False
         self._source_field_mode: str = 'off'
         self._affected_receiver_count: int = 0
+        self._calc_directivity_preset: str = 'custom'
+        self._calc_directivity_vehicle_types: list[str] = []
+        self._calc_visual_profile: str = 'custom'
         self._calc_directivity_mode: str = 'isotropic'
         self._calc_directivity_strength_db: float = 6.0
         self._calc_directivity_wedge_angle_deg: float = 70.0
@@ -499,6 +502,9 @@ class Scene3DView(QWidget):
         self.follow_label = QLabel('-')
         self.source_field_label = QLabel('-')
         self.source_field_detail_label = QLabel('-')
+        self.directivity_preset_label = QLabel('-')
+        self.directivity_vehicle_types_label = QLabel('-')
+        self.visual_profile_label = QLabel('-')
         self.affected_receivers_label = QLabel('-')
         meta_layout.addRow('Run ID', self.run_id_label)
         meta_layout.addRow('Scenario', self.scenario_label)
@@ -512,6 +518,9 @@ class Scene3DView(QWidget):
         meta_layout.addRow('Camera Follow', self.follow_label)
         meta_layout.addRow('Source Field', self.source_field_label)
         meta_layout.addRow('Field Detail', self.source_field_detail_label)
+        meta_layout.addRow('Directivity Preset', self.directivity_preset_label)
+        meta_layout.addRow('Vehicle Types', self.directivity_vehicle_types_label)
+        meta_layout.addRow('Visual Profile', self.visual_profile_label)
         meta_layout.addRow('Affected Receivers', self.affected_receivers_label)
         root.addWidget(meta_card)
 
@@ -676,6 +685,7 @@ class Scene3DView(QWidget):
             'highlight_receivers': self.highlight_receivers_check.isChecked(),
             'show_receiver_links': self.receiver_links_check.isChecked(),
             'calculation_linked': self.link_calc_directivity_check.isChecked(),
+            'calculation_preset': self._calc_directivity_preset,
             'calculation_mode': self._calc_directivity_mode,
             'calculation_strength_db': float(self._calc_directivity_strength_db),
         }
@@ -776,6 +786,9 @@ class Scene3DView(QWidget):
         self.affected_receivers_label.setText(str(affected_receivers))
         self.selected_vehicle_label.setText(self._selected_vehicle_id or '-')
         self.follow_label.setText('on' if self._follow_selected_vehicle else 'off')
+        self.directivity_preset_label.setText(self._calc_directivity_preset)
+        self.directivity_vehicle_types_label.setText(', '.join(self._calc_directivity_vehicle_types) if self._calc_directivity_vehicle_types else '-')
+        self.visual_profile_label.setText(self._calc_visual_profile)
         source_field_mode = self.current_source_field_mode()
         if self.link_calc_directivity_check.isChecked():
             self.source_field_label.setText(f'{source_field_mode} (calc-linked)')
@@ -783,7 +796,7 @@ class Scene3DView(QWidget):
             self.source_field_label.setText(source_field_mode)
         settings = self.current_source_field_settings()
         detail_parts = [
-            f'calc {self._calc_directivity_mode}',
+            f'calc {self._calc_directivity_preset}/{self._calc_directivity_mode}',
             f'strength {self._calc_directivity_strength_db:.1f} dB',
             f"angle {settings['wedge_span_deg']:.0f} deg",
             f"vertical {settings['vertical_strength_db']:.1f} dB / {settings['vertical_angle_deg']:.0f} deg",
@@ -804,6 +817,13 @@ class Scene3DView(QWidget):
         directivity = {}
         if summary is not None and isinstance(summary.propagation_features, dict):
             directivity = summary.propagation_features.get('noise_directivity') or {}
+        self._calc_directivity_preset = str(directivity.get('preset', 'custom'))
+        self._calc_visual_profile = self._calc_directivity_preset
+        vehicle_types = []
+        if summary is not None and isinstance(summary.propagation_features, dict):
+            raw_vehicle_types = summary.propagation_features.get('noise_directivity_vehicle_types') or []
+            vehicle_types = [str(item) for item in raw_vehicle_types]
+        self._calc_directivity_vehicle_types = vehicle_types
         self._calc_directivity_mode = str(directivity.get('mode', 'isotropic'))
         self._calc_directivity_strength_db = float(directivity.get('strength_db', 6.0))
         self._calc_directivity_wedge_angle_deg = float(directivity.get('wedge_angle_deg', 70.0))

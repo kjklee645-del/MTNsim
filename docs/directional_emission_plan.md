@@ -132,3 +132,11 @@ Natural next steps after this implementation are:
 - split emission into tire / engine / exhaust subcomponents
 - calibrate source directivity parameters against measured data
 - align 3D source-field overlays even more closely with the actual calculation model
+
+
+## Presets
+
+Phase 2 now includes user-facing presets to make directional emission easier to adopt in project setup and scenario editing. Current presets are `custom`, `passenger`, `bus`, and `truck`.
+
+
+Phase 2 metadata polish: run outputs now expose the directivity preset and target vehicle types so calc-linked 3D source fields can show the same context explicitly.

@@ -157,6 +157,7 @@ class VehicleNoiseCoefficient:
 
 @dataclass(slots=True)
 class DirectivityConfig:
+    preset: str = "custom"
     mode: str = "isotropic"
     strength_db: float = 6.0
     wedge_angle_deg: float = 70.0

@@ -615,6 +615,7 @@ class MainWindow(QMainWindow):
                     measurements_path=payload['measurements_path'] or None,
                     measurement_metadata_path=payload['measurement_metadata_path'] or None,
                     copy_external_files=payload['copy_sumo_files'],
+                    default_directivity_preset=payload['default_directivity_preset'],
                     default_directivity_mode=payload['default_directivity_mode'],
                     default_directivity_strength_db=payload['default_directivity_strength_db'],
                     default_directivity_wedge_angle_deg=payload['default_directivity_wedge_angle_deg'],
@@ -651,6 +652,7 @@ class MainWindow(QMainWindow):
                     scene_path=payload['scene_path'] or None,
                     measurements_path=payload['measurements_path'] or None,
                     measurement_metadata_path=payload['measurement_metadata_path'] or None,
+                    default_directivity_preset=payload['default_directivity_preset'],
                     default_directivity_mode=payload['default_directivity_mode'],
                     default_directivity_strength_db=payload['default_directivity_strength_db'],
                     default_directivity_wedge_angle_deg=payload['default_directivity_wedge_angle_deg'],
@@ -1342,9 +1344,12 @@ class MainWindow(QMainWindow):
         preview.noise.max_area_meters = float(payload['noise.max_area_meters'])
         preview.noise.grid_size_meters = float(payload['noise.grid_size_meters'])
         preview.noise.receiver_height_meters = float(payload['noise.receiver_height_meters'])
+        preview.noise.directivity.preset = str(payload.get('noise.directivity.preset', 'custom'))
         preview.noise.directivity.mode = str(payload['noise.directivity.mode'])
         preview.noise.directivity.strength_db = float(payload['noise.directivity.strength_db'])
         preview.noise.directivity.wedge_angle_deg = float(payload['noise.directivity.wedge_angle_deg'])
+        preview.noise.directivity.vertical_strength_db = float(payload['noise.directivity.vertical_strength_db'])
+        preview.noise.directivity.vertical_angle_deg = float(payload['noise.directivity.vertical_angle_deg'])
         preview.grid.margin_x_start = float(payload['grid.margin_x_start'])
         preview.grid.margin_x_end = float(payload['grid.margin_x_end'])
         preview.grid.extra_y_extent = float(payload['grid.extra_y_extent'])
@@ -1754,6 +1759,7 @@ class MainWindow(QMainWindow):
                 vertical_strength_db=source_field_settings['vertical_strength_db'],
                 highlight_receivers=bool(source_field_settings['highlight_receivers']),
                 show_receiver_links=bool(source_field_settings['show_receiver_links']),
+                directivity_preset=str(source_field_settings.get('calculation_preset', 'custom')),
             )
             self.scene_3d_view.set_frame(scene3d_frame)
         self.scene_3d_view.set_playback_context(frame.time_index, frame.sim_time_seconds, len(frame.vehicles))

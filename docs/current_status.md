@@ -281,3 +281,12 @@ These values are prototype-level engineering checks, not yet validated against m
 MTNsim is now a structured simulation kernel with reproducible scenario handling, comparison capability, a runtime scene hierarchy, material-aware propagation behavior, campaign-aware validation tooling, a usable hybrid scene-aware GPU path, and a working GUI prototype that can launch runs, inspect receiver-level results, view the 2D scene, and replay recorded vehicle motion.
 
 - Scenario Editor / Compare / Campaign Validation / Playback views polished with card layout and consistent status styling.
+
+
+- Directional emission UX now includes directivity presets (`custom`, `passenger`, `bus`, `truck`) in both project setup and Scenario Editor.
+
+
+- Result metadata and 3D metadata now surface directivity preset and applicable vehicle types from the run configuration.
+
+
+- Calc-linked 3D source-field overlays now differentiate passenger/bus/truck presets by default visual profile (shape-linked mode plus preset-specific colors and scale tendencies).

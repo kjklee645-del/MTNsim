@@ -178,6 +178,7 @@ class Scene3DController:
         vertical_strength_db: float = 0.0,
         highlight_receivers: bool = True,
         show_receiver_links: bool = True,
+        directivity_preset: str = 'custom',
     ) -> Scene3DFrame | None:
         if frame is None:
             return None
@@ -187,6 +188,7 @@ class Scene3DController:
             receiver.highlighted = False
         if playback_frame is None or not selected_vehicle_id or mode == 'off':
             return frame
+        visual = self._source_field_visual_profile(directivity_preset, mode)
         target = None
         for vehicle in playback_frame.vehicles:
             if vehicle.vehicle_id == selected_vehicle_id:
@@ -195,10 +197,11 @@ class Scene3DController:
         if target is None:
             return frame
         heading_deg = self._estimate_heading_deg(dataset, frame_index, selected_vehicle_id)
-        radius = max(8.0, min(90.0, (14.0 + target.speed_mps * 1.4) * max(scale, 0.2)))
+        radius = max(8.0, min(90.0, (14.0 + target.speed_mps * 1.4) * max(scale, 0.2) * float(visual['scale_mul'])))
         vertical_half_span = radians(max(5.0, min(170.0, vertical_angle_deg))) * 0.5
         vertical_factor = max(0.12, min(1.6, math.tan(vertical_half_span) * 0.55))
-        overlay_height = max(1.0, radius * vertical_factor * max(height_scale, 0.2))
+        overlay_height = max(1.0, radius * vertical_factor * max(height_scale, 0.2) * float(visual['height_mul']))
+        resolved_opacity = max(0.05, min(0.95, opacity * float(visual['opacity_mul'])))
         if mode == 'sphere':
             footprint = [
                 (target.x + cos(theta) * radius, target.y + sin(theta) * radius)
@@ -210,10 +213,10 @@ class Scene3DController:
                     mode='sphere',
                     footprint=footprint,
                     height=height,
-                    color='#7c67ff',
-                    edge_color='#ece7ff',
+                    color=str(visual['primary']),
+                    edge_color=str(visual['edge']),
                     label=selected_vehicle_id,
-                    opacity=max(0.05, min(0.95, opacity)),
+                    opacity=resolved_opacity,
                 )
             )
         elif mode == 'wedge':
@@ -229,17 +232,17 @@ class Scene3DController:
                     mode='wedge',
                     footprint=points,
                     height=overlay_height,
-                    color='#ff7a59',
-                    edge_color='#fff0eb',
+                    color=str(visual['primary']),
+                    edge_color=str(visual['edge']),
                     label=selected_vehicle_id,
-                    opacity=max(0.05, min(0.95, opacity)),
+                    opacity=resolved_opacity,
                 )
             )
         elif mode == 'dual_wedge':
             heading = radians(heading_deg)
             span = radians(max(20.0, min(160.0, wedge_span_deg)))
             steps = 8
-            for direction, color in ((0.0, '#ff7a59'), (pi, '#a06bff')):
+            for direction, color in ((0.0, str(visual['primary'])), (pi, str(visual['secondary']))):
                 points = [(target.x, target.y)]
                 base_heading = heading + direction
                 for idx in range(steps + 1):
@@ -251,9 +254,9 @@ class Scene3DController:
                         footprint=points,
                         height=overlay_height,
                         color=color,
-                        edge_color='#f5efff',
+                        edge_color=str(visual['edge']),
                         label=selected_vehicle_id,
-                        opacity=max(0.05, min(0.95, opacity)),
+                        opacity=resolved_opacity,
                     )
                 )
         self._apply_receiver_interactions(
@@ -265,6 +268,45 @@ class Scene3DController:
             show_receiver_links=show_receiver_links,
         )
         return frame
+
+
+    def _source_field_visual_profile(self, preset: str, mode: str) -> dict[str, float | str]:
+        preset_key = str(preset or 'custom').lower()
+        profiles = {
+            'custom': {
+                'primary': '#7c67ff' if mode == 'sphere' else '#ff7a59',
+                'secondary': '#a06bff',
+                'edge': '#f2ebff' if mode == 'sphere' else '#fff0eb',
+                'scale_mul': 1.0,
+                'height_mul': 1.0,
+                'opacity_mul': 1.0,
+            },
+            'passenger': {
+                'primary': '#46d7ff',
+                'secondary': '#3d9bff',
+                'edge': '#e8fbff',
+                'scale_mul': 0.95,
+                'height_mul': 0.95,
+                'opacity_mul': 0.95,
+            },
+            'bus': {
+                'primary': '#ffd166',
+                'secondary': '#8c7cff',
+                'edge': '#fff6d6',
+                'scale_mul': 1.12,
+                'height_mul': 1.15,
+                'opacity_mul': 1.0,
+            },
+            'truck': {
+                'primary': '#ff7a59',
+                'secondary': '#c26bff',
+                'edge': '#fff0eb',
+                'scale_mul': 1.22,
+                'height_mul': 1.3,
+                'opacity_mul': 1.08,
+            },
+        }
+        return profiles.get(preset_key, profiles['custom'])
 
     def _estimate_heading_deg(self, dataset: PlaybackDataset | None, frame_index: int | None, vehicle_id: str) -> float:
         if dataset is None or frame_index is None or frame_index < 0 or frame_index >= dataset.frame_count:

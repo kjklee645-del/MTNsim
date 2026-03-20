@@ -265,3 +265,14 @@ Still deferred:
 - [visualization_3d_plan.md](D:/Codex/MTNsim/docs/visualization_3d_plan.md)
 - [directional_emission_plan.md](D:/Codex/MTNsim/docs/directional_emission_plan.md)
 - [deferred_enhancement_backlog.md](D:/Codex/MTNsim/docs/deferred_enhancement_backlog.md)
+
+
+## Directivity Presets
+
+Project setup and Scenario Editor now support directivity presets: `custom`, `passenger`, `bus`, and `truck`. Non-custom presets auto-fill horizontal and vertical directivity values and keep the fields linked until switched back to `custom`.
+
+
+The Result Viewer and 3D View now show the active directivity preset and the scenario vehicle types that the calculation used.
+
+
+In 3D View, calc-linked source fields now adopt preset-specific visual profiles. Passenger, bus, and truck presets use different default colors and relative size/height tendencies so the active source-field is easier to interpret.

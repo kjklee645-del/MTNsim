@@ -222,6 +222,15 @@
         "directivity": {
           "type": "object",
           "properties": {
+            "preset": {
+              "type": "string",
+              "enum": [
+                "custom",
+                "passenger",
+                "bus",
+                "truck"
+              ]
+            },
             "mode": {
               "type": "string",
               "enum": [

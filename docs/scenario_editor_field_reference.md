@@ -220,3 +220,6 @@ When validation fails:
 - the editor stays open
 - a warning dialog is shown
 - the status line displays the first validation error
+
+
+- `noise.directivity.preset`: directivity preset selector (`custom`, `passenger`, `bus`, `truck`). Non-custom presets auto-fill the directional fields.

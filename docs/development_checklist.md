@@ -141,3 +141,12 @@ Update this document when one of the following changes:
 - the recommended next order changes
 - a new major subsystem is added
 - a previously completed item is discovered to be only partial
+
+
+- [x] Add directivity preset workflow (`custom`, `passenger`, `bus`, `truck`) to starter-project setup and Scenario Editor.
+
+
+- [x] Surface directional-emission preset and vehicle-type metadata clearly in Result Viewer and 3D View.
+
+
+- [x] Differentiate calc-linked 3D source-field visuals by directivity preset (passenger/bus/truck).

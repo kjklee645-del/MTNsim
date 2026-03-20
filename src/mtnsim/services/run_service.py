@@ -280,6 +280,8 @@ class RunService:
                 'reflection_model_settings': asdict(reflection_settings),
                 'diffraction_model_settings': asdict(diffraction_settings),
                 'noise_directivity': asdict(context.scenario.noise.directivity),
+                'noise_directivity_preset': getattr(context.scenario.noise.directivity, 'preset', 'custom'),
+                'noise_directivity_vehicle_types': list(context.scenario.traffic.vehicle_types),
             },
         )
         result_summary_file = write_run_result_summary(output_dir, result_summary)

@@ -216,3 +216,6 @@ The next coding task after the current slice is:
 4. keep layer states and camera resets manageable across longer 3D sessions
 
 That is the correct next slice because the static 3D scene, static 3D noise surface, operator legend/range controls, and orbit/pan/zoom camera now exist and should be folded into the normal result workflow before dynamic 3D playback is attempted.
+
+
+Current 3D source-field polish includes preset-specific visual profiles for calc-linked overlays so passenger, bus, and truck runs are easier to distinguish visually.

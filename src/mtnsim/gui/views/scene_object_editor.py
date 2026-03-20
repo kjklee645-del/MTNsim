@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 from pathlib import Path
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
@@ -17,6 +17,8 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -56,19 +58,32 @@ class SceneObjectEditorView(QWidget):
         root.setContentsMargins(18, 18, 18, 18)
         root.setSpacing(12)
 
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        root.addWidget(scroll, 1)
+
+        content = QWidget()
+        scroll.setWidget(content)
+
+        content_root = QVBoxLayout(content)
+        content_root.setContentsMargins(0, 0, 0, 0)
+        content_root.setSpacing(12)
+
         title = QLabel('Scene Object Editor')
         title.setObjectName('pageTitle')
-        root.addWidget(title)
+        content_root.addWidget(title)
 
         self.info_box = QTextEdit()
         self.info_box.setObjectName('infoCard')
         self.info_box.setReadOnly(True)
         self.info_box.setMaximumHeight(110)
-        root.addWidget(self.info_box)
+        content_root.addWidget(self.info_box)
 
         meta_title = QLabel('Derived Scenario')
         meta_title.setObjectName('sectionTitle')
-        root.addWidget(meta_title)
+        content_root.addWidget(meta_title)
 
         meta_card = QFrame()
         meta_card.setObjectName('infoCard')
@@ -80,31 +95,39 @@ class SceneObjectEditorView(QWidget):
         meta_form.addRow('Scenario Name', self.scenario_name_edit)
         meta_form.addRow('Description', self.description_edit)
         meta_layout.addLayout(meta_form)
-        root.addWidget(meta_card)
+        content_root.addWidget(meta_card)
 
-        main_row = QHBoxLayout()
-        main_row.setSpacing(12)
-        root.addLayout(main_row, 1)
+        tabs = QTabWidget()
+        tabs.setObjectName('infoCard')
+        content_root.addWidget(tabs, 1)
 
-        left_col = QVBoxLayout()
-        main_row.addLayout(left_col, 1)
+        objects_tab = QWidget()
+        objects_layout = QVBoxLayout(objects_tab)
+        objects_layout.setContentsMargins(10, 10, 10, 10)
+        objects_layout.setSpacing(10)
+
+        object_card = QFrame()
+        object_card.setObjectName('infoCard')
+        object_card_layout = QVBoxLayout(object_card)
+        object_card_layout.setContentsMargins(14, 14, 14, 14)
+        object_card_layout.setSpacing(10)
 
         type_title = QLabel('Object Type')
         type_title.setObjectName('sectionTitle')
-        left_col.addWidget(type_title)
+        object_card_layout.addWidget(type_title)
         self.object_type_combo = QComboBox()
         for key, label in self.OBJECT_TYPES:
             self.object_type_combo.addItem(label, key)
         self.object_type_combo.currentIndexChanged.connect(self._refresh_object_list)
-        left_col.addWidget(self.object_type_combo)
+        object_card_layout.addWidget(self.object_type_combo)
 
         list_title = QLabel('Objects')
         list_title.setObjectName('sectionTitle')
-        left_col.addWidget(list_title)
+        object_card_layout.addWidget(list_title)
         self.object_list = QListWidget()
         self.object_list.setObjectName('infoCard')
         self.object_list.currentRowChanged.connect(self._load_selected_object_into_form)
-        left_col.addWidget(self.object_list, 1)
+        object_card_layout.addWidget(self.object_list, 1)
 
         left_buttons = QHBoxLayout()
         self.add_button = QPushButton('Add New')
@@ -116,35 +139,18 @@ class SceneObjectEditorView(QWidget):
         left_buttons.addWidget(self.add_button)
         left_buttons.addWidget(self.duplicate_button)
         left_buttons.addWidget(self.delete_button)
-        left_col.addLayout(left_buttons)
+        object_card_layout.addLayout(left_buttons)
+        objects_layout.addWidget(object_card, 1)
+        tabs.addTab(objects_tab, 'Objects')
 
-        history_buttons = QHBoxLayout()
-        self.undo_button = QPushButton('Undo')
-        self.undo_button.clicked.connect(self._undo)
-        self.redo_button = QPushButton('Redo')
-        self.redo_button.clicked.connect(self._redo)
-        history_buttons.addWidget(self.undo_button)
-        history_buttons.addWidget(self.redo_button)
-        left_col.addLayout(history_buttons)
-
-        draw_buttons = QHBoxLayout()
-        self.draw_button = QPushButton('Draw In Scene View')
-        self.draw_button.clicked.connect(self._request_draw_mode)
-        self.finish_draw_button = QPushButton('Finish Draw')
-        self.finish_draw_button.clicked.connect(self.finish_draw_requested.emit)
-        self.cancel_draw_button = QPushButton('Cancel Draw')
-        self.cancel_draw_button.clicked.connect(self.cancel_draw_requested.emit)
-        draw_buttons.addWidget(self.draw_button)
-        draw_buttons.addWidget(self.finish_draw_button)
-        draw_buttons.addWidget(self.cancel_draw_button)
-        left_col.addLayout(draw_buttons)
-
-        right_col = QVBoxLayout()
-        main_row.addLayout(right_col, 2)
+        properties_tab = QWidget()
+        properties_layout = QVBoxLayout(properties_tab)
+        properties_layout.setContentsMargins(10, 10, 10, 10)
+        properties_layout.setSpacing(10)
 
         prop_title = QLabel('Object Properties')
         prop_title.setObjectName('sectionTitle')
-        right_col.addWidget(prop_title)
+        properties_layout.addWidget(prop_title)
 
         form_card = QFrame()
         form_card.setObjectName('infoCard')
@@ -163,7 +169,7 @@ class SceneObjectEditorView(QWidget):
         self.attenuation_spin = self._make_spin(0.0, 1000.0)
         self.footprint_edit = QTextEdit()
         self.footprint_edit.setObjectName('infoCard')
-        self.footprint_edit.setMinimumHeight(80)
+        self.footprint_edit.setMinimumHeight(60)
 
         self.form.addRow('ID', self.object_id_edit)
         self.form.addRow('Material', self.material_edit)
@@ -188,18 +194,66 @@ class SceneObjectEditorView(QWidget):
         form_buttons.addWidget(self.apply_button)
         form_buttons.addWidget(self.reset_button)
         form_card_layout.addLayout(form_buttons)
-        right_col.addWidget(form_card, 1)
+        properties_layout.addWidget(form_card, 1)
+        tabs.addTab(properties_tab, 'Properties')
+
+        authoring_tab = QWidget()
+        authoring_layout = QVBoxLayout(authoring_tab)
+        authoring_layout.setContentsMargins(10, 10, 10, 10)
+        authoring_layout.setSpacing(10)
+
+        authoring_title = QLabel('Geometry Authoring')
+        authoring_title.setObjectName('sectionTitle')
+        authoring_layout.addWidget(authoring_title)
+
+        authoring_card = QFrame()
+        authoring_card.setObjectName('infoCard')
+        authoring_card_layout = QVBoxLayout(authoring_card)
+        authoring_card_layout.setContentsMargins(14, 14, 14, 14)
+        authoring_card_layout.setSpacing(10)
+
+        draw_buttons = QHBoxLayout()
+        self.draw_button = QPushButton('Draw In Scene View')
+        self.draw_button.clicked.connect(self._request_draw_mode)
+        self.finish_draw_button = QPushButton('Finish Draw')
+        self.finish_draw_button.clicked.connect(self.finish_draw_requested.emit)
+        self.cancel_draw_button = QPushButton('Cancel Draw')
+        self.cancel_draw_button.clicked.connect(self.cancel_draw_requested.emit)
+        draw_buttons.addWidget(self.draw_button)
+        draw_buttons.addWidget(self.finish_draw_button)
+        draw_buttons.addWidget(self.cancel_draw_button)
+        authoring_card_layout.addLayout(draw_buttons)
+
+        history_buttons = QHBoxLayout()
+        self.undo_button = QPushButton('Undo')
+        self.undo_button.clicked.connect(self._undo)
+        self.redo_button = QPushButton('Redo')
+        self.redo_button.clicked.connect(self._redo)
+        history_buttons.addWidget(self.undo_button)
+        history_buttons.addWidget(self.redo_button)
+        authoring_card_layout.addLayout(history_buttons)
+
+        authoring_help = QLabel(
+            'Use the Objects tab to pick a target object, the Properties tab to edit values, and this tab to draw or manage geometry history.'
+        )
+        authoring_help.setWordWrap(True)
+        authoring_help.setObjectName('homeHelperLabel')
+        authoring_card_layout.addWidget(authoring_help)
+        authoring_layout.addWidget(authoring_card)
+        authoring_layout.addStretch(1)
+        tabs.addTab(authoring_tab, 'Authoring')
 
         bottom = QHBoxLayout()
         self.save_as_button = QPushButton('Save As New Scenario')
         self.save_as_button.clicked.connect(self._emit_save_as)
         bottom.addWidget(self.save_as_button)
         bottom.addStretch(1)
-        root.addLayout(bottom)
+        content_root.addLayout(bottom)
 
         self.status_label = QLabel('Select a scenario to edit its scene objects.')
         self.status_label.setObjectName('statusBadgeNeutral')
-        root.addWidget(self.status_label)
+        content_root.addWidget(self.status_label)
+        content_root.addStretch(1)
 
     def _make_spin(self, minimum: float = -100000.0, maximum: float = 100000.0) -> QDoubleSpinBox:
         spin = QDoubleSpinBox()
