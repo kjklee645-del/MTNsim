@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from math import cos, pi, radians, sin
 
 from mtnsim.gui.controllers.playback_controller import PlaybackDataset, PlaybackFrame
@@ -173,6 +174,8 @@ class Scene3DController:
         height_scale: float = 1.0,
         opacity: float = 0.32,
         wedge_span_deg: float = 70.0,
+        vertical_angle_deg: float = 55.0,
+        vertical_strength_db: float = 0.0,
         highlight_receivers: bool = True,
         show_receiver_links: bool = True,
     ) -> Scene3DFrame | None:
@@ -193,6 +196,9 @@ class Scene3DController:
             return frame
         heading_deg = self._estimate_heading_deg(dataset, frame_index, selected_vehicle_id)
         radius = max(8.0, min(90.0, (14.0 + target.speed_mps * 1.4) * max(scale, 0.2)))
+        vertical_half_span = radians(max(5.0, min(170.0, vertical_angle_deg))) * 0.5
+        vertical_factor = max(0.12, min(1.6, math.tan(vertical_half_span) * 0.55))
+        overlay_height = max(1.0, radius * vertical_factor * max(height_scale, 0.2))
         if mode == 'sphere':
             footprint = [
                 (target.x + cos(theta) * radius, target.y + sin(theta) * radius)
@@ -222,7 +228,7 @@ class Scene3DController:
                 SourceFieldOverlay3D(
                     mode='wedge',
                     footprint=points,
-                    height=max(1.0, radius * 0.18 * max(height_scale, 0.2)),
+                    height=overlay_height,
                     color='#ff7a59',
                     edge_color='#fff0eb',
                     label=selected_vehicle_id,
@@ -243,14 +249,21 @@ class Scene3DController:
                     SourceFieldOverlay3D(
                         mode='dual_wedge',
                         footprint=points,
-                        height=max(1.0, radius * 0.16 * max(height_scale, 0.2)),
+                        height=overlay_height,
                         color=color,
                         edge_color='#f5efff',
                         label=selected_vehicle_id,
                         opacity=max(0.05, min(0.95, opacity)),
                     )
                 )
-        self._apply_receiver_interactions(frame, target, highlight_receivers=highlight_receivers, show_receiver_links=show_receiver_links)
+        self._apply_receiver_interactions(
+            frame,
+            target,
+            vertical_angle_deg=vertical_angle_deg,
+            vertical_strength_db=vertical_strength_db,
+            highlight_receivers=highlight_receivers,
+            show_receiver_links=show_receiver_links,
+        )
         return frame
 
     def _estimate_heading_deg(self, dataset: PlaybackDataset | None, frame_index: int | None, vehicle_id: str) -> float:
@@ -277,6 +290,8 @@ class Scene3DController:
         frame: Scene3DFrame,
         vehicle,
         *,
+        vertical_angle_deg: float,
+        vertical_strength_db: float,
         highlight_receivers: bool,
         show_receiver_links: bool,
     ) -> None:
@@ -284,6 +299,7 @@ class Scene3DController:
             return
         for receiver in frame.receivers:
             inside = any(self._point_in_polygon((receiver.x, receiver.y), overlay.footprint) for overlay in frame.source_field_overlays)
+            inside = inside and self._point_in_vertical_span(vehicle, receiver, vertical_angle_deg, vertical_strength_db)
             receiver.highlighted = bool(highlight_receivers and inside)
             if receiver.highlighted and show_receiver_links:
                 frame.source_field_links.append(
@@ -293,6 +309,16 @@ class Scene3DController:
                         color='#fff2a6',
                     )
                 )
+
+    def _point_in_vertical_span(self, vehicle, receiver: Marker3D, vertical_angle_deg: float, vertical_strength_db: float) -> bool:
+        if vertical_strength_db <= 0.0:
+            return True
+        dx = receiver.x - vehicle.x
+        dy = receiver.y - vehicle.y
+        horizontal_distance = max((dx * dx + dy * dy) ** 0.5, 1e-6)
+        dz = receiver.z - vehicle.z
+        angle = abs(math.degrees(math.atan2(dz, horizontal_distance)))
+        return angle <= max(5.0, min(170.0, vertical_angle_deg)) * 0.5
 
     def _point_in_polygon(self, point: tuple[float, float], polygon: list[tuple[float, float]]) -> bool:
         if len(polygon) < 3:

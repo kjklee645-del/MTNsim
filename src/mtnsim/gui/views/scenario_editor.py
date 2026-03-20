@@ -12,9 +12,11 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -41,171 +43,222 @@ class ScenarioEditorView(QWidget):
         root.setContentsMargins(18, 18, 18, 18)
         root.setSpacing(12)
 
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        root.addWidget(scroll, 1)
+
+        content = QWidget()
+        scroll.setWidget(content)
+
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(12)
+
         title = QLabel('Limited Scenario Editor')
         title.setObjectName('pageTitle')
-        root.addWidget(title)
+        content_layout.addWidget(title)
 
         self.info_box = QTextEdit()
         self.info_box.setObjectName('infoCard')
         self.info_box.setReadOnly(True)
         self.info_box.setMaximumHeight(120)
-        root.addWidget(self.info_box)
+        content_layout.addWidget(self.info_box)
 
-        parameters_title = QLabel('Core Parameters')
-        parameters_title.setObjectName('sectionTitle')
-        root.addWidget(parameters_title)
+        tabs = QTabWidget()
+        tabs.setObjectName('infoCard')
+        content_layout.addWidget(tabs, 1)
 
-        form_card = QFrame()
-        form_card.setObjectName('infoCard')
-        form_card_layout = QVBoxLayout(form_card)
-        form_card_layout.setContentsMargins(14, 14, 14, 14)
-        form_card_layout.setSpacing(8)
+        basic_tab = QWidget()
+        basic_layout = QVBoxLayout(basic_tab)
+        basic_layout.setContentsMargins(10, 10, 10, 10)
+        basic_layout.setSpacing(10)
 
-        form = QFormLayout()
+        basic_card = QFrame()
+        basic_card.setObjectName('infoCard')
+        basic_card_layout = QVBoxLayout(basic_card)
+        basic_card_layout.setContentsMargins(14, 14, 14, 14)
+        basic_form = QFormLayout()
 
         self.name_edit = QLineEdit()
-        form.addRow('Scenario Name', self.name_edit)
+        basic_form.addRow('Scenario Name', self.name_edit)
 
         self.description_edit = QLineEdit()
-        form.addRow('Description', self.description_edit)
+        basic_form.addRow('Description', self.description_edit)
 
         self.max_vehicles_spin = QSpinBox()
         self.max_vehicles_spin.setRange(1, 100000)
-        form.addRow('Max Vehicles', self.max_vehicles_spin)
+        basic_form.addRow('Max Vehicles', self.max_vehicles_spin)
 
         self.start_speed_spin = QDoubleSpinBox()
         self.start_speed_spin.setRange(0.0, 300.0)
         self.start_speed_spin.setDecimals(1)
         self.start_speed_spin.setSuffix(' km/h')
-        form.addRow('Start Speed', self.start_speed_spin)
+        basic_form.addRow('Start Speed', self.start_speed_spin)
 
         self.interval_spin = QDoubleSpinBox()
         self.interval_spin.setRange(0.1, 600.0)
         self.interval_spin.setDecimals(1)
         self.interval_spin.setSuffix(' s')
-        form.addRow('Vehicle Interval', self.interval_spin)
+        basic_form.addRow('Vehicle Interval', self.interval_spin)
 
         self.post_distance_spin = QDoubleSpinBox()
         self.post_distance_spin.setRange(0.0, 5000.0)
         self.post_distance_spin.setDecimals(1)
         self.post_distance_spin.setSuffix(' m')
-        form.addRow('Post Distance', self.post_distance_spin)
+        basic_form.addRow('Post Distance', self.post_distance_spin)
 
         self.target_speed_spin = QDoubleSpinBox()
         self.target_speed_spin.setRange(0.0, 300.0)
         self.target_speed_spin.setDecimals(1)
         self.target_speed_spin.setSuffix(' km/h')
-        form.addRow('Post Target Speed', self.target_speed_spin)
+        basic_form.addRow('Post Target Speed', self.target_speed_spin)
 
         self.lane_change_mode_combo = QComboBox()
         for option in ['disable', 'enforce']:
             self.lane_change_mode_combo.addItem(option, option)
-        form.addRow('Lane Change Mode', self.lane_change_mode_combo)
+        basic_form.addRow('Lane Change Mode', self.lane_change_mode_combo)
 
         self.lane_change_strategy_combo = QComboBox()
         for option in ['custom']:
             self.lane_change_strategy_combo.addItem(option, option)
-        form.addRow('Lane Change Strategy', self.lane_change_strategy_combo)
+        basic_form.addRow('Lane Change Strategy', self.lane_change_strategy_combo)
+
+        self.post_distance_control_check = QCheckBox('Enable post-distance speed control')
+        basic_form.addRow('Post Control', self.post_distance_control_check)
+
+        self.lane_change_force_check = QCheckBox('Force lane change')
+        basic_form.addRow('Lane Change Force', self.lane_change_force_check)
 
         self.background_noise_spin = QDoubleSpinBox()
         self.background_noise_spin.setRange(0.0, 120.0)
         self.background_noise_spin.setDecimals(1)
         self.background_noise_spin.setSuffix(' dB')
-        form.addRow('Background Noise', self.background_noise_spin)
+        basic_form.addRow('Background Noise', self.background_noise_spin)
+
+        basic_card_layout.addLayout(basic_form)
+        basic_layout.addWidget(basic_card)
+        basic_layout.addStretch(1)
+        tabs.addTab(basic_tab, 'Basic')
+
+        advanced_tab = QWidget()
+        advanced_layout = QVBoxLayout(advanced_tab)
+        advanced_layout.setContentsMargins(10, 10, 10, 10)
+        advanced_layout.setSpacing(10)
+
+        advanced_card = QFrame()
+        advanced_card.setObjectName('infoCard')
+        advanced_card_layout = QVBoxLayout(advanced_card)
+        advanced_card_layout.setContentsMargins(14, 14, 14, 14)
+        advanced_form = QFormLayout()
 
         self.max_area_spin = QDoubleSpinBox()
         self.max_area_spin.setRange(1.0, 5000.0)
         self.max_area_spin.setDecimals(1)
         self.max_area_spin.setSuffix(' m')
-        form.addRow('Max Area', self.max_area_spin)
+        advanced_form.addRow('Max Area', self.max_area_spin)
 
         self.grid_size_spin = QDoubleSpinBox()
         self.grid_size_spin.setRange(0.1, 500.0)
         self.grid_size_spin.setDecimals(1)
         self.grid_size_spin.setSuffix(' m')
-        form.addRow('Grid Size', self.grid_size_spin)
+        advanced_form.addRow('Grid Size', self.grid_size_spin)
 
         self.receiver_height_spin = QDoubleSpinBox()
         self.receiver_height_spin.setRange(0.0, 50.0)
         self.receiver_height_spin.setDecimals(1)
         self.receiver_height_spin.setSuffix(' m')
-        form.addRow('Receiver Height', self.receiver_height_spin)
+        advanced_form.addRow('Receiver Height', self.receiver_height_spin)
 
         self.directivity_mode_combo = QComboBox()
         for option in ['isotropic', 'wedge', 'dual_wedge']:
             self.directivity_mode_combo.addItem(option, option)
-        form.addRow('Directivity Mode', self.directivity_mode_combo)
+        advanced_form.addRow('Directivity Mode', self.directivity_mode_combo)
 
         self.directivity_strength_spin = QDoubleSpinBox()
         self.directivity_strength_spin.setRange(0.0, 30.0)
         self.directivity_strength_spin.setDecimals(1)
         self.directivity_strength_spin.setSuffix(' dB')
-        form.addRow('Directivity Strength', self.directivity_strength_spin)
+        advanced_form.addRow('Directivity Strength', self.directivity_strength_spin)
 
         self.directivity_wedge_angle_spin = QDoubleSpinBox()
         self.directivity_wedge_angle_spin.setRange(10.0, 180.0)
         self.directivity_wedge_angle_spin.setDecimals(1)
         self.directivity_wedge_angle_spin.setSuffix(' deg')
-        form.addRow('Directivity Wedge Angle', self.directivity_wedge_angle_spin)
+        advanced_form.addRow('Directivity Wedge Angle', self.directivity_wedge_angle_spin)
+
+        self.directivity_vertical_strength_spin = QDoubleSpinBox()
+        self.directivity_vertical_strength_spin.setRange(0.0, 30.0)
+        self.directivity_vertical_strength_spin.setDecimals(1)
+        self.directivity_vertical_strength_spin.setSuffix(' dB')
+        advanced_form.addRow('Directivity Vertical Strength', self.directivity_vertical_strength_spin)
+
+        self.directivity_vertical_angle_spin = QDoubleSpinBox()
+        self.directivity_vertical_angle_spin.setRange(5.0, 180.0)
+        self.directivity_vertical_angle_spin.setDecimals(1)
+        self.directivity_vertical_angle_spin.setSuffix(' deg')
+        advanced_form.addRow('Directivity Vertical Angle', self.directivity_vertical_angle_spin)
 
         self.grid_margin_start_spin = QDoubleSpinBox()
         self.grid_margin_start_spin.setRange(0.0, 5000.0)
         self.grid_margin_start_spin.setDecimals(1)
         self.grid_margin_start_spin.setSuffix(' m')
-        form.addRow('Grid Margin Start', self.grid_margin_start_spin)
+        advanced_form.addRow('Grid Margin Start', self.grid_margin_start_spin)
 
         self.grid_margin_end_spin = QDoubleSpinBox()
         self.grid_margin_end_spin.setRange(0.0, 5000.0)
         self.grid_margin_end_spin.setDecimals(1)
         self.grid_margin_end_spin.setSuffix(' m')
-        form.addRow('Grid Margin End', self.grid_margin_end_spin)
+        advanced_form.addRow('Grid Margin End', self.grid_margin_end_spin)
 
         self.grid_extra_y_spin = QDoubleSpinBox()
         self.grid_extra_y_spin.setRange(0.0, 5000.0)
         self.grid_extra_y_spin.setDecimals(1)
         self.grid_extra_y_spin.setSuffix(' m')
-        form.addRow('Grid Extra Y', self.grid_extra_y_spin)
+        advanced_form.addRow('Grid Extra Y', self.grid_extra_y_spin)
 
         self.grid_override_check = QCheckBox('Use explicit grid bounds')
-        form.addRow('Grid Override', self.grid_override_check)
+        advanced_form.addRow('Grid Override', self.grid_override_check)
 
         self.grid_override_min_x_spin = QDoubleSpinBox()
         self.grid_override_min_x_spin.setRange(-100000.0, 100000.0)
         self.grid_override_min_x_spin.setDecimals(1)
         self.grid_override_min_x_spin.setSuffix(' m')
-        form.addRow('Grid Min X', self.grid_override_min_x_spin)
+        advanced_form.addRow('Grid Min X', self.grid_override_min_x_spin)
 
         self.grid_override_max_x_spin = QDoubleSpinBox()
         self.grid_override_max_x_spin.setRange(-100000.0, 100000.0)
         self.grid_override_max_x_spin.setDecimals(1)
         self.grid_override_max_x_spin.setSuffix(' m')
-        form.addRow('Grid Max X', self.grid_override_max_x_spin)
+        advanced_form.addRow('Grid Max X', self.grid_override_max_x_spin)
 
         self.grid_override_min_y_spin = QDoubleSpinBox()
         self.grid_override_min_y_spin.setRange(-100000.0, 100000.0)
         self.grid_override_min_y_spin.setDecimals(1)
         self.grid_override_min_y_spin.setSuffix(' m')
-        form.addRow('Grid Min Y', self.grid_override_min_y_spin)
+        advanced_form.addRow('Grid Min Y', self.grid_override_min_y_spin)
 
         self.grid_override_max_y_spin = QDoubleSpinBox()
         self.grid_override_max_y_spin.setRange(-100000.0, 100000.0)
         self.grid_override_max_y_spin.setDecimals(1)
         self.grid_override_max_y_spin.setSuffix(' m')
-        form.addRow('Grid Max Y', self.grid_override_max_y_spin)
+        advanced_form.addRow('Grid Max Y', self.grid_override_max_y_spin)
 
         self.draw_grid_region_button = QPushButton('Draw Grid Region')
         self.draw_grid_region_button.clicked.connect(self.grid_region_draw_requested)
         self.draw_grid_region_button.setEnabled(False)
-        form.addRow('Grid Draw', self.draw_grid_region_button)
+        advanced_form.addRow('Grid Draw', self.draw_grid_region_button)
 
-        self.post_distance_control_check = QCheckBox('Enable post-distance speed control')
-        form.addRow('Post Control', self.post_distance_control_check)
+        advanced_card_layout.addLayout(advanced_form)
+        advanced_layout.addWidget(advanced_card)
+        advanced_layout.addStretch(1)
+        tabs.addTab(advanced_tab, 'Advanced')
 
-        self.lane_change_force_check = QCheckBox('Force lane change')
-        form.addRow('Lane Change Force', self.lane_change_force_check)
-
-        form_card_layout.addLayout(form)
-        root.addWidget(form_card)
+        receivers_tab = QWidget()
+        receivers_layout = QVBoxLayout(receivers_tab)
+        receivers_layout.setContentsMargins(10, 10, 10, 10)
+        receivers_layout.setSpacing(10)
 
         receiver_title_row = QHBoxLayout()
         receiver_title = QLabel('Receivers')
@@ -220,7 +273,7 @@ class ScenarioEditorView(QWidget):
         self.remove_receiver_button.clicked.connect(self._remove_selected_receiver_rows)
         self.remove_receiver_button.setEnabled(False)
         receiver_title_row.addWidget(self.remove_receiver_button)
-        root.addLayout(receiver_title_row)
+        receivers_layout.addLayout(receiver_title_row)
 
         self.receiver_table = QTableWidget(0, 4)
         self.receiver_table.setObjectName('infoCard')
@@ -228,7 +281,9 @@ class ScenarioEditorView(QWidget):
         self.receiver_table.horizontalHeader().setStretchLastSection(True)
         self.receiver_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.receiver_table.setAlternatingRowColors(True)
-        root.addWidget(self.receiver_table, 1)
+        self.receiver_table.setMinimumHeight(140)
+        receivers_layout.addWidget(self.receiver_table, 1)
+        tabs.addTab(receivers_tab, 'Receivers')
 
         button_row = QHBoxLayout()
         self.save_as_button = QPushButton('Save As New Scenario')
@@ -236,11 +291,12 @@ class ScenarioEditorView(QWidget):
         self.save_as_button.setEnabled(False)
         button_row.addWidget(self.save_as_button)
         button_row.addStretch(1)
-        root.addLayout(button_row)
+        content_layout.addLayout(button_row)
 
         self.status_label = QLabel('Select a scenario to edit its limited parameters.')
         self.status_label.setObjectName('statusBadgeNeutral')
-        root.addWidget(self.status_label)
+        content_layout.addWidget(self.status_label)
+        content_layout.addStretch(1)
 
     def _connect_preview_sources(self) -> None:
         watched = [
@@ -255,6 +311,8 @@ class ScenarioEditorView(QWidget):
             self.receiver_height_spin,
             self.directivity_strength_spin,
             self.directivity_wedge_angle_spin,
+            self.directivity_vertical_strength_spin,
+            self.directivity_vertical_angle_spin,
             self.grid_margin_start_spin,
             self.grid_margin_end_spin,
             self.grid_extra_y_spin,
@@ -292,6 +350,8 @@ class ScenarioEditorView(QWidget):
         self._set_combo_value(self.directivity_mode_combo, scenario.noise.directivity.mode)
         self.directivity_strength_spin.setValue(float(scenario.noise.directivity.strength_db))
         self.directivity_wedge_angle_spin.setValue(float(scenario.noise.directivity.wedge_angle_deg))
+        self.directivity_vertical_strength_spin.setValue(float(scenario.noise.directivity.vertical_strength_db))
+        self.directivity_vertical_angle_spin.setValue(float(scenario.noise.directivity.vertical_angle_deg))
         self.grid_margin_start_spin.setValue(float(scenario.grid.margin_x_start))
         self.grid_margin_end_spin.setValue(float(scenario.grid.margin_x_end))
         self.grid_extra_y_spin.setValue(float(scenario.grid.extra_y_extent))
@@ -440,6 +500,8 @@ class ScenarioEditorView(QWidget):
             'noise.directivity.mode': str(self.directivity_mode_combo.currentData() or self.directivity_mode_combo.currentText()),
             'noise.directivity.strength_db': float(self.directivity_strength_spin.value()),
             'noise.directivity.wedge_angle_deg': float(self.directivity_wedge_angle_spin.value()),
+            'noise.directivity.vertical_strength_db': float(self.directivity_vertical_strength_spin.value()),
+            'noise.directivity.vertical_angle_deg': float(self.directivity_vertical_angle_spin.value()),
             'grid.margin_x_start': float(self.grid_margin_start_spin.value()),
             'grid.margin_x_end': float(self.grid_margin_end_spin.value()),
             'grid.extra_y_extent': float(self.grid_extra_y_spin.value()),

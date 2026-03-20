@@ -615,6 +615,11 @@ class MainWindow(QMainWindow):
                     measurements_path=payload['measurements_path'] or None,
                     measurement_metadata_path=payload['measurement_metadata_path'] or None,
                     copy_external_files=payload['copy_sumo_files'],
+                    default_directivity_mode=payload['default_directivity_mode'],
+                    default_directivity_strength_db=payload['default_directivity_strength_db'],
+                    default_directivity_wedge_angle_deg=payload['default_directivity_wedge_angle_deg'],
+                    default_directivity_vertical_strength_db=payload['default_directivity_vertical_strength_db'],
+                    default_directivity_vertical_angle_deg=payload['default_directivity_vertical_angle_deg'],
                 )
             elif mode == 'attach':
                 current_state = self.session_state.project_state
@@ -646,6 +651,11 @@ class MainWindow(QMainWindow):
                     scene_path=payload['scene_path'] or None,
                     measurements_path=payload['measurements_path'] or None,
                     measurement_metadata_path=payload['measurement_metadata_path'] or None,
+                    default_directivity_mode=payload['default_directivity_mode'],
+                    default_directivity_strength_db=payload['default_directivity_strength_db'],
+                    default_directivity_wedge_angle_deg=payload['default_directivity_wedge_angle_deg'],
+                    default_directivity_vertical_strength_db=payload['default_directivity_vertical_strength_db'],
+                    default_directivity_vertical_angle_deg=payload['default_directivity_vertical_angle_deg'],
                 )
         except Exception as exc:  # pragma: no cover
             QMessageBox.critical(self, 'Project Creation Failed', str(exc))
@@ -1740,6 +1750,8 @@ class MainWindow(QMainWindow):
                 height_scale=source_field_settings['height_scale'],
                 opacity=source_field_settings['opacity'],
                 wedge_span_deg=source_field_settings['wedge_span_deg'],
+                vertical_angle_deg=source_field_settings['vertical_angle_deg'],
+                vertical_strength_db=source_field_settings['vertical_strength_db'],
                 highlight_receivers=bool(source_field_settings['highlight_receivers']),
                 show_receiver_links=bool(source_field_settings['show_receiver_links']),
             )

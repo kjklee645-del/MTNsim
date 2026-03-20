@@ -160,6 +160,8 @@ class DirectivityConfig:
     mode: str = "isotropic"
     strength_db: float = 6.0
     wedge_angle_deg: float = 70.0
+    vertical_strength_db: float = 0.0
+    vertical_angle_deg: float = 55.0
 
 
 @dataclass(slots=True)

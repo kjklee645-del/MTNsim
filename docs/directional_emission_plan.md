@@ -42,7 +42,6 @@ Phase A includes:
 
 Phase A does not include:
 - full 3D acoustic physics rewrite
-- vertically anisotropic directivity
 - source-type decomposition such as tire / engine / exhaust components
 - per-vehicle-class calibrated field datasets
 - regulatory-grade directional source standards
@@ -118,11 +117,18 @@ Phase A should be considered implemented when all of the following are true:
 - dynamic playback heatmap recomputation uses the same directivity rule
 - result metadata records the chosen directivity settings
 
-## 8. After Phase A
+## 8. Phase 2 Extension
 
-Natural next steps after this first implementation are:
+Phase 2 now adds a first-pass vertical directivity term:
+- `vertical_strength_db`
+- `vertical_angle_deg`
+- actual calculation-side attenuation for targets outside the preferred vertical spread
+- calc-linked 3D source-field overlays that reuse the same vertical spread settings for overlay height and receiver highlighting
+
+## 9. After Phase 2
+
+Natural next steps after this implementation are:
 - add more shapes such as ellipsoid or cone-like variants
-- add vertically aware directivity
 - split emission into tire / engine / exhaust subcomponents
 - calibrate source directivity parameters against measured data
 - align 3D source-field overlays even more closely with the actual calculation model

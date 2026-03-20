@@ -45,6 +45,8 @@ class DynamicHeatmapContext:
     directivity_mode: str = 'isotropic'
     directivity_strength_db: float = 6.0
     directivity_wedge_angle_deg: float = 70.0
+    directivity_vertical_strength_db: float = 0.0
+    directivity_vertical_angle_deg: float = 55.0
     cache: OrderedDict[int, list[HeatmapCell]] = field(default_factory=OrderedDict)
     cache_limit: int = 72
 
@@ -113,6 +115,8 @@ class ResultController:
             directivity_mode=scenario.noise.directivity.mode,
             directivity_strength_db=scenario.noise.directivity.strength_db,
             directivity_wedge_angle_deg=scenario.noise.directivity.wedge_angle_deg,
+            directivity_vertical_strength_db=scenario.noise.directivity.vertical_strength_db,
+            directivity_vertical_angle_deg=scenario.noise.directivity.vertical_angle_deg,
         )
 
     def compute_dynamic_heatmap(
@@ -251,6 +255,8 @@ class ResultController:
                 mode=directivity.mode,
                 strength_db=directivity.strength_db,
                 wedge_angle_deg=directivity.wedge_angle_deg,
+                vertical_strength_db=directivity.vertical_strength_db,
+                vertical_angle_deg=directivity.vertical_angle_deg,
             )
             attenuation_db = free_field_attenuation_db(distance)
             level_db = pwl + directional_db - attenuation_db + correction_db
@@ -273,6 +279,8 @@ class ResultController:
         proxy.mode = context.directivity_mode
         proxy.strength_db = context.directivity_strength_db
         proxy.wedge_angle_deg = context.directivity_wedge_angle_deg
+        proxy.vertical_strength_db = context.directivity_vertical_strength_db
+        proxy.vertical_angle_deg = context.directivity_vertical_angle_deg
         return proxy
 
     def _build_vehicle_headings(self, dataset, frame_index: int | None, frame: PlaybackFrame | None) -> dict[str, tuple[float, float]]:

@@ -41,16 +41,23 @@ def _resolve_directional_gain_db(
     vehicle_headings: dict[str, tuple[float, float]] | None,
     directivity,
 ) -> float:
-    if directivity is None or getattr(directivity, 'mode', 'isotropic') == 'isotropic':
+    if directivity is None:
+        return 0.0
+    mode = str(getattr(directivity, 'mode', 'isotropic'))
+    strength_db = float(getattr(directivity, 'strength_db', 0.0))
+    vertical_strength_db = float(getattr(directivity, 'vertical_strength_db', 0.0))
+    if mode == 'isotropic' and vertical_strength_db <= 0.0:
         return 0.0
     heading_vector = None if vehicle_headings is None else vehicle_headings.get(vehicle_id)
     return directional_gain_db(
-        (poi_position[0], poi_position[1]),
+        poi_position,
         vehicle_position,
         heading_vector,
-        mode=str(getattr(directivity, 'mode', 'isotropic')),
-        strength_db=float(getattr(directivity, 'strength_db', 0.0)),
+        mode=mode,
+        strength_db=strength_db,
         wedge_angle_deg=float(getattr(directivity, 'wedge_angle_deg', 70.0)),
+        vertical_strength_db=vertical_strength_db,
+        vertical_angle_deg=float(getattr(directivity, 'vertical_angle_deg', 55.0)),
     )
 
 

@@ -85,7 +85,7 @@ Status legend:
 | Geometry | Vegetation objects | [~] | `vegetation_zones` added as first-pass scene/runtime objects |
 | Propagation model | Common propagation properties per object type | [x] | defaults + per-object overrides added |
 | Propagation model | Material-aware corrections | [~] | geometry-coupled shielding/reflection/diffraction corrections plus path-length-aware and line-height-aware ground/vegetation corrections |
-| Emission model | Directional vehicle emission | [~] | Phase A started with `isotropic / wedge / dual_wedge` scenario settings and heading-aware emission-side attenuation in engine calculations |
+| Emission model | Directional vehicle emission | [~] | Phase 2 now includes `isotropic / wedge / dual_wedge` scenario settings, heading-aware horizontal attenuation, and a first-pass vertical spread attenuation term in engine calculations |
 
 ## 7. Calibration and Validation
 
@@ -131,7 +131,7 @@ Status legend:
 | 3 | Add a Scene Object Editor so users can define barriers, buildings, terrain, ground, and vegetation without manual TOML editing | [~] | first-pass scene-object editing now exists with Scene View-linked selection, click-to-draw creation, direct manipulation, and basic duplicate plus undo/redo history; vertex add/remove, duplicate-and-drag flow, snapping, and richer reshape tooling are now tracked in the deferred backlog |
 | 4 | Continue project/run/result UX polish after the new project/import flow | [~] | project entry is now usable, so the next value comes from smoother recent-project, run, and result navigation |
 | 5 | Continue deepening the 3D scene/noise visualization layer | [~] | the 3D layer now exists with static scene/noise, playback-aware vehicles/noise, result-linked metadata, camera controls, and first-pass source-field overlays; next slice is stronger 3D polish and presentation quality |
-| 6 | Deepen directional source-field modeling beyond Phase A | [~] | actual calculation now supports `isotropic`, `wedge`, and `dual_wedge`, and 3D source-field overlays can follow calculation-side directivity; deeper physical meaning and richer shapes still remain |
+| 6 | Deepen directional source-field modeling beyond Phase A | [~] | actual calculation now supports `isotropic`, `wedge`, and `dual_wedge` with a first-pass vertical spread term, and 3D source-field overlays can follow calculation-side directivity for both horizontal and vertical spread; deeper physical meaning and richer shapes still remain |
 | 7 | Keep deeper validation, calibration, scene-physics, and GPU work on the deferred backlog while GUI/product usability is the mainline focus | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
 
 ## 10. Maintenance Rule

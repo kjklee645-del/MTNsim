@@ -1,7 +1,7 @@
 [[receivers]]
 id = "receiver_1"
-x = 600.0
-y = 1000.0
+x = 1000.0
+y = 1400.0
 z = 1.5
 
 [scenario]
@@ -35,7 +35,7 @@ post_target_speed_kmh = 80.0
 [noise]
 background_noise_db = 40.0
 max_area_meters = 400.0
-grid_size_meters = 5.0
+grid_size_meters = 20.0
 receiver_height_meters = 1.5
 
 [grid]

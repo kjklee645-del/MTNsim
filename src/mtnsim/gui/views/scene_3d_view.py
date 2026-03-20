@@ -464,6 +464,8 @@ class Scene3DView(QWidget):
         self._calc_directivity_mode: str = 'isotropic'
         self._calc_directivity_strength_db: float = 6.0
         self._calc_directivity_wedge_angle_deg: float = 70.0
+        self._calc_directivity_vertical_strength_db: float = 0.0
+        self._calc_directivity_vertical_angle_deg: float = 55.0
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -669,6 +671,8 @@ class Scene3DView(QWidget):
             'height_scale': float(self.source_field_height_spin.value()),
             'opacity': float(self.source_field_opacity_spin.value()),
             'wedge_span_deg': float(self._calc_directivity_wedge_angle_deg if self.link_calc_directivity_check.isChecked() else self.source_field_wedge_angle_spin.value()),
+            'vertical_angle_deg': float(self._calc_directivity_vertical_angle_deg),
+            'vertical_strength_db': float(self._calc_directivity_vertical_strength_db),
             'highlight_receivers': self.highlight_receivers_check.isChecked(),
             'show_receiver_links': self.receiver_links_check.isChecked(),
             'calculation_linked': self.link_calc_directivity_check.isChecked(),
@@ -781,10 +785,11 @@ class Scene3DView(QWidget):
         detail_parts = [
             f'calc {self._calc_directivity_mode}',
             f'strength {self._calc_directivity_strength_db:.1f} dB',
-            f'angle {settings['wedge_span_deg']:.0f} deg',
-            f'scale {settings['scale']:.1f}',
-            f'height {settings['height_scale']:.1f}',
-            f'opacity {settings['opacity']:.2f}',
+            f"angle {settings['wedge_span_deg']:.0f} deg",
+            f"vertical {settings['vertical_strength_db']:.1f} dB / {settings['vertical_angle_deg']:.0f} deg",
+            f"scale {settings['scale']:.1f}",
+            f"height {settings['height_scale']:.1f}",
+            f"opacity {settings['opacity']:.2f}",
         ]
         self.source_field_detail_label.setText(' | '.join(detail_parts))
         if self._playback_time_index is None:
@@ -802,6 +807,8 @@ class Scene3DView(QWidget):
         self._calc_directivity_mode = str(directivity.get('mode', 'isotropic'))
         self._calc_directivity_strength_db = float(directivity.get('strength_db', 6.0))
         self._calc_directivity_wedge_angle_deg = float(directivity.get('wedge_angle_deg', 70.0))
+        self._calc_directivity_vertical_strength_db = float(directivity.get('vertical_strength_db', 0.0))
+        self._calc_directivity_vertical_angle_deg = float(directivity.get('vertical_angle_deg', 55.0))
         if self.link_calc_directivity_check.isChecked():
             mapped_mode = self._mapped_source_field_mode_from_calculation()
             self.source_field_mode_combo.blockSignals(True)

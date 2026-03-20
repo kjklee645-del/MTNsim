@@ -171,6 +171,20 @@ class ProjectSetupDialog(QDialog):
         self.directivity_wedge_angle_spin.setSuffix(' deg')
         form.addRow('Directivity wedge angle', self.directivity_wedge_angle_spin)
 
+        self.directivity_vertical_strength_spin = QDoubleSpinBox()
+        self.directivity_vertical_strength_spin.setRange(0.0, 20.0)
+        self.directivity_vertical_strength_spin.setSingleStep(0.5)
+        self.directivity_vertical_strength_spin.setValue(0.0)
+        self.directivity_vertical_strength_spin.setSuffix(' dB')
+        form.addRow('Directivity vertical strength', self.directivity_vertical_strength_spin)
+
+        self.directivity_vertical_angle_spin = QDoubleSpinBox()
+        self.directivity_vertical_angle_spin.setRange(5.0, 170.0)
+        self.directivity_vertical_angle_spin.setSingleStep(5.0)
+        self.directivity_vertical_angle_spin.setValue(55.0)
+        self.directivity_vertical_angle_spin.setSuffix(' deg')
+        form.addRow('Directivity vertical angle', self.directivity_vertical_angle_spin)
+
         root.addLayout(form)
 
         self.attach_refresh_group = QGroupBox('Attach Refresh Scope')
@@ -245,6 +259,8 @@ class ProjectSetupDialog(QDialog):
         self.directivity_mode_combo.currentIndexChanged.connect(self._refresh_validation_summary)
         self.directivity_strength_spin.valueChanged.connect(self._refresh_validation_summary)
         self.directivity_wedge_angle_spin.valueChanged.connect(self._refresh_validation_summary)
+        self.directivity_vertical_strength_spin.valueChanged.connect(self._refresh_validation_summary)
+        self.directivity_vertical_angle_spin.valueChanged.connect(self._refresh_validation_summary)
         self.sumo_config_edit.textChanged.connect(self._autofill_from_sumo)
         if self.mode == 'attach':
             self.project_name_edit.setEnabled(False)
@@ -349,6 +365,8 @@ class ProjectSetupDialog(QDialog):
             'default_directivity_mode': str(self.directivity_mode_combo.currentData()),
             'default_directivity_strength_db': float(self.directivity_strength_spin.value()),
             'default_directivity_wedge_angle_deg': float(self.directivity_wedge_angle_spin.value()),
+            'default_directivity_vertical_strength_db': float(self.directivity_vertical_strength_spin.value()),
+            'default_directivity_vertical_angle_deg': float(self.directivity_vertical_angle_spin.value()),
             'attach_refresh_selected_only': self.attach_selected_only_checkbox.isChecked(),
             'attach_update_traffic_metadata': self.attach_update_traffic_checkbox.isChecked(),
             'attach_update_vehicle_coefficients': self.attach_update_coefficients_checkbox.isChecked(),
@@ -382,7 +400,9 @@ class ProjectSetupDialog(QDialog):
         lines.append(f"Scene file: {payload['scene_path'] or '-'}")
         lines.append(f"Measurements file: {payload['measurements_path'] or '-'}")
         lines.append(f"Measurement metadata: {payload['measurement_metadata_path'] or '-'}")
-        lines.append(f"Default directivity: {payload['default_directivity_mode']} | strength {payload['default_directivity_strength_db']:.1f} dB | angle {payload['default_directivity_wedge_angle_deg']:.0f} deg")
+        lines.append(
+            f"Default directivity: {payload['default_directivity_mode']} | strength {payload['default_directivity_strength_db']:.1f} dB | angle {payload['default_directivity_wedge_angle_deg']:.0f} deg | vertical {payload['default_directivity_vertical_strength_db']:.1f} dB / {payload['default_directivity_vertical_angle_deg']:.0f} deg"
+        )
 
         if not payload['project_name']:
             problems.append('Project name is required.')

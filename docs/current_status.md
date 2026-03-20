@@ -19,7 +19,7 @@ The codebase now supports:
 - scene-aware hybrid GPU execution for attenuation and accumulation
 - a GUI prototype with project loading, 2D scene viewing, background run execution, progress monitoring, result viewing, and receiver-series plotting
 - first-pass GUI-wide visual polish via a shared desktop stylesheet, cleaner operator-shell presentation, a menu-driven top-toolbar structure, workspace-oriented navigation semantics, card-like summary sections in key operator views, a darker dashboard-style shell with `Workspace`, `Integrated Viewer`, and `Analysis & Data` regions, and a layout fix that now allows the overall GUI window to shrink based on the currently active workspace instead of the largest hidden page in the central stack
-- first-pass directional emission in the actual engine with `isotropic`, `wedge`, and `dual_wedge` modes, plus 3D source-field controls that can now link to the calculation-side directivity used by the run
+- directional emission Phase 2 in the actual engine with `isotropic`, `wedge`, and `dual_wedge` modes plus a first-pass vertical spread term, and 3D source-field controls that can now link directly to the calculation-side directivity used by the run
 
 ## 2. What Has Been Implemented
 

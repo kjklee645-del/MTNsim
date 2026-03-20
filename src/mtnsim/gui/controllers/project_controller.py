@@ -140,6 +140,8 @@ class ProjectController:
         default_directivity_mode: str = 'isotropic',
         default_directivity_strength_db: float = 6.0,
         default_directivity_wedge_angle_deg: float = 70.0,
+        default_directivity_vertical_strength_db: float = 0.0,
+        default_directivity_vertical_angle_deg: float = 55.0,
     ) -> ProjectCreationResult:
         project_root = Path(project_root).resolve()
         inspection = self.inspect_sumo_project(sumo_config_path)
@@ -189,6 +191,8 @@ class ProjectController:
             default_directivity_mode=default_directivity_mode,
             default_directivity_strength_db=default_directivity_strength_db,
             default_directivity_wedge_angle_deg=default_directivity_wedge_angle_deg,
+            default_directivity_vertical_strength_db=default_directivity_vertical_strength_db,
+            default_directivity_vertical_angle_deg=default_directivity_vertical_angle_deg,
         )
 
         manifest_path.write_text(toml.dumps(manifest_data), encoding='utf-8')
@@ -293,6 +297,8 @@ class ProjectController:
         default_directivity_mode: str = 'isotropic',
         default_directivity_strength_db: float = 6.0,
         default_directivity_wedge_angle_deg: float = 70.0,
+        default_directivity_vertical_strength_db: float = 0.0,
+        default_directivity_vertical_angle_deg: float = 55.0,
     ) -> ProjectCreationResult:
         project_root = Path(project_root).resolve()
         manifest_path = project_root / 'project.toml'
@@ -332,6 +338,8 @@ class ProjectController:
             default_directivity_mode=default_directivity_mode,
             default_directivity_strength_db=default_directivity_strength_db,
             default_directivity_wedge_angle_deg=default_directivity_wedge_angle_deg,
+            default_directivity_vertical_strength_db=default_directivity_vertical_strength_db,
+            default_directivity_vertical_angle_deg=default_directivity_vertical_angle_deg,
         )
         manifest_path.write_text(toml.dumps(manifest_data), encoding='utf-8')
         scenario_path.write_text(toml.dumps(scenario_data), encoding='utf-8')
@@ -368,6 +376,8 @@ class ProjectController:
             'mode': str(updates['noise.directivity.mode']),
             'strength_db': float(updates['noise.directivity.strength_db']),
             'wedge_angle_deg': float(updates['noise.directivity.wedge_angle_deg']),
+            'vertical_strength_db': float(updates['noise.directivity.vertical_strength_db']),
+            'vertical_angle_deg': float(updates['noise.directivity.vertical_angle_deg']),
         }
         grid_block['margin_x_start'] = float(updates['grid.margin_x_start'])
         grid_block['margin_x_end'] = float(updates['grid.margin_x_end'])
@@ -737,6 +747,8 @@ class ProjectController:
         default_directivity_mode: str = 'isotropic',
         default_directivity_strength_db: float = 6.0,
         default_directivity_wedge_angle_deg: float = 70.0,
+        default_directivity_vertical_strength_db: float = 0.0,
+        default_directivity_vertical_angle_deg: float = 55.0,
     ) -> dict:
         return {
             'scenario': {
@@ -779,6 +791,8 @@ class ProjectController:
                     'mode': default_directivity_mode,
                     'strength_db': float(default_directivity_strength_db),
                     'wedge_angle_deg': float(default_directivity_wedge_angle_deg),
+                    'vertical_strength_db': float(default_directivity_vertical_strength_db),
+                    'vertical_angle_deg': float(default_directivity_vertical_angle_deg),
                 },
             },
             'grid': {
@@ -804,6 +818,8 @@ class ProjectController:
         default_directivity_mode: str = 'isotropic',
         default_directivity_strength_db: float = 6.0,
         default_directivity_wedge_angle_deg: float = 70.0,
+        default_directivity_vertical_strength_db: float = 0.0,
+        default_directivity_vertical_angle_deg: float = 55.0,
     ) -> dict:
         vehicle_types = inspection.vehicle_types or ['DEFAULT_VEHTYPE']
         weights = [round(100 / len(vehicle_types), 2)] * len(vehicle_types)
@@ -852,6 +868,8 @@ class ProjectController:
                     'mode': default_directivity_mode,
                     'strength_db': float(default_directivity_strength_db),
                     'wedge_angle_deg': float(default_directivity_wedge_angle_deg),
+                    'vertical_strength_db': float(default_directivity_vertical_strength_db),
+                    'vertical_angle_deg': float(default_directivity_vertical_angle_deg),
                 },
             },
             'grid': {
