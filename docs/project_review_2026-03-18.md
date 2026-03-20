@@ -73,6 +73,8 @@ MTNsim was always larger than a single noise-calculation script. The intended sc
 - Scenario Comparison
 - Campaign Validation
 - playback export as PNG / GIF / MP4
+- 3D View with static scene primitives, 3D noise surface, playback-aware vehicles/noise, first-pass source-field overlays, and a central-window sizing fix so the overall GUI now follows the active workspace instead of hidden oversized pages
+- directional emission Phase A in actual calculation plus scenario/project-entry directivity controls
 
 ## 3. Current Stage Interpretation
 
@@ -82,6 +84,7 @@ This means the project has already crossed the following threshold:
 - users can create or import their own projects
 - users can run and inspect scenarios without editing TOML manually
 - users can compare scenarios and inspect campaign validation outputs inside the GUI
+- users can work in a more flexible desktop shell where the main window and key panes are no longer dominated by the largest hidden workspace view
 
 At the same time, MTNsim is not yet a finished professional product. The biggest remaining gaps are now in visualization quality, product polish, and long-term 3D / directional acoustic expansion.
 
@@ -96,22 +99,21 @@ At the same time, MTNsim is not yet a finished professional product. The biggest
 - more operator-facing clarity and polish are still needed
 
 ### 4.3 Next-generation visualization gap
-- current map/noise rendering is still 2D
-- 3D scene and 3D noise presentation are still missing
+- 3D scene and 3D noise presentation now exist as a first-pass operator view
+- remaining gap is deeper 3D polish, richer export, and stronger integration with comparison/validation flows
 
 ### 4.4 Source-field realism gap
-- current source radiation is still effectively shown as a flat-height approximation in the GUI
-- future source-region visualization should support volumetric and directional options such as spherical or wedge-like patterns
+- directional emission Phase A is now connected to actual grid/receiver calculation
+- 3D source-field overlays can follow calculation-side directivity
+- remaining gap is deeper physical meaning such as vertical anisotropy, richer shapes, and later measurement-driven subsource decomposition
 
 ## 5. Recommended Next Order
 
-1. Fix the GUI scene/playback aspect-ratio problem.
-2. Improve GUI visual polish.
-3. Add a Scene Object Editor so users can define barriers, buildings, terrain edges, ground surfaces, and vegetation zones directly in the product.
-4. Continue project/run/result UX polish.
-5. Design and implement a 3D scene/noise visualization layer.
-6. Design and implement volumetric/directional source-field modeling and user-facing selection of source-shape modes.
-7. Keep deeper validation, calibration, GPU, and physics hardening on the deferred backlog unless a milestone pulls them forward.
+1. Continue GUI visual polish and operator workflow polish.
+2. Deepen the 3D visualization layer now that the first-pass 3D scene/noise view exists.
+3. Strengthen the physical meaning of directional source-field modeling beyond Phase A.
+4. Keep project/run/result UX refinement moving alongside the 3D track.
+5. Leave tire/engine/exhaust decomposition, deeper validation, calibration, GPU, and physics hardening on the deferred backlog until measurement campaigns or milestones pull them forward.
 
 ## 6. Bottom Line
 

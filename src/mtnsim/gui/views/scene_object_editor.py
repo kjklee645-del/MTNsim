@@ -163,7 +163,7 @@ class SceneObjectEditorView(QWidget):
         self.attenuation_spin = self._make_spin(0.0, 1000.0)
         self.footprint_edit = QTextEdit()
         self.footprint_edit.setObjectName('infoCard')
-        self.footprint_edit.setMinimumHeight(120)
+        self.footprint_edit.setMinimumHeight(80)
 
         self.form.addRow('ID', self.object_id_edit)
         self.form.addRow('Material', self.material_edit)

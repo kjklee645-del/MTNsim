@@ -12,6 +12,7 @@ It currently supports:
 - propagation benchmark and tuning
 - calibration against measurement CSV
 - propagation-model override through scenario files
+- first-pass directional emission settings through scenario files and the Scenario Editor
 
 ## 2. Environment Assumptions
 
@@ -61,6 +62,7 @@ Current GUI scope in Phase 3 + playback + comparison + limited editor:
 - replay recorded vehicle movement with a time slider and play/pause controls
 - zoom with the mouse wheel, pan by dragging, and inspect receivers/vehicles/lanes/grid cells with hover info
 - view a minimap inset, speed-colored vehicles, short vehicle tail trails, a playback-synchronized grid heatmap overlay, playback-side layer/range/opacity controls, a receiver-series cursor that follows playback time, nearby-frame heatmap prefetch, click-to-select vehicle details, selected-vehicle contribution-only heatmap / receiver summaries, timeline event markers for vehicle enter/exit, speed shifts, and heading shifts, camera follow mode for a selected vehicle, and export the current playback as a PNG frame sequence, animated GIF, or MP4 video
+- open a `3D View` workspace for the current scene or selected run, inspect a static or playback-synchronized 3D noise surface, orbit/pan/zoom the 3D camera, and visualize the selected playback vehicle with `sphere`, `wedge`, or `dual_wedge` source-field overlays plus receiver highlighting and receiver-link lines
 
 
 ### 3.1 Create or Import a Project
@@ -462,6 +464,11 @@ Current 3D controls:
 - `Auto dB Range`, `Min dB`, `Max dB`: control the noise color scale
 - layer toggles: show/hide roads, receivers, barriers, buildings, ground, vegetation, grid region, and the 3D noise surface
 - `Result Viewer -> Open 3D View`: open the currently loaded result directly in the 3D workspace with run/scenario metadata carried over
+- when playback data exists, moving the playback slider updates 3D vehicle markers, playback frame metadata, and the 3D noise surface together
+- selected vehicles are now highlighted in 3D, short vehicle trails can be shown, and the 3D camera can follow the selected vehicle
+- the 3D view now includes a `Source Field` mode selector with `Off`, `Sphere`, and `Wedge` options for the selected playback vehicle
+- the 3D source-field overlay can now be tuned with `Scale`, `Height`, `Opacity`, and `Wedge Angle` controls
+- `Use Calc Directivity` links the 3D source-field mode and wedge angle to the actual directional-emission settings used by the run (`isotropic -> sphere`, `wedge -> wedge`, `dual_wedge -> dual_wedge`)
 
 Current limitation:
-- the 3D view is still static with respect to noise playback; it does not yet animate vehicles or update the 3D noise field frame-by-frame from playback
+- the 3D view now follows playback for vehicle markers and frame-synced noise updates, but it is still an early slice rather than a fully polished 3D playback system

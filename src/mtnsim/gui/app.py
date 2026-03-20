@@ -199,6 +199,18 @@ def _build_stylesheet() -> str:
     QSplitter::handle {
         background: #223041;
     }
+    QSplitter::handle:horizontal {
+        width: 10px;
+        margin: 0 1px;
+    }
+    QSplitter::handle:vertical {
+        height: 10px;
+        margin: 1px 0;
+    }
+    QScrollArea#IntegratedViewerHeaderScroll, QScrollArea#ProjectHomeOverviewScroll {
+        background: transparent;
+        border: none;
+    }
     QToolButton#ActionTile {
         background: #18222e;
         border: 1px solid #2d4157;

@@ -7,7 +7,7 @@ import csv
 import json
 import math
 
-from mtnsim.acoustics.emission.road_vehicle import calculate_3d_distance
+from mtnsim.acoustics.emission.road_vehicle import calculate_3d_distance, directional_gain_db, resolve_heading_vector
 from mtnsim.acoustics.field.noise_grid import update_noise_grid_cpu, update_noise_grid_gpu
 from mtnsim.acoustics.propagation.correction import total_propagation_correction_db
 from mtnsim.acoustics.propagation.diffraction import DEFAULT_DIFFRACTION_SETTINGS, DiffractionModelSettings
@@ -42,6 +42,9 @@ class DynamicHeatmapContext:
     max_area_meters: float
     propagation_provider: object | None
     use_gpu: bool
+    directivity_mode: str = 'isotropic'
+    directivity_strength_db: float = 6.0
+    directivity_wedge_angle_deg: float = 70.0
     cache: OrderedDict[int, list[HeatmapCell]] = field(default_factory=OrderedDict)
     cache_limit: int = 72
 
@@ -107,12 +110,17 @@ class ResultController:
             max_area_meters=scenario.noise.max_area_meters,
             propagation_provider=propagation_provider,
             use_gpu=result_summary.used_gpu,
+            directivity_mode=scenario.noise.directivity.mode,
+            directivity_strength_db=scenario.noise.directivity.strength_db,
+            directivity_wedge_angle_deg=scenario.noise.directivity.wedge_angle_deg,
         )
 
     def compute_dynamic_heatmap(
         self,
         context: DynamicHeatmapContext | None,
         frame: PlaybackFrame | None,
+        dataset=None,
+        frame_index: int | None = None,
     ) -> list[HeatmapCell]:
         if context is None or frame is None:
             return []
@@ -124,6 +132,7 @@ class ResultController:
         vehicle_positions = {vehicle.vehicle_id: (vehicle.x, vehicle.y) for vehicle in frame.vehicles}
         vehicle_types = {vehicle.vehicle_id: vehicle.vehicle_type for vehicle in frame.vehicles}
         vehicle_speeds = {vehicle.vehicle_id: vehicle.speed_mps for vehicle in frame.vehicles}
+        vehicle_headings = self._build_vehicle_headings(dataset, frame_index, frame)
         engine = update_noise_grid_gpu if context.use_gpu else update_noise_grid_cpu
         values = engine(
             context.grid_positions,
@@ -134,6 +143,8 @@ class ResultController:
             context.background_noise_db,
             context.max_area_meters,
             context.propagation_provider,
+            vehicle_headings,
+            self._build_directivity_proxy(context),
         )
         cells = [
             HeatmapCell(x=position[0], y=position[1], value_db=float(values[cell_id]))
@@ -148,19 +159,23 @@ class ResultController:
     def prefetch_dynamic_heatmap_frames(
         self,
         context: DynamicHeatmapContext | None,
-        frames: list[PlaybackFrame],
+        dataset,
+        frame_indices: list[int],
         max_frames: int | None = None,
     ) -> list[int]:
         if context is None:
             return []
         prefetched: list[int] = []
-        for frame in frames:
-            if frame is None:
+        if dataset is None:
+            return prefetched
+        for frame_index in frame_indices:
+            if frame_index < 0 or frame_index >= dataset.frame_count:
                 continue
+            frame = dataset.frames[frame_index]
             if frame.time_index in context.cache:
                 context.cache.move_to_end(frame.time_index)
                 continue
-            self.compute_dynamic_heatmap(context, frame)
+            self.compute_dynamic_heatmap(context, frame, dataset=dataset, frame_index=frame_index)
             prefetched.append(frame.time_index)
             if max_frames is not None and len(prefetched) >= max_frames:
                 break
@@ -172,10 +187,12 @@ class ResultController:
         context: DynamicHeatmapContext | None,
         frame: PlaybackFrame | None,
         vehicle_id: str | None,
+        dataset=None,
+        frame_index: int | None = None,
     ) -> list[HeatmapCell]:
         if context is None or frame is None or not vehicle_id:
             return []
-        values = self._compute_vehicle_contribution_values(context, context.grid_positions, frame, vehicle_id)
+        values = self._compute_vehicle_contribution_values(context, context.grid_positions, frame, vehicle_id, dataset=dataset, frame_index=frame_index)
         return [
             HeatmapCell(x=position[0], y=position[1], value_db=float(values.get(cell_id, 0.0)))
             for cell_id, position in context.grid_positions.items()
@@ -187,10 +204,12 @@ class ResultController:
         frame: PlaybackFrame | None,
         vehicle_id: str | None,
         receiver_positions: dict[str, tuple[float, float, float]],
+        dataset=None,
+        frame_index: int | None = None,
     ) -> dict[str, float]:
         if context is None or frame is None or not vehicle_id:
             return {}
-        return self._compute_vehicle_contribution_values(context, receiver_positions, frame, vehicle_id)
+        return self._compute_vehicle_contribution_values(context, receiver_positions, frame, vehicle_id, dataset=dataset, frame_index=frame_index)
 
     def _compute_vehicle_contribution_values(
         self,
@@ -198,6 +217,8 @@ class ResultController:
         positions: dict[str, tuple[float, float, float]],
         frame: PlaybackFrame,
         vehicle_id: str,
+        dataset=None,
+        frame_index: int | None = None,
     ) -> dict[str, float]:
         selected_vehicle = next((vehicle for vehicle in frame.vehicles if vehicle.vehicle_id == vehicle_id), None)
         if selected_vehicle is None:
@@ -210,6 +231,8 @@ class ResultController:
         speed = max(selected_vehicle.speed_mps, 0.1)
         a, b = coeff
         pwl = a + (b * math.log10(3.6 * speed))
+        vehicle_headings = self._build_vehicle_headings(dataset, frame_index, frame)
+        directivity = self._build_directivity_proxy(context)
         values: dict[str, float] = {}
         for position_id, position in positions.items():
             distance = calculate_3d_distance(position, vehicle_position)
@@ -221,8 +244,16 @@ class ResultController:
             if provider is not None and hasattr(provider, 'correction_for_pair'):
                 propagation_context = provider.correction_for_pair(position_id, position, selected_vehicle.vehicle_id, vehicle_position)
                 correction_db = total_propagation_correction_db(propagation_context)
+            directional_db = directional_gain_db(
+                (position[0], position[1]),
+                vehicle_position,
+                vehicle_headings.get(selected_vehicle.vehicle_id),
+                mode=directivity.mode,
+                strength_db=directivity.strength_db,
+                wedge_angle_deg=directivity.wedge_angle_deg,
+            )
             attenuation_db = free_field_attenuation_db(distance)
-            level_db = pwl - attenuation_db + correction_db
+            level_db = pwl + directional_db - attenuation_db + correction_db
             values[position_id] = max(0.0, float(level_db))
         return values
 
@@ -234,6 +265,34 @@ class ResultController:
             return float(x_str), float(y_str)
         except ValueError:
             return None
+
+    def _build_directivity_proxy(self, context: DynamicHeatmapContext):
+        class _Directivity:
+            pass
+        proxy = _Directivity()
+        proxy.mode = context.directivity_mode
+        proxy.strength_db = context.directivity_strength_db
+        proxy.wedge_angle_deg = context.directivity_wedge_angle_deg
+        return proxy
+
+    def _build_vehicle_headings(self, dataset, frame_index: int | None, frame: PlaybackFrame | None) -> dict[str, tuple[float, float]]:
+        if dataset is None or frame is None or frame_index is None or frame_index < 0 or frame_index >= dataset.frame_count:
+            return {}
+        previous_lookup = {vehicle.vehicle_id: vehicle for vehicle in dataset.frames[frame_index - 1].vehicles} if frame_index > 0 else {}
+        next_lookup = {vehicle.vehicle_id: vehicle for vehicle in dataset.frames[frame_index + 1].vehicles} if frame_index + 1 < dataset.frame_count else {}
+        headings: dict[str, tuple[float, float]] = {}
+        for vehicle in frame.vehicles:
+            heading = None
+            previous_vehicle = previous_lookup.get(vehicle.vehicle_id)
+            if previous_vehicle is not None:
+                heading = resolve_heading_vector((previous_vehicle.x, previous_vehicle.y), (vehicle.x, vehicle.y))
+            if heading is None:
+                next_vehicle = next_lookup.get(vehicle.vehicle_id)
+                if next_vehicle is not None:
+                    heading = resolve_heading_vector((vehicle.x, vehicle.y), (next_vehicle.x, next_vehicle.y))
+            if heading is not None:
+                headings[vehicle.vehicle_id] = heading
+        return headings
 
     def _resolve_reflection_settings(self, scenario: ScenarioConfig) -> ReflectionModelSettings:
         overrides = {key: value for key, value in asdict(scenario.propagation_model.reflection).items() if value is not None}

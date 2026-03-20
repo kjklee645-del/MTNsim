@@ -64,7 +64,7 @@ class SceneCanvas(QWidget):
         self._edit_mode: str | None = None
         self._edit_vertex_index: int | None = None
         self._edit_last_world: tuple[float, float] | None = None
-        self.setMinimumHeight(420)
+        self.setMinimumHeight(140)
         self.setMouseTracking(True)
 
     def set_snapshot(self, snapshot: SceneSnapshot | None) -> None:

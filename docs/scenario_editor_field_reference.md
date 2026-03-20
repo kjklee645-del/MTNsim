@@ -93,6 +93,22 @@ When current values pass editor validation, the editor automatically updates the
 - Meaning: default height used for receiver evaluation.
 - Typical use: represent ear height or a measurement instrument height.
 
+### Directivity Mode
+- Schema field: `noise.directivity.mode`
+- Meaning: chooses how strongly the vehicle source favors particular directions.
+- Current GUI values:
+  - `isotropic`: legacy equal-radiation approximation
+  - `wedge`: forward-favoring source pattern
+  - `dual_wedge`: front-and-rear-favoring source pattern
+
+### Directivity Strength
+- Schema field: `noise.directivity.strength_db`
+- Meaning: maximum attenuation applied outside the preferred lobe directions in the first-pass directional emission model.
+
+### Directivity Wedge Angle
+- Schema field: `noise.directivity.wedge_angle_deg`
+- Meaning: opening angle used by `wedge` and `dual_wedge` directivity modes.
+
 ## Grid
 
 ### Grid Margin Start

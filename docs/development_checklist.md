@@ -1,6 +1,6 @@
 # MTNsim Development Checklist
 
-Last updated: 2026-03-18
+Last updated: 2026-03-19
 Owner: Codex + User
 Purpose: keep a single progress checklist that reflects product direction, implementation order, and current technical status.
 
@@ -30,8 +30,8 @@ Status legend:
 | Schema | Result schema | [x] | `schemas/result.schema.json` |
 | Packaging | Python package skeleton | [x] | `src/mtnsim` |
 | Metadata | README and package metadata | [x] | `README.md`, `pyproject.toml` |
-| GUI UX | Project/run/result operator polish | [~] | readiness guidance, completion summaries, clearer result cards, quickstart docs, and explicit rectangular grid-bounds editing with persistent Scene-View overlay plus drag re-editing are implemented; recent-project/session polish still remains |
-| Project UX | New/import/attach project workflow | [~] | first-pass GUI creation/import flow implemented with validation summary, overwrite handling, first-run guidance, empty-project mode, later attach-SUMO support, selectable attach refresh scope, optional scene/measurement import, and top-level SUMO config compatibility; deeper wizard polish still remains |
+| GUI UX | Project/run/result operator polish | [~] | readiness guidance, completion summaries, clearer result cards, quickstart docs, explicit rectangular grid-bounds editing with persistent Scene-View overlay plus drag re-editing, and a main-window resize fix that now follows the active workspace are implemented; recent-project/session polish still remains |
+| Project UX | New/import/attach project workflow | [~] | first-pass GUI creation/import flow implemented with validation summary, overwrite handling, first-run guidance, empty-project mode, later attach-SUMO support, selectable attach refresh scope, optional scene/measurement import, starter directivity selection, and top-level SUMO config compatibility; deeper wizard polish still remains |
 | GUI UX | Preserve true scene aspect ratio in 2D views | [x] | scene/playback mapping now keeps SUMO network proportions with uniform scale and centered content |
 | GUI UX | Visual design refresh | [~] | shared desktop stylesheet and first-pass operator-shell polish implemented; deeper visual design work still remains |
 
@@ -85,6 +85,7 @@ Status legend:
 | Geometry | Vegetation objects | [~] | `vegetation_zones` added as first-pass scene/runtime objects |
 | Propagation model | Common propagation properties per object type | [x] | defaults + per-object overrides added |
 | Propagation model | Material-aware corrections | [~] | geometry-coupled shielding/reflection/diffraction corrections plus path-length-aware and line-height-aware ground/vegetation corrections |
+| Emission model | Directional vehicle emission | [~] | Phase A started with `isotropic / wedge / dual_wedge` scenario settings and heading-aware emission-side attenuation in engine calculations |
 
 ## 7. Calibration and Validation
 
@@ -114,8 +115,8 @@ Status legend:
 | Visualization | GUI Vehicle Playback | [x] | GUI-triggered runs now record vehicle traces and replay them with a time slider on top of the 2D scene view |
 | Visualization | GUI implementation | [~] | active track; core GUI flows exist; preview UX polish items are deferred in `docs/deferred_enhancement_backlog.md` |
 | Visualization | Scene Object Editor for barriers, buildings, terrain, ground, and vegetation | [~] | first-pass GUI view now supports list/form editing, Save As, live scene preview, Scene View-linked selection/highlight, click-to-draw creation, direct manipulation, and basic duplicate plus undo/redo history; deeper geometry editing still remains |
-| Visualization | 3D scene and noise visualization layer | [~] | `3D View` shell, scene-to-3D adapter, static 3D scene primitives, a static 3D noise surface from selected run snapshots, operator legend/range controls, color-plate versus raised-surface modes, orbit/pan/zoom camera controls, and direct Result Viewer-to-3D linking with run metadata are now implemented; playback-aware 3D work still remains |
-| Visualization | Volumetric/directional source-field visualization | [ ] | support spherical, wedge-like, or other directional source-region displays with selectable modes |
+| Visualization | 3D scene and noise visualization layer | [~] | `3D View` shell, scene-to-3D adapter, static 3D scene primitives, a static 3D noise surface from selected run snapshots, operator legend/range controls, color-plate versus raised-surface modes, orbit/pan/zoom camera controls, direct Result Viewer-to-3D linking with run metadata, and a deeper playback-aware slice with selected-vehicle highlighting, trails, follow, and playback-synced 3D noise updates are now implemented; further 3D polish still remains |
+| Visualization | Volumetric/directional source-field visualization | [~] | first-pass 3D source-field overlays now support `off / sphere / wedge / dual_wedge` for the selected playback vehicle plus size, height, opacity, and wedge-span controls, receiver highlighting, receiver-link overlays, and a `Use Calc Directivity` mode that follows the run's actual directional-emission setting; richer overlay physics and additional selectable shapes still remain |
 | API | Local API layer | [~] | thin local layer exists |
 | Agent | Bounded command architecture baseline | [~] | early structure only |
 | Agent | Real natural-language scenario control | [ ] | not started |
@@ -129,8 +130,8 @@ Status legend:
 | 2 | Raise GUI visual polish and operator-facing design quality | [~] | major shell and core view polish completed, but product-level refinement still remains |
 | 3 | Add a Scene Object Editor so users can define barriers, buildings, terrain, ground, and vegetation without manual TOML editing | [~] | first-pass scene-object editing now exists with Scene View-linked selection, click-to-draw creation, direct manipulation, and basic duplicate plus undo/redo history; vertex add/remove, duplicate-and-drag flow, snapping, and richer reshape tooling are now tracked in the deferred backlog |
 | 4 | Continue project/run/result UX polish after the new project/import flow | [~] | project entry is now usable, so the next value comes from smoother recent-project, run, and result navigation |
-| 5 | Plan and then implement a 3D scene/noise visualization layer | [~] | plan is fixed and the static 3D scene plus static noise-surface slice now includes legend/range controls, orbit/pan/zoom camera behavior, and direct Result Viewer integration; next slice is playback-aware 3D expansion |
-| 6 | Treat volumetric and directional source-field modeling as the next major acoustic-visualization expansion | [ ] | source radiation still appears effectively flat-height in the GUI and should evolve toward selectable 3D/directive field shapes |
+| 5 | Continue deepening the 3D scene/noise visualization layer | [~] | the 3D layer now exists with static scene/noise, playback-aware vehicles/noise, result-linked metadata, camera controls, and first-pass source-field overlays; next slice is stronger 3D polish and presentation quality |
+| 6 | Deepen directional source-field modeling beyond Phase A | [~] | actual calculation now supports `isotropic`, `wedge`, and `dual_wedge`, and 3D source-field overlays can follow calculation-side directivity; deeper physical meaning and richer shapes still remain |
 | 7 | Keep deeper validation, calibration, scene-physics, and GPU work on the deferred backlog while GUI/product usability is the mainline focus | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
 
 ## 10. Maintenance Rule

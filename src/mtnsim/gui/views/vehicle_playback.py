@@ -280,6 +280,7 @@ class VehiclePlaybackView(QWidget):
         if checked:
             self._focus_selected_vehicle()
         self._refresh_info(current_frame=self._current_frame_index)
+        self.contribution_view_changed.emit()
 
     def _on_contribution_mode_changed(self, checked: bool) -> None:
         self.contribution_view_changed.emit()
@@ -290,6 +291,9 @@ class VehiclePlaybackView(QWidget):
 
     def selected_vehicle_id(self) -> str | None:
         return self._selected_vehicle_id
+
+    def is_follow_selected_vehicle(self) -> bool:
+        return self._follow_selected_vehicle
 
     def set_selected_vehicle_receiver_contributions(self, contributions: dict[str, float]) -> None:
         self._selected_vehicle_receiver_contributions = dict(contributions)

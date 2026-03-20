@@ -17,6 +17,9 @@ class Scene3DCanvas(QWidget):
         self.frame_data: Scene3DFrame | None = None
         self.show_roads = True
         self.show_receivers = True
+        self.show_vehicles = True
+        self.show_vehicle_trails = True
+        self.show_source_field = True
         self.show_barriers = True
         self.show_buildings = True
         self.show_ground = True
@@ -34,7 +37,7 @@ class Scene3DCanvas(QWidget):
         self._drag_last_pos: QPoint | None = None
         self._drag_mode: str | None = None
         self._last_noise_range: tuple[float, float] | None = None
-        self.setMinimumSize(640, 420)
+        self.setMinimumSize(240, 140)
         self.setMouseTracking(True)
 
     @property
@@ -50,21 +53,27 @@ class Scene3DCanvas(QWidget):
         *,
         roads: bool,
         receivers: bool,
+        vehicles: bool,
+        vehicle_trails: bool,
         barriers: bool,
         buildings: bool,
         ground: bool,
         vegetation: bool,
         grid_region: bool,
         noise_surface: bool,
+        source_field: bool,
     ) -> None:
         self.show_roads = roads
         self.show_receivers = receivers
+        self.show_vehicles = vehicles
+        self.show_vehicle_trails = vehicle_trails
         self.show_barriers = barriers
         self.show_buildings = buildings
         self.show_ground = ground
         self.show_vegetation = vegetation
         self.show_grid_region = grid_region
         self.show_noise_surface = noise_surface
+        self.show_source_field = source_field
         self.update()
 
     def set_noise_display(self, *, render_mode: str, auto_range: bool, min_db: float, max_db: float) -> None:
@@ -79,6 +88,36 @@ class Scene3DCanvas(QWidget):
         self.yaw_deg = 36.0
         self.pitch_deg = 30.0
         self.pan_offset = QPointF(0.0, 0.0)
+        self.update()
+
+    def center_on_world_point(self, x: float, y: float, z: float = 0.0) -> None:
+        frame = self.frame_data
+        if frame is None:
+            return
+        min_x, min_y, max_x, max_y = frame.bounds
+        span_x = max(max_x - min_x, 1.0)
+        span_y = max(max_y - min_y, 1.0)
+        center_x = (min_x + max_x) * 0.5
+        center_y = (min_y + max_y) * 0.5
+        yaw = radians(self.yaw_deg)
+        pitch = radians(self.pitch_deg)
+        cos_yaw = cos(yaw)
+        sin_yaw = sin(yaw)
+        sin_pitch = sin(pitch)
+        base_scale = min(
+            (self.width() - 120) / max(span_x + span_y, 1.0),
+            (self.height() - 160) / max((span_x + span_y) * 0.7 + 40.0, 1.0),
+        )
+        scale = max(base_scale * self.zoom_factor, 0.2)
+        dx = x - center_x
+        dy = y - center_y
+        rx = dx * cos_yaw - dy * sin_yaw
+        ry = dx * sin_yaw + dy * cos_yaw
+        sx = rx * scale
+        sy = ry * sin_pitch * scale - z * scale * 3.0
+        target = QPointF(self.width() * 0.5, self.height() * 0.62)
+        current = QPointF(self.width() * 0.5 + self.pan_offset.x() + sx, self.height() * 0.70 + self.pan_offset.y() + sy)
+        self.pan_offset += target - current
         self.update()
 
     def wheelEvent(self, event) -> None:
@@ -289,6 +328,45 @@ class Scene3DCanvas(QWidget):
             draw_noise_surface(frame.noise_cells)
         if self.show_grid_region and frame.grid_region is not None:
             draw_grid_region(frame.grid_region)
+        if self.show_vehicle_trails:
+            for trail in frame.vehicle_trails:
+                if len(trail.points) < 2:
+                    continue
+                path = QPainterPath()
+                path.moveTo(project(trail.points[0][0], trail.points[0][1], trail.z))
+                for x, y in trail.points[1:]:
+                    path.lineTo(project(x, y, trail.z))
+                color = QColor(trail.color)
+                color.setAlpha(255 if trail.selected else 150)
+                width = 2.4 if trail.selected else 1.3
+                painter.setPen(QPen(color, width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+                painter.drawPath(path)
+        if self.show_source_field:
+            for link in frame.source_field_links:
+                start = project(link.start[0], link.start[1], link.start[2])
+                end = project(link.end[0], link.end[1], link.end[2])
+                color = QColor(link.color)
+                color.setAlpha(165)
+                painter.setPen(QPen(color, 1.1, Qt.DashLine))
+                painter.drawLine(start, end)
+            for overlay in frame.source_field_overlays:
+                if len(overlay.footprint) < 3:
+                    continue
+                base = [project(x, y, 0.0) for x, y in overlay.footprint]
+                top = [project(x, y, overlay.height) for x, y in overlay.footprint]
+                side_color = QColor(overlay.color).darker(145)
+                side_color.setAlpha(int(255 * max(0.05, min(0.95, overlay.opacity)) * 0.65))
+                fill_color = QColor(overlay.color)
+                fill_color.setAlpha(int(255 * max(0.05, min(0.95, overlay.opacity))))
+                for idx in range(len(base)):
+                    nxt = (idx + 1) % len(base)
+                    side = QPolygonF([base[idx], base[nxt], top[nxt], top[idx]])
+                    painter.setBrush(side_color)
+                    painter.setPen(QPen(QColor(overlay.edge_color), 0.7))
+                    painter.drawPolygon(side)
+                painter.setBrush(fill_color)
+                painter.setPen(QPen(QColor(overlay.edge_color), 1.1))
+                painter.drawPolygon(QPolygonF(top))
         if self.show_roads:
             for road in frame.roads:
                 draw_road(road)
@@ -304,10 +382,26 @@ class Scene3DCanvas(QWidget):
             for marker in frame.receivers:
                 base = project(marker.x, marker.y, 0.0)
                 top = project(marker.x, marker.y, marker.z + 2.0)
-                painter.setPen(QPen(QColor('#eff6ff'), 1.3))
+                line_color = QColor('#fff4b2') if marker.highlighted else QColor('#eff6ff')
+                fill_color = QColor('#fff4b2') if marker.highlighted else QColor('#eff6ff')
+                radius = 4.6 if marker.highlighted else 3.5
+                painter.setPen(QPen(line_color, 1.4 if marker.highlighted else 1.3))
                 painter.drawLine(base, top)
-                painter.setBrush(QColor('#eff6ff'))
-                painter.drawEllipse(top, 3.5, 3.5)
+                painter.setBrush(fill_color)
+                painter.drawEllipse(top, radius, radius)
+
+        if self.show_vehicles:
+            for vehicle in frame.vehicles:
+                base = project(vehicle.x, vehicle.y, 0.0)
+                top = project(vehicle.x, vehicle.y, vehicle.z)
+                painter.setPen(QPen(QColor('#082032'), 0.8))
+                painter.drawLine(base, top)
+                fill = QColor(vehicle.color)
+                border = QColor('#f8fafc') if vehicle.selected else QColor('#08111c')
+                radius = 5.6 if vehicle.selected else 4.2
+                painter.setBrush(fill)
+                painter.setPen(QPen(border, 1.2 if vehicle.selected else 0.8))
+                painter.drawEllipse(top, radius, radius)
 
         painter.setPen(QColor('#f4f7fb'))
         painter.drawText(24, 28, '3D Scene & Noise')
@@ -360,6 +454,16 @@ class Scene3DView(QWidget):
         super().__init__(parent)
         self._result_summary: RunResultSummary | None = None
         self._result_summary_path: Path | None = None
+        self._playback_time_index: int | None = None
+        self._playback_sim_seconds: float | None = None
+        self._playback_vehicle_count: int = 0
+        self._selected_vehicle_id: str | None = None
+        self._follow_selected_vehicle: bool = False
+        self._source_field_mode: str = 'off'
+        self._affected_receiver_count: int = 0
+        self._calc_directivity_mode: str = 'isotropic'
+        self._calc_directivity_strength_db: float = 6.0
+        self._calc_directivity_wedge_angle_deg: float = 70.0
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -387,12 +491,26 @@ class Scene3DView(QWidget):
         self.view_mode_label = QLabel('-')
         self.db_range_label = QLabel('-')
         self.noise_cell_label = QLabel('-')
+        self.playback_frame_label = QLabel('-')
+        self.playback_vehicle_count_label = QLabel('-')
+        self.selected_vehicle_label = QLabel('-')
+        self.follow_label = QLabel('-')
+        self.source_field_label = QLabel('-')
+        self.source_field_detail_label = QLabel('-')
+        self.affected_receivers_label = QLabel('-')
         meta_layout.addRow('Run ID', self.run_id_label)
         meta_layout.addRow('Scenario', self.scenario_label)
         meta_layout.addRow('Output', self.output_label)
         meta_layout.addRow('View Mode', self.view_mode_label)
         meta_layout.addRow('dB Range', self.db_range_label)
         meta_layout.addRow('Noise Cells', self.noise_cell_label)
+        meta_layout.addRow('Playback Frame', self.playback_frame_label)
+        meta_layout.addRow('Playback Vehicles', self.playback_vehicle_count_label)
+        meta_layout.addRow('Selected Vehicle', self.selected_vehicle_label)
+        meta_layout.addRow('Camera Follow', self.follow_label)
+        meta_layout.addRow('Source Field', self.source_field_label)
+        meta_layout.addRow('Field Detail', self.source_field_detail_label)
+        meta_layout.addRow('Affected Receivers', self.affected_receivers_label)
         root.addWidget(meta_card)
 
         controls = QFrame()
@@ -407,6 +525,18 @@ class Scene3DView(QWidget):
         self.roads_check.setChecked(True)
         self.receivers_check = QCheckBox('Receivers')
         self.receivers_check.setChecked(True)
+        self.vehicles_check = QCheckBox('Vehicles')
+        self.vehicles_check.setChecked(True)
+        self.vehicle_trails_check = QCheckBox('Vehicle Trails')
+        self.vehicle_trails_check.setChecked(True)
+        self.source_field_check = QCheckBox('Source Field')
+        self.source_field_check.setChecked(True)
+        self.highlight_receivers_check = QCheckBox('Highlight Receivers')
+        self.highlight_receivers_check.setChecked(True)
+        self.receiver_links_check = QCheckBox('Receiver Links')
+        self.receiver_links_check.setChecked(True)
+        self.follow_selected_check = QCheckBox('Follow selected')
+        self.follow_selected_check.setChecked(False)
         self.barriers_check = QCheckBox('Barriers')
         self.barriers_check.setChecked(True)
         self.buildings_check = QCheckBox('Buildings')
@@ -419,7 +549,7 @@ class Scene3DView(QWidget):
         self.grid_region_check.setChecked(True)
         self.noise_surface_check = QCheckBox('3D Noise Surface')
         self.noise_surface_check.setChecked(True)
-        for widget in [self.roads_check, self.receivers_check, self.barriers_check, self.buildings_check, self.ground_check, self.vegetation_check, self.grid_region_check, self.noise_surface_check]:
+        for widget in [self.roads_check, self.receivers_check, self.vehicles_check, self.vehicle_trails_check, self.source_field_check, self.highlight_receivers_check, self.receiver_links_check, self.follow_selected_check, self.barriers_check, self.buildings_check, self.ground_check, self.vegetation_check, self.grid_region_check, self.noise_surface_check]:
             top_row.addWidget(widget)
         top_row.addStretch(1)
         controls_layout.addLayout(top_row)
@@ -431,6 +561,41 @@ class Scene3DView(QWidget):
         self.surface_mode_combo.addItem('Raised Surface', 'raised')
         self.surface_mode_combo.addItem('Color Plate', 'flat')
         bottom_row.addWidget(self.surface_mode_combo)
+        bottom_row.addWidget(QLabel('Source Field'))
+        self.source_field_mode_combo = QComboBox()
+        self.source_field_mode_combo.addItem('Off', 'off')
+        self.source_field_mode_combo.addItem('Sphere', 'sphere')
+        self.source_field_mode_combo.addItem('Wedge', 'wedge')
+        self.source_field_mode_combo.addItem('Dual Wedge', 'dual_wedge')
+        bottom_row.addWidget(self.source_field_mode_combo)
+        self.link_calc_directivity_check = QCheckBox('Use Calc Directivity')
+        self.link_calc_directivity_check.setChecked(True)
+        bottom_row.addWidget(self.link_calc_directivity_check)
+        bottom_row.addWidget(QLabel('Scale'))
+        self.source_field_scale_spin = QDoubleSpinBox()
+        self.source_field_scale_spin.setRange(0.2, 4.0)
+        self.source_field_scale_spin.setSingleStep(0.1)
+        self.source_field_scale_spin.setValue(1.0)
+        bottom_row.addWidget(self.source_field_scale_spin)
+        bottom_row.addWidget(QLabel('Height'))
+        self.source_field_height_spin = QDoubleSpinBox()
+        self.source_field_height_spin.setRange(0.2, 4.0)
+        self.source_field_height_spin.setSingleStep(0.1)
+        self.source_field_height_spin.setValue(1.0)
+        bottom_row.addWidget(self.source_field_height_spin)
+        bottom_row.addWidget(QLabel('Opacity'))
+        self.source_field_opacity_spin = QDoubleSpinBox()
+        self.source_field_opacity_spin.setRange(0.05, 0.95)
+        self.source_field_opacity_spin.setSingleStep(0.05)
+        self.source_field_opacity_spin.setValue(0.32)
+        bottom_row.addWidget(self.source_field_opacity_spin)
+        bottom_row.addWidget(QLabel('Wedge Angle'))
+        self.source_field_wedge_angle_spin = QDoubleSpinBox()
+        self.source_field_wedge_angle_spin.setRange(20.0, 160.0)
+        self.source_field_wedge_angle_spin.setSingleStep(5.0)
+        self.source_field_wedge_angle_spin.setValue(70.0)
+        self.source_field_wedge_angle_spin.setSuffix(' deg')
+        bottom_row.addWidget(self.source_field_wedge_angle_spin)
         self.auto_range_check = QCheckBox('Auto dB Range')
         self.auto_range_check.setChecked(True)
         bottom_row.addWidget(self.auto_range_check)
@@ -455,8 +620,15 @@ class Scene3DView(QWidget):
         self.canvas = Scene3DCanvas()
         root.addWidget(self.canvas, 1)
 
-        for widget in [self.roads_check, self.receivers_check, self.barriers_check, self.buildings_check, self.ground_check, self.vegetation_check, self.grid_region_check, self.noise_surface_check]:
+        for widget in [self.roads_check, self.receivers_check, self.vehicles_check, self.vehicle_trails_check, self.source_field_check, self.highlight_receivers_check, self.receiver_links_check, self.barriers_check, self.buildings_check, self.ground_check, self.vegetation_check, self.grid_region_check, self.noise_surface_check]:
             widget.toggled.connect(self._apply_visibility)
+        self.follow_selected_check.toggled.connect(self._on_follow_changed)
+        self.source_field_mode_combo.currentIndexChanged.connect(self._apply_noise_display)
+        self.link_calc_directivity_check.toggled.connect(self._on_calc_directivity_link_changed)
+        self.source_field_scale_spin.valueChanged.connect(self._apply_noise_display)
+        self.source_field_height_spin.valueChanged.connect(self._apply_noise_display)
+        self.source_field_opacity_spin.valueChanged.connect(self._apply_noise_display)
+        self.source_field_wedge_angle_spin.valueChanged.connect(self._apply_noise_display)
         self.surface_mode_combo.currentIndexChanged.connect(self._apply_noise_display)
         self.auto_range_check.toggled.connect(self._apply_noise_display)
         self.min_db_spin.valueChanged.connect(self._apply_noise_display)
@@ -464,11 +636,14 @@ class Scene3DView(QWidget):
         self.reset_button.clicked.connect(self.canvas.reset_camera)
         self.auto_range_check.toggled.connect(self._update_range_enablement)
         self._update_range_enablement(self.auto_range_check.isChecked())
+        self._update_source_field_control_enablement()
         self._refresh_metadata_labels()
 
     def set_result_context(self, summary: RunResultSummary | None, result_summary_path: str | Path | None = None) -> None:
         self._result_summary = summary
         self._result_summary_path = Path(result_summary_path) if result_summary_path else None
+        self._sync_calculation_directivity_from_summary(summary)
+        self._update_source_field_control_enablement()
         self._refresh_metadata_labels()
 
     def set_frame(self, frame: Scene3DFrame | None) -> None:
@@ -477,20 +652,83 @@ class Scene3DView(QWidget):
         self._apply_noise_display()
         self._refresh_metadata_labels()
 
+    def set_playback_context(self, time_index: int | None, sim_time_seconds: float | None, vehicle_count: int) -> None:
+        self._playback_time_index = time_index
+        self._playback_sim_seconds = sim_time_seconds
+        self._playback_vehicle_count = int(vehicle_count)
+        self._refresh_metadata_labels()
+
+    def current_source_field_mode(self) -> str:
+        if self.link_calc_directivity_check.isChecked():
+            return self._mapped_source_field_mode_from_calculation()
+        return str(self.source_field_mode_combo.currentData())
+
+    def current_source_field_settings(self) -> dict[str, float | bool]:
+        return {
+            'scale': float(self.source_field_scale_spin.value()),
+            'height_scale': float(self.source_field_height_spin.value()),
+            'opacity': float(self.source_field_opacity_spin.value()),
+            'wedge_span_deg': float(self._calc_directivity_wedge_angle_deg if self.link_calc_directivity_check.isChecked() else self.source_field_wedge_angle_spin.value()),
+            'highlight_receivers': self.highlight_receivers_check.isChecked(),
+            'show_receiver_links': self.receiver_links_check.isChecked(),
+            'calculation_linked': self.link_calc_directivity_check.isChecked(),
+            'calculation_mode': self._calc_directivity_mode,
+            'calculation_strength_db': float(self._calc_directivity_strength_db),
+        }
+
+    def set_playback_selection(self, selected_vehicle_id: str | None, follow_selected: bool) -> None:
+        self._selected_vehicle_id = selected_vehicle_id
+        self._follow_selected_vehicle = bool(follow_selected)
+        self.follow_selected_check.blockSignals(True)
+        self.follow_selected_check.setChecked(self._follow_selected_vehicle)
+        self.follow_selected_check.blockSignals(False)
+        self._apply_follow_if_needed()
+        self._refresh_metadata_labels()
+
     def _update_range_enablement(self, checked: bool) -> None:
         self.min_db_spin.setEnabled(not checked)
         self.max_db_spin.setEnabled(not checked)
+
+    def _update_source_field_control_enablement(self) -> None:
+        linked = self.link_calc_directivity_check.isChecked()
+        self.source_field_mode_combo.setEnabled(not linked)
+        self.source_field_wedge_angle_spin.setEnabled(not linked)
+
+    def _on_calc_directivity_link_changed(self, checked: bool) -> None:
+        self._update_source_field_control_enablement()
+        if checked:
+            self._sync_calculation_directivity_from_summary(self._result_summary)
+        self._apply_noise_display()
+
+    def _on_follow_changed(self, checked: bool) -> None:
+        self._follow_selected_vehicle = checked
+        self._apply_follow_if_needed()
+        self._refresh_metadata_labels()
+
+    def _apply_follow_if_needed(self) -> None:
+        if not self._follow_selected_vehicle or self._selected_vehicle_id is None:
+            return
+        frame = self.canvas.frame_data
+        if frame is None:
+            return
+        for vehicle in frame.vehicles:
+            if vehicle.vehicle_id == self._selected_vehicle_id:
+                self.canvas.center_on_world_point(vehicle.x, vehicle.y, vehicle.z)
+                break
 
     def _apply_visibility(self) -> None:
         self.canvas.set_layer_visibility(
             roads=self.roads_check.isChecked(),
             receivers=self.receivers_check.isChecked(),
+            vehicles=self.vehicles_check.isChecked(),
+            vehicle_trails=self.vehicle_trails_check.isChecked(),
             barriers=self.barriers_check.isChecked(),
             buildings=self.buildings_check.isChecked(),
             ground=self.ground_check.isChecked(),
             vegetation=self.vegetation_check.isChecked(),
             grid_region=self.grid_region_check.isChecked(),
             noise_surface=self.noise_surface_check.isChecked(),
+            source_field=self.source_field_check.isChecked(),
         )
         self._refresh_metadata_labels()
 
@@ -501,6 +739,7 @@ class Scene3DView(QWidget):
             min_db=float(self.min_db_spin.value()),
             max_db=float(self.max_db_spin.value()),
         )
+        self._apply_follow_if_needed()
         self._refresh_metadata_labels()
 
     def _refresh_metadata_labels(self) -> None:
@@ -528,3 +767,57 @@ class Scene3DView(QWidget):
             self.db_range_label.setText(f'Manual ({self.min_db_spin.value():.1f} to {self.max_db_spin.value():.1f} dB)')
         noise_cells = len(self.canvas.frame_data.noise_cells) if self.canvas.frame_data is not None else 0
         self.noise_cell_label.setText(str(noise_cells))
+        affected_receivers = len([receiver for receiver in self.canvas.frame_data.receivers if receiver.highlighted]) if self.canvas.frame_data is not None else 0
+        self._affected_receiver_count = affected_receivers
+        self.affected_receivers_label.setText(str(affected_receivers))
+        self.selected_vehicle_label.setText(self._selected_vehicle_id or '-')
+        self.follow_label.setText('on' if self._follow_selected_vehicle else 'off')
+        source_field_mode = self.current_source_field_mode()
+        if self.link_calc_directivity_check.isChecked():
+            self.source_field_label.setText(f'{source_field_mode} (calc-linked)')
+        else:
+            self.source_field_label.setText(source_field_mode)
+        settings = self.current_source_field_settings()
+        detail_parts = [
+            f'calc {self._calc_directivity_mode}',
+            f'strength {self._calc_directivity_strength_db:.1f} dB',
+            f'angle {settings['wedge_span_deg']:.0f} deg',
+            f'scale {settings['scale']:.1f}',
+            f'height {settings['height_scale']:.1f}',
+            f'opacity {settings['opacity']:.2f}',
+        ]
+        self.source_field_detail_label.setText(' | '.join(detail_parts))
+        if self._playback_time_index is None:
+            self.playback_frame_label.setText('-')
+        elif self._playback_sim_seconds is None:
+            self.playback_frame_label.setText(str(self._playback_time_index))
+        else:
+            self.playback_frame_label.setText(f'{self._playback_time_index} ({self._playback_sim_seconds:.1f}s)')
+        self.playback_vehicle_count_label.setText(str(self._playback_vehicle_count))
+
+    def _sync_calculation_directivity_from_summary(self, summary: RunResultSummary | None) -> None:
+        directivity = {}
+        if summary is not None and isinstance(summary.propagation_features, dict):
+            directivity = summary.propagation_features.get('noise_directivity') or {}
+        self._calc_directivity_mode = str(directivity.get('mode', 'isotropic'))
+        self._calc_directivity_strength_db = float(directivity.get('strength_db', 6.0))
+        self._calc_directivity_wedge_angle_deg = float(directivity.get('wedge_angle_deg', 70.0))
+        if self.link_calc_directivity_check.isChecked():
+            mapped_mode = self._mapped_source_field_mode_from_calculation()
+            self.source_field_mode_combo.blockSignals(True)
+            index = self.source_field_mode_combo.findData(mapped_mode)
+            if index >= 0:
+                self.source_field_mode_combo.setCurrentIndex(index)
+            self.source_field_mode_combo.blockSignals(False)
+            self.source_field_wedge_angle_spin.blockSignals(True)
+            self.source_field_wedge_angle_spin.setValue(self._calc_directivity_wedge_angle_deg)
+            self.source_field_wedge_angle_spin.blockSignals(False)
+
+    def _mapped_source_field_mode_from_calculation(self) -> str:
+        if self._calc_directivity_mode == 'wedge':
+            return 'wedge'
+        if self._calc_directivity_mode == 'dual_wedge':
+            return 'dual_wedge'
+        if self._calc_directivity_mode == 'isotropic':
+            return 'sphere'
+        return 'off'

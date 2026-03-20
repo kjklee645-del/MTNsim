@@ -156,12 +156,20 @@ class VehicleNoiseCoefficient:
 
 
 @dataclass(slots=True)
+class DirectivityConfig:
+    mode: str = "isotropic"
+    strength_db: float = 6.0
+    wedge_angle_deg: float = 70.0
+
+
+@dataclass(slots=True)
 class NoiseConfig:
     background_noise_db: float
     max_area_meters: float
     grid_size_meters: float
     receiver_height_meters: float
     vehicle_coefficients: dict[str, VehicleNoiseCoefficient]
+    directivity: DirectivityConfig = field(default_factory=DirectivityConfig)
 
 
 @dataclass(slots=True)
@@ -195,7 +203,9 @@ class ScenarioConfig:
             for key, value in data["noise"]["vehicle_coefficients"].items()
         }
         noise_data = dict(data["noise"])
+        directivity_data = noise_data.pop("directivity", {})
         noise_data["vehicle_coefficients"] = coeffs
+        noise_data["directivity"] = DirectivityConfig(**directivity_data)
         control_data = dict(data["controls"])
         control_data["lane_change_target_positions"] = [tuple(item) for item in control_data.get("lane_change_target_positions", [])]
         scene_data = data.get("scene") or {}

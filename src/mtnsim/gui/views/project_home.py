@@ -91,10 +91,28 @@ class ProjectHomeView(QWidget):
         summary_layout.addWidget(self.project_path_label)
         summary_layout.addWidget(self.project_status_label)
         summary_layout.addWidget(self.readiness_label)
-        root_layout.addWidget(summary_card)
+
+        vertical_splitter = QSplitter(Qt.Vertical)
+        vertical_splitter.setObjectName('ProjectHomeVerticalSplitter')
+        vertical_splitter.setChildrenCollapsible(True)
+        vertical_splitter.setHandleWidth(10)
+        vertical_splitter.addWidget(summary_card)
 
         splitter = QSplitter()
-        root_layout.addWidget(splitter, 1)
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(10)
+        vertical_splitter.addWidget(splitter)
+
+        lower_spacer = QWidget()
+        lower_spacer.setObjectName('ProjectHomeLowerSpacer')
+        lower_spacer.setMinimumHeight(0)
+        vertical_splitter.addWidget(lower_spacer)
+
+        vertical_splitter.setStretchFactor(0, 0)
+        vertical_splitter.setStretchFactor(1, 1)
+        vertical_splitter.setStretchFactor(2, 0)
+        vertical_splitter.setSizes([140, 620, 0])
+        root_layout.addWidget(vertical_splitter, 1)
 
         scenarios_panel = QWidget()
         scenarios_layout = QVBoxLayout(scenarios_panel)

@@ -195,6 +195,7 @@ SUMO? ??? ??? ?????? ?? `ready to run` ??? ????.
 ## 12. ?? ? ?? ??
 
 1. `Project > Import SUMO Project`
+- choose the starter directional-emission setting (`isotropic`, `wedge`, or `dual_wedge`) if you want the new project to start with a non-default vehicle directivity model
 2. `Inspect SUMO Files`
 3. `Import Project`
 4. `Scene Objects`?? barrier ?? ground surface ?? ??
