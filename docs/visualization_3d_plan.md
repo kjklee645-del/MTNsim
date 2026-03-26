@@ -157,6 +157,10 @@ Build next:
 - bind the selected run to the 3D view [done]
 - show run metadata and current view mode [done]
 - keep layer states and camera resets manageable [started]
+- export the current 3D canvas as a PNG snapshot [done]
+- export a hi-res 2x PNG snapshot for presentation use [done]
+- provide hover tooltip/halo inspection for rendered 3D objects [done]
+- export a 3D Markdown report with active metadata and source-field settings [done]
 
 Goal:
 - make the 3D view part of the normal operator workflow rather than a demo-only screen

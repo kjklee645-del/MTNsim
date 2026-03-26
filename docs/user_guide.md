@@ -184,6 +184,11 @@ The current `3D View` supports:
   - `dual_wedge`
 - calc-linked directivity display
 - dB legend and range controls
+- open the active result summary directly from 3D View
+- export a 3D PNG snapshot
+- export a hi-res 2x 3D PNG snapshot
+- inspect 3D receivers, vehicles, barriers, terrain edges, and buildings with hover halos and tooltips
+- export a 3D Markdown report
 
 ## 10. Directional Emission
 

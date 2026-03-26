@@ -85,8 +85,8 @@ margin_x_start = 50.0
 margin_x_end = 50.0
 extra_y_extent = 230.0
 override_enabled = true
-override_min_x = 0.0
-override_max_x = 50.0
+override_min_x = 30.0
+override_max_x = 800.0
 override_min_y = -145.0
 override_max_y = 248.0
 
@@ -122,9 +122,12 @@ y1 = -29.200000000000003
 y2 = -29.200000000000003
 
 [noise.directivity]
+preset = "custom"
 mode = "wedge"
 strength_db = 6.0
 wedge_angle_deg = 70.0
+vertical_strength_db = 0.0
+vertical_angle_deg = 55.0
 
 [noise.vehicle_coefficients.vType1]
 a = 44.4

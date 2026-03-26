@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from math import cos, radians, sin
+from math import atan2, cos, hypot, radians, sin
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QPointF, Qt
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
-from PySide6.QtWidgets import QCheckBox, QComboBox, QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtCore import QPoint, QPointF, Qt, Signal
+from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen, QPolygonF
+from PySide6.QtWidgets import QCheckBox, QComboBox, QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from mtnsim.gui.models.scene_3d import GridRegion3D, LineWall3D, PrismMesh3D, RoadMesh3D, Scene3DFrame, SurfacePolygon3D
 from mtnsim.schemas.results import RunResultSummary
@@ -37,6 +37,9 @@ class Scene3DCanvas(QWidget):
         self._drag_last_pos: QPoint | None = None
         self._drag_mode: str | None = None
         self._last_noise_range: tuple[float, float] | None = None
+        self._hover_targets: list[dict[str, object]] = []
+        self._hovered_target: dict[str, object] | None = None
+        self._last_pointer_pos: QPoint | None = None
         self.setMinimumSize(240, 140)
         self.setMouseTracking(True)
 
@@ -143,10 +146,12 @@ class Scene3DCanvas(QWidget):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:
+        current = event.position().toPoint()
+        self._last_pointer_pos = current
         if self._drag_last_pos is None or self._drag_mode is None:
+            self._update_hover_target(current)
             super().mouseMoveEvent(event)
             return
-        current = event.position().toPoint()
         delta = current - self._drag_last_pos
         self._drag_last_pos = current
         if self._drag_mode == 'rotate':
@@ -168,10 +173,41 @@ class Scene3DCanvas(QWidget):
         self.reset_camera()
         super().mouseDoubleClickEvent(event)
 
+    def leaveEvent(self, event) -> None:
+        self._last_pointer_pos = None
+        self._hovered_target = None
+        self.update()
+        super().leaveEvent(event)
+
+    def _update_hover_target(self, position: QPoint | None) -> None:
+        previous = self._hovered_target
+        if position is None or not self._hover_targets:
+            self._hovered_target = None
+        else:
+            px = float(position.x())
+            py = float(position.y())
+            best = None
+            best_dist = 1e9
+            for item in self._hover_targets:
+                point = item['point']
+                dx = float(point.x()) - px
+                dy = float(point.y()) - py
+                dist = hypot(dx, dy)
+                if dist <= float(item.get('radius', 16.0)) and dist < best_dist:
+                    best = item
+                    best_dist = dist
+            self._hovered_target = best
+        if previous != self._hovered_target:
+            self.update()
+
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.fillRect(self.rect(), QColor('#0f151c'))
+        background = QLinearGradient(0, 0, 0, self.height())
+        background.setColorAt(0.0, QColor('#182534'))
+        background.setColorAt(0.35, QColor('#121b24'))
+        background.setColorAt(1.0, QColor('#0b1117'))
+        painter.fillRect(self.rect(), background)
 
         frame = self.frame_data
         if frame is None:
@@ -179,7 +215,16 @@ class Scene3DCanvas(QWidget):
             painter.drawText(self.rect(), Qt.AlignCenter, '3D scene is not available yet for the current selection.')
             return
 
-        painter.fillRect(self.rect().adjusted(16, 16, -16, -16), QColor('#121b24'))
+        inner_rect = self.rect().adjusted(16, 16, -16, -16)
+        stage = QLinearGradient(0, inner_rect.top(), 0, inner_rect.bottom())
+        stage.setColorAt(0.0, QColor('#16212d'))
+        stage.setColorAt(0.5, QColor('#121b24'))
+        stage.setColorAt(1.0, QColor('#0f1720'))
+        painter.fillRect(inner_rect, stage)
+        haze = QLinearGradient(0, inner_rect.top(), 0, inner_rect.bottom())
+        haze.setColorAt(0.0, QColor(90, 160, 255, 28))
+        haze.setColorAt(1.0, QColor(0, 0, 0, 0))
+        painter.fillRect(inner_rect, haze)
         min_x, min_y, max_x, max_y = frame.bounds
         span_x = max(max_x - min_x, 1.0)
         span_y = max(max_y - min_y, 1.0)
@@ -214,39 +259,148 @@ class Scene3DCanvas(QWidget):
             painter.setPen(QPen(QColor(surface.edge_color), 1.2))
             painter.drawPolygon(polygon)
 
+        def lerp_point(p1: QPointF, p2: QPointF, t: float) -> QPointF:
+            return QPointF(p1.x() + (p2.x() - p1.x()) * t, p1.y() + (p2.y() - p1.y()) * t)
+
+        hover_targets: list[dict[str, object]] = []
+
+        def register_hover_target(point: QPointF, label: str, kind: str, *, radius: float = 16.0) -> None:
+            if not label:
+                return
+            hover_targets.append({
+                'point': QPointF(point),
+                'label': label,
+                'kind': kind,
+                'radius': radius,
+            })
+
+        def draw_screen_label(anchor: QPointF, text_value: str, *, fill: str = '#111a23', border: str = '#314355', fg: str = '#eef6ff') -> None:
+            if not text_value:
+                return
+            metrics = painter.fontMetrics()
+            width = metrics.horizontalAdvance(text_value) + 14
+            height = metrics.height() + 8
+            x = anchor.x() + 8
+            y = anchor.y() - height - 6
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(fill))
+            painter.drawRoundedRect(int(x), int(y), int(width), int(height), 7, 7)
+            painter.setPen(QPen(QColor(border), 1.0))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(int(x), int(y), int(width), int(height), 7, 7)
+            painter.setPen(QColor(fg))
+            painter.drawText(int(x) + 7, int(y) + height - 6, text_value)
+
         def draw_prism(mesh: PrismMesh3D) -> None:
             base = [project(x, y, 0.0) for x, y in mesh.footprint]
             top = [project(x, y, mesh.height) for x, y in mesh.footprint]
             side_color = QColor(mesh.color).darker(135)
+            roof_color = QColor(mesh.color).lighter(118)
+            center = QPointF(sum(point.x() for point in top) / len(top), sum(point.y() for point in top) / len(top)) if top else QPointF()
             for idx in range(len(base)):
                 nxt = (idx + 1) % len(base)
                 side = QPolygonF([base[idx], base[nxt], top[nxt], top[idx]])
                 painter.setBrush(side_color)
                 painter.setPen(QPen(QColor(mesh.edge_color), 1.0))
                 painter.drawPolygon(side)
-            painter.setBrush(QColor(mesh.color))
-            painter.setPen(QPen(QColor(mesh.edge_color), 1.2))
+                painter.setPen(QPen(QColor('#8fb3d9'), 0.7))
+                for t in (0.32, 0.56, 0.8):
+                    left = lerp_point(base[idx], top[idx], t)
+                    right = lerp_point(base[nxt], top[nxt], t)
+                    painter.drawLine(left, right)
+                for t in (0.33, 0.66):
+                    bottom = lerp_point(base[idx], base[nxt], t)
+                    top_p = lerp_point(top[idx], top[nxt], t)
+                    painter.drawLine(bottom, top_p)
+            painter.setBrush(roof_color)
+            painter.setPen(QPen(QColor(mesh.edge_color), 1.3))
             painter.drawPolygon(QPolygonF(top))
+            if len(top) >= 3:
+                painter.setPen(QPen(QColor('#7dd3fc'), 0.9))
+                for idx in range(len(top)):
+                    nxt = (idx + 1) % len(top)
+                    mid = QPointF((top[idx].x() + top[nxt].x()) * 0.5, (top[idx].y() + top[nxt].y()) * 0.5)
+                    painter.drawLine(mid, center)
+                if mesh.label:
+                    draw_screen_label(center, mesh.label, fill='#16212d', border='#3c5269')
+                register_hover_target(center, mesh.label or 'Building', 'Building', radius=20.0)
 
         def draw_road(mesh: RoadMesh3D) -> None:
             if len(mesh.points) < 2:
                 return
-            pen = QPen(QColor(mesh.color), max(mesh.width * scale * 0.10, 2.2), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
-            painter.setPen(pen)
             path = QPainterPath()
             path.moveTo(project(mesh.points[0][0], mesh.points[0][1], mesh.z))
             for x, y in mesh.points[1:]:
                 path.lineTo(project(x, y, mesh.z))
+            body_width = max(mesh.width * scale * 0.12, 3.0)
+            shadow_pen = QPen(QColor(8, 12, 18, 190), body_width + 3.0, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            painter.setPen(shadow_pen)
+            painter.drawPath(path)
+            glow_pen = QPen(QColor(95, 130, 180, 35), body_width + 1.4, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            painter.setPen(glow_pen)
+            painter.drawPath(path)
+            asphalt_pen = QPen(QColor('#3a4654'), body_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            painter.setPen(asphalt_pen)
+            painter.drawPath(path)
+            shoulder_pen = QPen(QColor('#6a7687'), max(1.0, body_width * 0.22), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            painter.setPen(shoulder_pen)
+            painter.drawPath(path)
+            edge_pen = QPen(QColor('#d7dce4'), max(1.0, body_width * 0.08), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            painter.setPen(edge_pen)
+            painter.drawPath(path)
+            lane_pen = QPen(QColor(255, 238, 160, 180), max(1.0, body_width * 0.05), Qt.DashLine, Qt.RoundCap, Qt.RoundJoin)
+            lane_pen.setDashPattern([8.0, 10.0])
+            painter.setPen(lane_pen)
             painter.drawPath(path)
 
         def draw_wall(mesh: LineWall3D) -> None:
-            p1 = project(mesh.start[0], mesh.start[1], 0.0)
-            p2 = project(mesh.end[0], mesh.end[1], 0.0)
-            p3 = project(mesh.end[0], mesh.end[1], mesh.height)
-            p4 = project(mesh.start[0], mesh.start[1], mesh.height)
+            dx = mesh.end[0] - mesh.start[0]
+            dy = mesh.end[1] - mesh.start[1]
+            length = hypot(dx, dy)
+            if length <= 1e-6:
+                return
+            nx = -dy / length
+            ny = dx / length
+            half_t = max(mesh.thickness, 0.8) * 0.5
+            s1 = (mesh.start[0] + nx * half_t, mesh.start[1] + ny * half_t)
+            s2 = (mesh.start[0] - nx * half_t, mesh.start[1] - ny * half_t)
+            e1 = (mesh.end[0] + nx * half_t, mesh.end[1] + ny * half_t)
+            e2 = (mesh.end[0] - nx * half_t, mesh.end[1] - ny * half_t)
+            p_front_a = project(s1[0], s1[1], 0.0)
+            p_front_b = project(e1[0], e1[1], 0.0)
+            p_front_c = project(e1[0], e1[1], mesh.height)
+            p_front_d = project(s1[0], s1[1], mesh.height)
+            front = QPolygonF([p_front_a, p_front_b, p_front_c, p_front_d])
+            side = QPolygonF([project(e1[0], e1[1], 0.0), project(e2[0], e2[1], 0.0), project(e2[0], e2[1], mesh.height), project(e1[0], e1[1], mesh.height)])
+            top = QPolygonF([project(s1[0], s1[1], mesh.height), project(e1[0], e1[1], mesh.height), project(e2[0], e2[1], mesh.height), project(s2[0], s2[1], mesh.height)])
+            is_barrier = QColor(mesh.color).red() > QColor(mesh.color).green()
+            painter.setPen(QPen(QColor(mesh.edge_color), 1.0))
+            painter.setBrush(QColor(mesh.color).darker(125))
+            painter.drawPolygon(side)
             painter.setBrush(QColor(mesh.color))
-            painter.setPen(QPen(QColor(mesh.edge_color), 1.1))
-            painter.drawPolygon(QPolygonF([p1, p2, p3, p4]))
+            painter.drawPolygon(front)
+            if is_barrier:
+                painter.setPen(QPen(QColor('#ffd7b8'), 0.9))
+                for t in (0.18, 0.36, 0.54, 0.72, 0.9):
+                    left = lerp_point(p_front_a, p_front_d, t)
+                    right = lerp_point(p_front_b, p_front_c, t)
+                    painter.drawLine(left, right)
+                painter.setPen(QPen(QColor('#8b3b10'), 1.0))
+                for t in (0.15, 0.5, 0.85):
+                    bottom = lerp_point(p_front_a, p_front_b, t)
+                    top_p = lerp_point(p_front_d, p_front_c, t)
+                    painter.drawLine(bottom, top_p)
+            else:
+                painter.setPen(QPen(QColor('#a6b391'), 0.8, Qt.DashLine))
+                for t in (0.2, 0.4, 0.6, 0.8):
+                    bottom = lerp_point(p_front_a, p_front_b, t - 0.12)
+                    top_p = lerp_point(p_front_d, p_front_c, t + 0.08)
+                    painter.drawLine(bottom, top_p)
+            painter.setBrush(QColor(mesh.color).lighter(118))
+            painter.setPen(QPen(QColor('#fff0d9') if is_barrier else '#dfe8cf', 1.1))
+            painter.drawPolygon(top)
+            anchor = QPointF((p_front_d.x() + p_front_c.x()) * 0.5, (p_front_d.y() + p_front_c.y()) * 0.5)
+            register_hover_target(anchor, mesh.label or ('Barrier' if is_barrier else 'Terrain Edge'), 'Barrier' if is_barrier else 'Terrain', radius=20.0)
 
         def noise_color(value: float, min_db: float, max_db: float) -> QColor:
             span = max(max_db - min_db, 1.0)
@@ -324,6 +478,17 @@ class Scene3DCanvas(QWidget):
         if self.show_vegetation:
             for surface in frame.vegetation_zones:
                 draw_surface(surface, alpha=165)
+                if surface.polygon:
+                    cx = sum(x for x, _ in surface.polygon) / len(surface.polygon)
+                    cy = sum(y for _, y in surface.polygon) / len(surface.polygon)
+                    anchors = [(cx, cy)] + list(surface.polygon[:min(4, len(surface.polygon))])
+                    for idx, (vx, vy) in enumerate(anchors):
+                        canopy = project(vx, vy, 2.0 + idx * 0.35)
+                        rx = max(8.0, 16.0 - idx * 1.5)
+                        ry = max(5.0, 11.0 - idx)
+                        painter.setPen(QPen(QColor('#143323'), 0.8))
+                        painter.setBrush(QColor(58, 148, 97, 110 if idx else 135))
+                        painter.drawEllipse(canopy, rx, ry)
         if self.show_noise_surface:
             draw_noise_surface(frame.noise_cells)
         if self.show_grid_region and frame.grid_region is not None:
@@ -379,6 +544,7 @@ class Scene3DCanvas(QWidget):
             for building in frame.buildings:
                 draw_prism(building)
         if self.show_receivers:
+            label_receivers = len(frame.receivers) <= 10
             for marker in frame.receivers:
                 base = project(marker.x, marker.y, 0.0)
                 top = project(marker.x, marker.y, marker.z + 2.0)
@@ -389,19 +555,94 @@ class Scene3DCanvas(QWidget):
                 painter.drawLine(base, top)
                 painter.setBrush(fill_color)
                 painter.drawEllipse(top, radius, radius)
+                if marker.highlighted or label_receivers:
+                    draw_screen_label(top, marker.label, fill='#121b24', border='#394d63', fg='#fff4b2' if marker.highlighted else '#eef6ff')
+                register_hover_target(top, marker.label, 'Receiver', radius=14.0)
+
+        trail_heading = {}
+        for trail in frame.vehicle_trails:
+            if len(trail.points) >= 2:
+                x1, y1 = trail.points[-2]
+                x2, y2 = trail.points[-1]
+                trail_heading[(x2, y2)] = atan2(y2 - y1, x2 - x1)
 
         if self.show_vehicles:
+            label_vehicles = len(frame.vehicles) <= 6
             for vehicle in frame.vehicles:
                 base = project(vehicle.x, vehicle.y, 0.0)
                 top = project(vehicle.x, vehicle.y, vehicle.z)
-                painter.setPen(QPen(QColor('#082032'), 0.8))
-                painter.drawLine(base, top)
+                heading = trail_heading.get((vehicle.x, vehicle.y), 0.0)
+                nose_world = (vehicle.x + cos(heading) * 3.2, vehicle.y + sin(heading) * 3.2)
+                nose_point = project(nose_world[0], nose_world[1], vehicle.z)
+                vx = nose_point.x() - top.x()
+                vy = nose_point.y() - top.y()
+                vlen = hypot(vx, vy)
+                if vlen <= 1e-6:
+                    vx, vy, vlen = 1.0, -0.25, 1.03
+                ux, uy = vx / vlen, vy / vlen
+                px, py = -uy, ux
                 fill = QColor(vehicle.color)
                 border = QColor('#f8fafc') if vehicle.selected else QColor('#08111c')
-                radius = 5.6 if vehicle.selected else 4.2
+                body_len = 11.0 if vehicle.selected else 9.0
+                body_w = 5.8 if vehicle.selected else 4.8
+                shadow = QPolygonF([
+                    QPointF(top.x() - ux * body_len * 0.45 + px * body_w * 0.55 + 1.8, top.y() - uy * body_len * 0.45 + py * body_w * 0.55 + 2.4),
+                    QPointF(top.x() + ux * body_len * 0.9 + 1.8, top.y() + uy * body_len * 0.9 + 2.4),
+                    QPointF(top.x() - ux * body_len * 0.35 - px * body_w * 0.55 + 1.8, top.y() - uy * body_len * 0.35 - py * body_w * 0.55 + 2.4),
+                ])
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QColor(4, 8, 14, 120))
+                painter.drawPolygon(shadow)
+                body = QPolygonF([
+                    QPointF(top.x() - ux * body_len * 0.45 + px * body_w * 0.52, top.y() - uy * body_len * 0.45 + py * body_w * 0.52),
+                    QPointF(top.x() + ux * body_len * 0.95, top.y() + uy * body_len * 0.95),
+                    QPointF(top.x() - ux * body_len * 0.10 - px * body_w * 0.62, top.y() - uy * body_len * 0.10 - py * body_w * 0.62),
+                    QPointF(top.x() - ux * body_len * 0.60 - px * body_w * 0.44, top.y() - uy * body_len * 0.60 - py * body_w * 0.44),
+                ])
                 painter.setBrush(fill)
-                painter.setPen(QPen(border, 1.2 if vehicle.selected else 0.8))
-                painter.drawEllipse(top, radius, radius)
+                painter.setPen(QPen(border, 1.4 if vehicle.selected else 1.0))
+                painter.drawPolygon(body)
+                windshield = QPolygonF([
+                    QPointF(top.x() + ux * body_len * 0.25 + px * body_w * 0.25, top.y() + uy * body_len * 0.25 + py * body_w * 0.25),
+                    QPointF(top.x() + ux * body_len * 0.58, top.y() + uy * body_len * 0.58),
+                    QPointF(top.x() + ux * body_len * 0.12 - px * body_w * 0.25, top.y() + uy * body_len * 0.12 - py * body_w * 0.25),
+                ])
+                painter.setBrush(QColor('#d9f3ff'))
+                painter.setPen(Qt.NoPen)
+                painter.drawPolygon(windshield)
+                painter.setPen(QPen(QColor('#9ad8ff'), 0.8))
+                painter.drawLine(base, QPointF(top.x() - ux * body_len * 0.25, top.y() - uy * body_len * 0.25))
+                vehicle_label = vehicle.vehicle_id if vehicle.selected else vehicle.vehicle_type or vehicle.vehicle_id
+                if vehicle.selected or label_vehicles:
+                    draw_screen_label(top, vehicle_label, fill='#102032', border='#40627c', fg='#eef8ff')
+                register_hover_target(top, vehicle_label, 'Vehicle', radius=16.0)
+
+        self._hover_targets = hover_targets
+        if self._last_pointer_pos is None or not hover_targets:
+            self._hovered_target = None
+        else:
+            px = float(self._last_pointer_pos.x())
+            py = float(self._last_pointer_pos.y())
+            best = None
+            best_dist = 1e9
+            for item in hover_targets:
+                point = item['point']
+                dx = float(point.x()) - px
+                dy = float(point.y()) - py
+                dist = hypot(dx, dy)
+                if dist <= float(item.get('radius', 16.0)) and dist < best_dist:
+                    best = item
+                    best_dist = dist
+            self._hovered_target = best
+        if self._hovered_target is not None:
+            point = self._hovered_target['point']
+            radius = float(self._hovered_target.get('radius', 16.0)) + 4.0
+            halo_fill = QColor('#7dd3fc')
+            halo_fill.setAlpha(34)
+            painter.setBrush(halo_fill)
+            painter.setPen(QPen(QColor('#7dd3fc'), 1.8))
+            painter.drawEllipse(point, radius, radius)
+            draw_screen_label(point, f"{self._hovered_target['kind']}: {self._hovered_target['label']}", fill='#0d1720', border='#7dd3fc', fg='#eef8ff')
 
         painter.setPen(QColor('#f4f7fb'))
         painter.drawText(24, 28, '3D Scene & Noise')
@@ -450,6 +691,11 @@ class Scene3DCanvas(QWidget):
 
 
 class Scene3DView(QWidget):
+    open_result_summary_requested = Signal()
+    export_snapshot_requested = Signal()
+    export_snapshot_hires_requested = Signal()
+    export_markdown_requested = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._result_summary: RunResultSummary | None = None
@@ -484,6 +730,31 @@ class Scene3DView(QWidget):
         helper.setWordWrap(True)
         helper.setObjectName('homeHelperLabel')
         root.addWidget(helper)
+
+        top_panel = QWidget()
+        top_layout = QVBoxLayout(top_panel)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(12)
+
+        action_row = QHBoxLayout()
+        self.open_result_summary_button = QLabel('<a href="#">Open Result Summary</a>')
+        self.open_result_summary_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.open_result_summary_button.linkActivated.connect(lambda *_: self.open_result_summary_requested.emit())
+        action_row.addWidget(self.open_result_summary_button)
+        self.export_snapshot_button = QLabel('<a href="#">Export 3D Snapshot</a>')
+        self.export_snapshot_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.export_snapshot_button.linkActivated.connect(lambda *_: self.export_snapshot_requested.emit())
+        action_row.addWidget(self.export_snapshot_button)
+        self.export_snapshot_hires_button = QLabel('<a href="#">Export Hi-Res Snapshot</a>')
+        self.export_snapshot_hires_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.export_snapshot_hires_button.linkActivated.connect(lambda *_: self.export_snapshot_hires_requested.emit())
+        action_row.addWidget(self.export_snapshot_hires_button)
+        self.export_markdown_button = QLabel('<a href="#">Export 3D Markdown</a>')
+        self.export_markdown_button.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.export_markdown_button.linkActivated.connect(lambda *_: self.export_markdown_requested.emit())
+        action_row.addWidget(self.export_markdown_button)
+        action_row.addStretch(1)
+        top_layout.addLayout(action_row)
 
         meta_card = QFrame()
         meta_card.setObjectName('infoCard')
@@ -522,7 +793,7 @@ class Scene3DView(QWidget):
         meta_layout.addRow('Vehicle Types', self.directivity_vehicle_types_label)
         meta_layout.addRow('Visual Profile', self.visual_profile_label)
         meta_layout.addRow('Affected Receivers', self.affected_receivers_label)
-        root.addWidget(meta_card)
+        top_layout.addWidget(meta_card)
 
         controls = QFrame()
         controls.setObjectName('infoCard')
@@ -626,9 +897,20 @@ class Scene3DView(QWidget):
         bottom_row.addWidget(self.reset_button)
         bottom_row.addStretch(1)
         controls_layout.addLayout(bottom_row)
-        root.addWidget(controls)
+        top_layout.addWidget(controls)
+
+        self.top_scroll = QScrollArea()
+        self.top_scroll.setWidgetResizable(True)
+        self.top_scroll.setFrameShape(QFrame.NoFrame)
+        self.top_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.top_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.top_scroll.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.top_scroll.setMaximumHeight(260)
+        self.top_scroll.setWidget(top_panel)
+        root.addWidget(self.top_scroll, 0)
 
         self.canvas = Scene3DCanvas()
+        self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         root.addWidget(self.canvas, 1)
 
         for widget in [self.roads_check, self.receivers_check, self.vehicles_check, self.vehicle_trails_check, self.source_field_check, self.highlight_receivers_check, self.receiver_links_check, self.barriers_check, self.buildings_check, self.ground_check, self.vegetation_check, self.grid_region_check, self.noise_surface_check]:

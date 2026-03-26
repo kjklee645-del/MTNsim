@@ -18,6 +18,7 @@ MTNsim is a microscopic traffic-noise simulation workbench built around SUMO, a 
 - Replay vehicle motion with 2D and 3D playback-aware noise visualization.
 - Inspect campaign validation outputs from field-style package structures.
 - View 3D scene geometry, 3D noise surfaces, and first-pass source-field overlays.
+- Export the current 3D view as a PNG snapshot or a Markdown report.
 
 ## Current Technical Scope
 
