@@ -39,6 +39,8 @@ class Marker3D:
     color: str = '#f7fbff'
     label: str = ''
     highlighted: bool = False
+    highlight_color: str = '#fff4b2'
+    directivity_gain_db: float = 0.0
 
 
 @dataclass(slots=True)

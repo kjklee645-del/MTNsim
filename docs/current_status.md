@@ -283,10 +283,16 @@ MTNsim is now a structured simulation kernel with reproducible scenario handling
 - Scenario Editor / Compare / Campaign Validation / Playback views polished with card layout and consistent status styling.
 
 
-- Directional emission UX now includes directivity presets (`custom`, `passenger`, `bus`, `truck`) in both project setup and Scenario Editor.
+- Directional emission UX now includes coarse and fine-grained directivity presets (`custom`, `passenger`, `sedan`, `suv`, `bus`, `city_bus`, `coach_bus`, `truck`, `delivery_truck`, `heavy_truck`) in both project setup and Scenario Editor.
 
 
 - Result metadata and 3D metadata now surface directivity preset and applicable vehicle types from the run configuration.
 
 
-- Calc-linked 3D source-field overlays now differentiate passenger/bus/truck presets by default visual profile (shape-linked mode plus preset-specific colors and scale tendencies).
+- Calc-linked 3D source-field overlays now differentiate passenger/bus/truck presets by default visual profile and receiver-interaction style (shape-linked mode plus preset-specific colors, scale tendencies, highlight colors, link colors, and interaction reach).
+
+
+- Directional emission now supports `response_profile = physical | enhanced`; `enhanced` increases directional contrast so 2D heatmaps show clearer anisotropy.
+
+
+- Added example scenario `examples/scenarios/baseline_directivity_enhanced.toml` for visibly stronger directional heatmap comparison.

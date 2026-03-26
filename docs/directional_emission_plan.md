@@ -123,7 +123,7 @@ Phase 2 now adds a first-pass vertical directivity term:
 - `vertical_strength_db`
 - `vertical_angle_deg`
 - actual calculation-side attenuation for targets outside the preferred vertical spread
-- calc-linked 3D source-field overlays that reuse the same vertical spread settings for overlay height and receiver highlighting
+- calc-linked 3D source-field overlays that reuse the same vertical spread settings for overlay height and receiver highlighting, differentiate receiver-interaction style by directivity preset, and now gate receiver highlighting through the actual directional-gain calculation
 
 ## 9. After Phase 2
 
@@ -136,7 +136,10 @@ Natural next steps after this implementation are:
 
 ## Presets
 
-Phase 2 now includes user-facing presets to make directional emission easier to adopt in project setup and scenario editing. Current presets are `custom`, `passenger`, `bus`, and `truck`.
+Phase 2 now includes user-facing presets to make directional emission easier to adopt in project setup and scenario editing. Current presets cover both legacy broad classes and finer vehicle groups: `custom`, `passenger`, `sedan`, `suv`, `bus`, `city_bus`, `coach_bus`, `truck`, `delivery_truck`, and `heavy_truck`.
 
 
 Phase 2 metadata polish: run outputs now expose the directivity preset and target vehicle types so calc-linked 3D source fields can show the same context explicitly.
+
+
+- Directional emission now supports `response_profile = physical | enhanced`; `enhanced` increases directional contrast so 2D heatmaps show clearer anisotropy.

@@ -223,3 +223,6 @@ When validation fails:
 
 
 - `noise.directivity.preset`: directivity preset selector (`custom`, `passenger`, `bus`, `truck`). Non-custom presets auto-fill the directional fields.
+
+
+- Directional emission now supports `response_profile = physical | enhanced`; `enhanced` increases directional contrast so 2D heatmaps show clearer anisotropy.

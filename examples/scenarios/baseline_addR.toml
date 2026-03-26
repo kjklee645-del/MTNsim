@@ -58,7 +58,7 @@ description = "Base scenario for 4-lane test road"
 project = "mtnsim-demo"
 
 [traffic]
-max_vehicles = 100
+max_vehicles = 2
 vehicle_types = [ "vType1", "vType2",]
 vehicle_weights = [ 50, 50,]
 start_mode = "interval"
@@ -82,7 +82,7 @@ post_target_speed_kmh = 100.0
 
 [noise]
 background_noise_db = 40.0
-max_area_meters = 400.0
+max_area_meters = 100.0
 grid_size_meters = 5.0
 receiver_height_meters = 1.5
 
@@ -90,6 +90,16 @@ receiver_height_meters = 1.5
 margin_x_start = 50.0
 margin_x_end = 50.0
 extra_y_extent = 230.0
+override_enabled = false
+
+[noise.directivity]
+preset = "custom"
+mode = "isotropic"
+response_profile = "enhanced"
+strength_db = 30.0
+wedge_angle_deg = 85.0
+vertical_strength_db = 2.0
+vertical_angle_deg = 65.0
 
 [noise.vehicle_coefficients.vType1]
 a = 44.4

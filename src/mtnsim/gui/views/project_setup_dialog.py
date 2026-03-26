@@ -163,6 +163,11 @@ class ProjectSetupDialog(QDialog):
         self.directivity_mode_combo.addItem('Dual Wedge', 'dual_wedge')
         form.addRow('Default directivity', self.directivity_mode_combo)
 
+        self.directivity_response_profile_combo = QComboBox()
+        self.directivity_response_profile_combo.addItem('Physical', 'physical')
+        self.directivity_response_profile_combo.addItem('Enhanced', 'enhanced')
+        form.addRow('Directivity response', self.directivity_response_profile_combo)
+
         self.directivity_strength_spin = QDoubleSpinBox()
         self.directivity_strength_spin.setRange(0.0, 20.0)
         self.directivity_strength_spin.setSingleStep(0.5)
@@ -264,6 +269,7 @@ class ProjectSetupDialog(QDialog):
         self.attach_update_lane_targets_checkbox.toggled.connect(self._refresh_validation_summary)
         self.directivity_preset_combo.currentIndexChanged.connect(self._on_directivity_preset_changed)
         self.directivity_mode_combo.currentIndexChanged.connect(self._refresh_validation_summary)
+        self.directivity_response_profile_combo.currentIndexChanged.connect(self._refresh_validation_summary)
         self.directivity_strength_spin.valueChanged.connect(self._refresh_validation_summary)
         self.directivity_wedge_angle_spin.valueChanged.connect(self._refresh_validation_summary)
         self.directivity_vertical_strength_spin.valueChanged.connect(self._refresh_validation_summary)
@@ -318,6 +324,7 @@ class ProjectSetupDialog(QDialog):
         values = get_directivity_preset_values(preset)
         if preset != 'custom':
             self.directivity_mode_combo.setCurrentIndex(max(0, self.directivity_mode_combo.findData(values['mode'])))
+            self.directivity_response_profile_combo.setCurrentIndex(max(0, self.directivity_response_profile_combo.findData('enhanced')))
             self.directivity_strength_spin.setValue(float(values['strength_db']))
             self.directivity_wedge_angle_spin.setValue(float(values['wedge_angle_deg']))
             self.directivity_vertical_strength_spin.setValue(float(values['vertical_strength_db']))
@@ -389,6 +396,7 @@ class ProjectSetupDialog(QDialog):
             'measurement_metadata_path': self.measurement_metadata_path_edit.text().strip(),
             'default_directivity_preset': str(self.directivity_preset_combo.currentData()),
             'default_directivity_mode': str(self.directivity_mode_combo.currentData()),
+            'default_directivity_response_profile': str(self.directivity_response_profile_combo.currentData()),
             'default_directivity_strength_db': float(self.directivity_strength_spin.value()),
             'default_directivity_wedge_angle_deg': float(self.directivity_wedge_angle_spin.value()),
             'default_directivity_vertical_strength_db': float(self.directivity_vertical_strength_spin.value()),

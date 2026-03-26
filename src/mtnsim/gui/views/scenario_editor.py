@@ -184,6 +184,11 @@ class ScenarioEditorView(QWidget):
             self.directivity_mode_combo.addItem(option, option)
         advanced_form.addRow('Directivity Mode', self.directivity_mode_combo)
 
+        self.directivity_response_profile_combo = QComboBox()
+        self.directivity_response_profile_combo.addItem('Physical', 'physical')
+        self.directivity_response_profile_combo.addItem('Enhanced', 'enhanced')
+        advanced_form.addRow('Directivity Response', self.directivity_response_profile_combo)
+
         self.directivity_strength_spin = QDoubleSpinBox()
         self.directivity_strength_spin.setRange(0.0, 30.0)
         self.directivity_strength_spin.setDecimals(1)
@@ -337,6 +342,7 @@ class ScenarioEditorView(QWidget):
         self.directivity_preset_combo.currentIndexChanged.connect(self._on_directivity_preset_changed)
         self.directivity_mode_combo.currentIndexChanged.connect(self._sync_directivity_preset_from_controls)
         self.directivity_mode_combo.currentIndexChanged.connect(self._schedule_preview)
+        self.directivity_response_profile_combo.currentIndexChanged.connect(self._schedule_preview)
         self.post_distance_control_check.toggled.connect(self._schedule_preview)
         self.lane_change_force_check.toggled.connect(self._schedule_preview)
         self.grid_override_check.toggled.connect(self._schedule_preview)
@@ -369,6 +375,7 @@ class ScenarioEditorView(QWidget):
             )
         self._set_combo_value(self.directivity_preset_combo, preset)
         self._set_combo_value(self.directivity_mode_combo, scenario.noise.directivity.mode)
+        self._set_combo_value(self.directivity_response_profile_combo, getattr(scenario.noise.directivity, 'response_profile', 'physical'))
         self.directivity_strength_spin.setValue(float(scenario.noise.directivity.strength_db))
         self.directivity_wedge_angle_spin.setValue(float(scenario.noise.directivity.wedge_angle_deg))
         self.directivity_vertical_strength_spin.setValue(float(scenario.noise.directivity.vertical_strength_db))
@@ -430,6 +437,7 @@ class ScenarioEditorView(QWidget):
         if preset != 'custom':
             self._suspend_preview = True
             self._set_combo_value(self.directivity_mode_combo, str(values['mode']))
+            self._set_combo_value(self.directivity_response_profile_combo, 'enhanced')
             self.directivity_strength_spin.setValue(float(values['strength_db']))
             self.directivity_wedge_angle_spin.setValue(float(values['wedge_angle_deg']))
             self.directivity_vertical_strength_spin.setValue(float(values['vertical_strength_db']))
@@ -437,6 +445,7 @@ class ScenarioEditorView(QWidget):
             self._suspend_preview = False
         enabled = preset == 'custom'
         self.directivity_mode_combo.setEnabled(enabled)
+        self.directivity_response_profile_combo.setEnabled(True)
         self.directivity_strength_spin.setEnabled(enabled)
         self.directivity_wedge_angle_spin.setEnabled(enabled)
         self.directivity_vertical_strength_spin.setEnabled(enabled)
@@ -454,16 +463,17 @@ class ScenarioEditorView(QWidget):
             float(self.directivity_vertical_angle_spin.value()),
         )
         current = str(self.directivity_preset_combo.currentData() or 'custom')
+        enabled = inferred == 'custom'
         if current != inferred:
             self.directivity_preset_combo.blockSignals(True)
             self._set_combo_value(self.directivity_preset_combo, inferred)
             self.directivity_preset_combo.blockSignals(False)
-            enabled = inferred == 'custom'
-            self.directivity_mode_combo.setEnabled(enabled)
-            self.directivity_strength_spin.setEnabled(enabled)
-            self.directivity_wedge_angle_spin.setEnabled(enabled)
-            self.directivity_vertical_strength_spin.setEnabled(enabled)
-            self.directivity_vertical_angle_spin.setEnabled(enabled)
+        self.directivity_mode_combo.setEnabled(enabled)
+        self.directivity_response_profile_combo.setEnabled(True)
+        self.directivity_strength_spin.setEnabled(enabled)
+        self.directivity_wedge_angle_spin.setEnabled(enabled)
+        self.directivity_vertical_strength_spin.setEnabled(enabled)
+        self.directivity_vertical_angle_spin.setEnabled(enabled)
 
     def _append_receiver_row(self, receiver_id: str, x: float, y: float, z: float) -> None:
         row = self.receiver_table.rowCount()
@@ -561,6 +571,7 @@ class ScenarioEditorView(QWidget):
             'noise.receiver_height_meters': float(self.receiver_height_spin.value()),
             'noise.directivity.preset': str(self.directivity_preset_combo.currentData() or self.directivity_preset_combo.currentText()),
             'noise.directivity.mode': str(self.directivity_mode_combo.currentData() or self.directivity_mode_combo.currentText()),
+            'noise.directivity.response_profile': str(self.directivity_response_profile_combo.currentData() or self.directivity_response_profile_combo.currentText()).lower(),
             'noise.directivity.strength_db': float(self.directivity_strength_spin.value()),
             'noise.directivity.wedge_angle_deg': float(self.directivity_wedge_angle_spin.value()),
             'noise.directivity.vertical_strength_db': float(self.directivity_vertical_strength_spin.value()),

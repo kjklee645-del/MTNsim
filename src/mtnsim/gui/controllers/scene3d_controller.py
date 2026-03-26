@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from math import cos, pi, radians, sin
 
+from mtnsim.acoustics.emission.road_vehicle import directional_gain_db
 from mtnsim.gui.controllers.playback_controller import PlaybackDataset, PlaybackFrame
 from mtnsim.gui.controllers.result_controller import HeatmapCell
 from mtnsim.gui.controllers.scene_controller import SceneSnapshot
@@ -179,6 +180,8 @@ class Scene3DController:
         highlight_receivers: bool = True,
         show_receiver_links: bool = True,
         directivity_preset: str = 'custom',
+        emission_mode: str = 'isotropic',
+        emission_strength_db: float = 0.0,
     ) -> Scene3DFrame | None:
         if frame is None:
             return None
@@ -186,6 +189,7 @@ class Scene3DController:
         frame.source_field_links = []
         for receiver in frame.receivers:
             receiver.highlighted = False
+            receiver.directivity_gain_db = 0.0
         if playback_frame is None or not selected_vehicle_id or mode == 'off':
             return frame
         visual = self._source_field_visual_profile(directivity_preset, mode)
@@ -262,6 +266,12 @@ class Scene3DController:
         self._apply_receiver_interactions(
             frame,
             target,
+            dataset=dataset,
+            frame_index=frame_index,
+            directivity_preset=directivity_preset,
+            emission_mode=emission_mode,
+            emission_strength_db=emission_strength_db,
+            wedge_span_deg=wedge_span_deg,
             vertical_angle_deg=vertical_angle_deg,
             vertical_strength_db=vertical_strength_db,
             highlight_receivers=highlight_receivers,
@@ -289,6 +299,22 @@ class Scene3DController:
                 'height_mul': 0.95,
                 'opacity_mul': 0.95,
             },
+            'sedan': {
+                'primary': '#5ee7ff',
+                'secondary': '#46b8ff',
+                'edge': '#eafcff',
+                'scale_mul': 0.9,
+                'height_mul': 0.9,
+                'opacity_mul': 0.92,
+            },
+            'suv': {
+                'primary': '#37d0d6',
+                'secondary': '#2d8fff',
+                'edge': '#defcff',
+                'scale_mul': 1.02,
+                'height_mul': 1.04,
+                'opacity_mul': 0.98,
+            },
             'bus': {
                 'primary': '#ffd166',
                 'secondary': '#8c7cff',
@@ -296,6 +322,22 @@ class Scene3DController:
                 'scale_mul': 1.12,
                 'height_mul': 1.15,
                 'opacity_mul': 1.0,
+            },
+            'city_bus': {
+                'primary': '#ffc94a',
+                'secondary': '#7f73ff',
+                'edge': '#fff1c5',
+                'scale_mul': 1.18,
+                'height_mul': 1.2,
+                'opacity_mul': 1.02,
+            },
+            'coach_bus': {
+                'primary': '#ffe08a',
+                'secondary': '#9d83ff',
+                'edge': '#fff8de',
+                'scale_mul': 1.08,
+                'height_mul': 1.1,
+                'opacity_mul': 0.98,
             },
             'truck': {
                 'primary': '#ff7a59',
@@ -305,6 +347,38 @@ class Scene3DController:
                 'height_mul': 1.3,
                 'opacity_mul': 1.08,
             },
+            'delivery_truck': {
+                'primary': '#ff9a63',
+                'secondary': '#be7dff',
+                'edge': '#fff1e7',
+                'scale_mul': 1.15,
+                'height_mul': 1.18,
+                'opacity_mul': 1.02,
+            },
+            'heavy_truck': {
+                'primary': '#ff6b45',
+                'secondary': '#b65dff',
+                'edge': '#ffe9df',
+                'scale_mul': 1.28,
+                'height_mul': 1.36,
+                'opacity_mul': 1.1,
+            },
+        }
+        return profiles.get(preset_key, profiles['custom'])
+
+    def _receiver_interaction_profile(self, preset: str) -> dict[str, float | str]:
+        preset_key = str(preset or 'custom').lower()
+        profiles = {
+            'custom': {'highlight_color': '#fff4b2', 'link_color': '#fff2a6', 'margin_m': 2.0, 'gain_gate_db': -3.5},
+            'passenger': {'highlight_color': '#b7f1ff', 'link_color': '#8be3ff', 'margin_m': 1.5, 'gain_gate_db': -1.5},
+            'sedan': {'highlight_color': '#cbf8ff', 'link_color': '#91e9ff', 'margin_m': 1.0, 'gain_gate_db': -1.0},
+            'suv': {'highlight_color': '#b2f0f4', 'link_color': '#6fdff0', 'margin_m': 2.2, 'gain_gate_db': -2.0},
+            'bus': {'highlight_color': '#ffe29a', 'link_color': '#ffd166', 'margin_m': 4.0, 'gain_gate_db': -3.0},
+            'city_bus': {'highlight_color': '#ffd989', 'link_color': '#ffc94a', 'margin_m': 4.8, 'gain_gate_db': -2.8},
+            'coach_bus': {'highlight_color': '#ffebb7', 'link_color': '#ffdb80', 'margin_m': 3.4, 'gain_gate_db': -3.2},
+            'truck': {'highlight_color': '#ffc4a8', 'link_color': '#ff9b6e', 'margin_m': 7.0, 'gain_gate_db': -4.5},
+            'delivery_truck': {'highlight_color': '#ffd1bc', 'link_color': '#ffab83', 'margin_m': 5.2, 'gain_gate_db': -3.8},
+            'heavy_truck': {'highlight_color': '#ffb59a', 'link_color': '#ff825b', 'margin_m': 8.0, 'gain_gate_db': -5.0},
         }
         return profiles.get(preset_key, profiles['custom'])
 
@@ -332,6 +406,12 @@ class Scene3DController:
         frame: Scene3DFrame,
         vehicle,
         *,
+        dataset: PlaybackDataset | None,
+        frame_index: int | None,
+        directivity_preset: str,
+        emission_mode: str,
+        emission_strength_db: float,
+        wedge_span_deg: float,
         vertical_angle_deg: float,
         vertical_strength_db: float,
         highlight_receivers: bool,
@@ -339,16 +419,35 @@ class Scene3DController:
     ) -> None:
         if not frame.source_field_overlays:
             return
+        profile = self._receiver_interaction_profile(directivity_preset)
+        heading_deg = self._estimate_heading_deg(dataset, frame_index, vehicle.vehicle_id if hasattr(vehicle, 'vehicle_id') else '')
+        heading_vector = (math.cos(math.radians(heading_deg)), math.sin(math.radians(heading_deg)))
         for receiver in frame.receivers:
+            receiver.highlight_color = str(profile['highlight_color'])
             inside = any(self._point_in_polygon((receiver.x, receiver.y), overlay.footprint) for overlay in frame.source_field_overlays)
+            if not inside and float(profile['margin_m']) > 0.0:
+                inside = any(self._distance_to_polygon((receiver.x, receiver.y), overlay.footprint) <= float(profile['margin_m']) for overlay in frame.source_field_overlays)
+            gain_db = directional_gain_db(
+                (receiver.x, receiver.y, receiver.z),
+                (vehicle.x, vehicle.y),
+                heading_vector,
+                mode=emission_mode,
+                strength_db=emission_strength_db,
+                wedge_angle_deg=wedge_span_deg,
+                vertical_strength_db=vertical_strength_db,
+                vertical_angle_deg=vertical_angle_deg,
+                vehicle_z=float(getattr(vehicle, 'z', 0.35)),
+            )
+            receiver.directivity_gain_db = gain_db
             inside = inside and self._point_in_vertical_span(vehicle, receiver, vertical_angle_deg, vertical_strength_db)
-            receiver.highlighted = bool(highlight_receivers and inside)
+            interaction_allowed = gain_db >= float(profile['gain_gate_db'])
+            receiver.highlighted = bool(highlight_receivers and inside and interaction_allowed)
             if receiver.highlighted and show_receiver_links:
                 frame.source_field_links.append(
                     InteractionLine3D(
                         start=(vehicle.x, vehicle.y, 0.45),
                         end=(receiver.x, receiver.y, receiver.z + 1.8),
-                        color='#fff2a6',
+                        color=str(profile['link_color']),
                     )
                 )
 
@@ -358,9 +457,31 @@ class Scene3DController:
         dx = receiver.x - vehicle.x
         dy = receiver.y - vehicle.y
         horizontal_distance = max((dx * dx + dy * dy) ** 0.5, 1e-6)
-        dz = receiver.z - vehicle.z
+        dz = receiver.z - float(getattr(vehicle, 'z', 0.35))
         angle = abs(math.degrees(math.atan2(dz, horizontal_distance)))
         return angle <= max(5.0, min(170.0, vertical_angle_deg)) * 0.5
+
+    def _distance_to_polygon(self, point: tuple[float, float], polygon: list[tuple[float, float]]) -> float:
+        if len(polygon) < 2:
+            return 1e9
+        x, y = point
+        best = 1e9
+        for i in range(len(polygon)):
+            x1, y1 = polygon[i]
+            x2, y2 = polygon[(i + 1) % len(polygon)]
+            best = min(best, self._distance_to_segment(x, y, x1, y1, x2, y2))
+        return best
+
+    def _distance_to_segment(self, px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:
+        dx = x2 - x1
+        dy = y2 - y1
+        if abs(dx) < 1e-9 and abs(dy) < 1e-9:
+            return ((px - x1) ** 2 + (py - y1) ** 2) ** 0.5
+        t = ((px - x1) * dx + (py - y1) * dy) / max(dx * dx + dy * dy, 1e-9)
+        t = max(0.0, min(1.0, t))
+        qx = x1 + t * dx
+        qy = y1 + t * dy
+        return ((px - qx) ** 2 + (py - qy) ** 2) ** 0.5
 
     def _point_in_polygon(self, point: tuple[float, float], polygon: list[tuple[float, float]]) -> bool:
         if len(polygon) < 3:

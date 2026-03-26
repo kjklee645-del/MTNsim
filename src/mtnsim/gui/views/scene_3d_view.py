@@ -548,16 +548,17 @@ class Scene3DCanvas(QWidget):
             for marker in frame.receivers:
                 base = project(marker.x, marker.y, 0.0)
                 top = project(marker.x, marker.y, marker.z + 2.0)
-                line_color = QColor('#fff4b2') if marker.highlighted else QColor('#eff6ff')
-                fill_color = QColor('#fff4b2') if marker.highlighted else QColor('#eff6ff')
+                line_color = QColor(marker.highlight_color) if marker.highlighted else QColor('#eff6ff')
+                fill_color = QColor(marker.highlight_color) if marker.highlighted else QColor('#eff6ff')
                 radius = 4.6 if marker.highlighted else 3.5
                 painter.setPen(QPen(line_color, 1.4 if marker.highlighted else 1.3))
                 painter.drawLine(base, top)
                 painter.setBrush(fill_color)
                 painter.drawEllipse(top, radius, radius)
                 if marker.highlighted or label_receivers:
-                    draw_screen_label(top, marker.label, fill='#121b24', border='#394d63', fg='#fff4b2' if marker.highlighted else '#eef6ff')
-                register_hover_target(top, marker.label, 'Receiver', radius=14.0)
+                    draw_screen_label(top, marker.label, fill='#121b24', border='#394d63', fg=marker.highlight_color if marker.highlighted else '#eef6ff')
+                hover_label = marker.label if not marker.highlighted else f"{marker.label} | gain {marker.directivity_gain_db:.1f} dB"
+                register_hover_target(top, hover_label, 'Receiver', radius=14.0)
 
         trail_heading = {}
         for trail in frame.vehicle_trails:
@@ -711,6 +712,7 @@ class Scene3DView(QWidget):
         self._calc_directivity_vehicle_types: list[str] = []
         self._calc_visual_profile: str = 'custom'
         self._calc_directivity_mode: str = 'isotropic'
+        self._calc_directivity_response_profile: str = 'physical'
         self._calc_directivity_strength_db: float = 6.0
         self._calc_directivity_wedge_angle_deg: float = 70.0
         self._calc_directivity_vertical_strength_db: float = 0.0
@@ -1078,7 +1080,7 @@ class Scene3DView(QWidget):
             self.source_field_label.setText(source_field_mode)
         settings = self.current_source_field_settings()
         detail_parts = [
-            f'calc {self._calc_directivity_preset}/{self._calc_directivity_mode}',
+            f'calc {self._calc_directivity_preset}/{self._calc_directivity_mode}/{self._calc_directivity_response_profile}',
             f'strength {self._calc_directivity_strength_db:.1f} dB',
             f"angle {settings['wedge_span_deg']:.0f} deg",
             f"vertical {settings['vertical_strength_db']:.1f} dB / {settings['vertical_angle_deg']:.0f} deg",
@@ -1107,6 +1109,7 @@ class Scene3DView(QWidget):
             vehicle_types = [str(item) for item in raw_vehicle_types]
         self._calc_directivity_vehicle_types = vehicle_types
         self._calc_directivity_mode = str(directivity.get('mode', 'isotropic'))
+        self._calc_directivity_response_profile = str(directivity.get('response_profile', 'physical'))
         self._calc_directivity_strength_db = float(directivity.get('strength_db', 6.0))
         self._calc_directivity_wedge_angle_deg = float(directivity.get('wedge_angle_deg', 70.0))
         self._calc_directivity_vertical_strength_db = float(directivity.get('vertical_strength_db', 0.0))

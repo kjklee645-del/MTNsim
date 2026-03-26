@@ -274,10 +274,16 @@ Still deferred:
 
 ## Directivity Presets
 
-Project setup and Scenario Editor now support directivity presets: `custom`, `passenger`, `bus`, and `truck`. Non-custom presets auto-fill horizontal and vertical directivity values and keep the fields linked until switched back to `custom`.
+Project setup and Scenario Editor now support directivity presets from coarse legacy groups through finer vehicle classes: `custom`, `passenger`, `sedan`, `suv`, `bus`, `city_bus`, `coach_bus`, `truck`, `delivery_truck`, and `heavy_truck`. Non-custom presets auto-fill horizontal and vertical directivity values and keep the fields linked until switched back to `custom`.
 
 
 The Result Viewer and 3D View now show the active directivity preset and the scenario vehicle types that the calculation used.
 
 
-In 3D View, calc-linked source fields now adopt preset-specific visual profiles. Passenger, bus, and truck presets use different default colors and relative size/height tendencies so the active source-field is easier to interpret.
+In 3D View, calc-linked source fields now adopt preset-specific visual profiles and receiver-interaction styling. Legacy and fine-grained presets such as `sedan`, `suv`, `city_bus`, `coach_bus`, `delivery_truck`, and `heavy_truck` each use distinct colors, size/height tendencies, highlight colors, link colors, and interaction reach, and receiver highlighting is now gain-gated by the actual directional-emission calculation. Hovering a highlighted receiver also shows its directional gain in dB.
+
+
+- Directional emission now supports `response_profile = physical | enhanced`; `enhanced` increases directional contrast so 2D heatmaps show clearer anisotropy.
+
+
+- Added example scenario `examples/scenarios/baseline_directivity_enhanced.toml` for visibly stronger directional heatmap comparison.

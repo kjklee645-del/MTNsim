@@ -48,6 +48,7 @@ def directional_gain_db(
     heading_vector: tuple[float, float] | None,
     *,
     mode: str = 'isotropic',
+    response_profile: str = 'physical',
     strength_db: float = 0.0,
     wedge_angle_deg: float = 70.0,
     vertical_strength_db: float = 0.0,
@@ -60,6 +61,10 @@ def directional_gain_db(
     if horizontal_distance < 1e-6:
         return 0.0
 
+    profile = str(response_profile or 'physical').lower()
+    if profile not in {'physical', 'enhanced'}:
+        profile = 'physical'
+
     horizontal_gain_db = 0.0
     if heading_vector is not None and mode != 'isotropic' and strength_db > 0.0:
         target_dir = (target_dx / horizontal_distance, target_dy / horizontal_distance)
@@ -68,22 +73,37 @@ def directional_gain_db(
         half_span = math.radians(max(10.0, min(170.0, wedge_angle_deg))) * 0.5
 
         if mode == 'wedge':
-            if angle > half_span:
+            if angle <= half_span:
+                if profile == 'enhanced':
+                    center_ratio = 1.0 - (angle / max(half_span, 1e-6))
+                    horizontal_gain_db = strength_db * 0.45 * center_ratio
+            else:
                 ratio = min(1.0, (angle - half_span) / max(math.pi - half_span, 1e-6))
-                horizontal_gain_db = -strength_db * ratio
+                loss_scale = 1.0 if profile == 'physical' else 1.6
+                horizontal_gain_db = -(strength_db * loss_scale) * ratio
         elif mode == 'dual_wedge':
             mirrored_angle = min(angle, abs(math.pi - angle))
-            if mirrored_angle > half_span:
+            if mirrored_angle <= half_span:
+                if profile == 'enhanced':
+                    center_ratio = 1.0 - (mirrored_angle / max(half_span, 1e-6))
+                    horizontal_gain_db = strength_db * 0.35 * center_ratio
+            else:
                 ratio = min(1.0, (mirrored_angle - half_span) / max((math.pi * 0.5) - half_span, 1e-6))
-                horizontal_gain_db = -strength_db * ratio
+                loss_scale = 1.0 if profile == 'physical' else 1.45
+                horizontal_gain_db = -(strength_db * loss_scale) * ratio
 
     vertical_gain_db = 0.0
     if len(target_position) >= 3 and vertical_strength_db > 0.0:
         dz = target_position[2] - vehicle_z
         vertical_abs_angle = abs(math.atan2(dz, horizontal_distance))
         vertical_half_span = math.radians(max(5.0, min(170.0, vertical_angle_deg))) * 0.5
-        if vertical_abs_angle > vertical_half_span:
+        if vertical_abs_angle <= vertical_half_span:
+            if profile == 'enhanced':
+                center_ratio = 1.0 - (vertical_abs_angle / max(vertical_half_span, 1e-6))
+                vertical_gain_db = vertical_strength_db * 0.2 * center_ratio
+        else:
             ratio = min(1.0, (vertical_abs_angle - vertical_half_span) / max((math.pi * 0.5) - vertical_half_span, 1e-6))
-            vertical_gain_db = -vertical_strength_db * ratio
+            loss_scale = 1.0 if profile == 'physical' else 1.35
+            vertical_gain_db = -(vertical_strength_db * loss_scale) * ratio
 
     return horizontal_gain_db + vertical_gain_db

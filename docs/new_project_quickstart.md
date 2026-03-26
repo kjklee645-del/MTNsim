@@ -200,3 +200,6 @@ You can:
 - [new_project_import_ux_plan.md](D:/Codex/MTNsim/docs/new_project_import_ux_plan.md)
 - [scenario_editor_field_reference.md](D:/Codex/MTNsim/docs/scenario_editor_field_reference.md)
 - [visualization_3d_plan.md](D:/Codex/MTNsim/docs/visualization_3d_plan.md)
+
+
+- Added example scenario `examples/scenarios/baseline_directivity_enhanced.toml` for visibly stronger directional heatmap comparison.

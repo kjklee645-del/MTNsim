@@ -17,12 +17,40 @@ DIRECTIVITY_PRESETS: Final[dict[str, dict[str, float | str]]] = {
         "vertical_strength_db": 2.0,
         "vertical_angle_deg": 65.0,
     },
+    "sedan": {
+        "mode": "wedge",
+        "strength_db": 5.5,
+        "wedge_angle_deg": 92.0,
+        "vertical_strength_db": 1.5,
+        "vertical_angle_deg": 68.0,
+    },
+    "suv": {
+        "mode": "wedge",
+        "strength_db": 6.5,
+        "wedge_angle_deg": 88.0,
+        "vertical_strength_db": 2.5,
+        "vertical_angle_deg": 64.0,
+    },
     "bus": {
         "mode": "dual_wedge",
         "strength_db": 7.5,
         "wedge_angle_deg": 105.0,
         "vertical_strength_db": 3.0,
         "vertical_angle_deg": 55.0,
+    },
+    "city_bus": {
+        "mode": "dual_wedge",
+        "strength_db": 7.8,
+        "wedge_angle_deg": 112.0,
+        "vertical_strength_db": 3.6,
+        "vertical_angle_deg": 58.0,
+    },
+    "coach_bus": {
+        "mode": "dual_wedge",
+        "strength_db": 7.1,
+        "wedge_angle_deg": 100.0,
+        "vertical_strength_db": 2.8,
+        "vertical_angle_deg": 52.0,
     },
     "truck": {
         "mode": "dual_wedge",
@@ -31,13 +59,33 @@ DIRECTIVITY_PRESETS: Final[dict[str, dict[str, float | str]]] = {
         "vertical_strength_db": 4.0,
         "vertical_angle_deg": 50.0,
     },
+    "delivery_truck": {
+        "mode": "dual_wedge",
+        "strength_db": 8.2,
+        "wedge_angle_deg": 100.0,
+        "vertical_strength_db": 3.5,
+        "vertical_angle_deg": 52.0,
+    },
+    "heavy_truck": {
+        "mode": "dual_wedge",
+        "strength_db": 9.6,
+        "wedge_angle_deg": 92.0,
+        "vertical_strength_db": 4.6,
+        "vertical_angle_deg": 48.0,
+    },
 }
 
 DIRECTIVITY_PRESET_OPTIONS: Final[list[tuple[str, str]]] = [
     ("Custom", "custom"),
-    ("Passenger", "passenger"),
-    ("Bus", "bus"),
-    ("Truck", "truck"),
+    ("Passenger (Legacy)", "passenger"),
+    ("Sedan", "sedan"),
+    ("SUV / Van", "suv"),
+    ("Bus (Legacy)", "bus"),
+    ("City Bus", "city_bus"),
+    ("Coach Bus", "coach_bus"),
+    ("Truck (Legacy)", "truck"),
+    ("Delivery Truck", "delivery_truck"),
+    ("Heavy Truck", "heavy_truck"),
 ]
 
 

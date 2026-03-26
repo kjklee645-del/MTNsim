@@ -145,3 +145,6 @@ Deferred for later milestones:
 - full scene-aware GPU path
 - patent-style precomputed correction-field module
 - AI-agent control layer
+
+
+- Added example scenario `examples/scenarios/baseline_directivity_enhanced.toml` for visibly stronger directional heatmap comparison.

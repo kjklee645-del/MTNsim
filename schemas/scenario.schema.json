@@ -227,8 +227,14 @@
               "enum": [
                 "custom",
                 "passenger",
+                "sedan",
+                "suv",
                 "bus",
-                "truck"
+                "city_bus",
+                "coach_bus",
+                "truck",
+                "delivery_truck",
+                "heavy_truck"
               ]
             },
             "mode": {
@@ -237,6 +243,13 @@
                 "isotropic",
                 "wedge",
                 "dual_wedge"
+              ]
+            },
+            "response_profile": {
+              "type": "string",
+              "enum": [
+                "physical",
+                "enhanced"
               ]
             },
             "strength_db": {

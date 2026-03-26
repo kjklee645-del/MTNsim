@@ -143,10 +143,13 @@ Update this document when one of the following changes:
 - a previously completed item is discovered to be only partial
 
 
-- [x] Add directivity preset workflow (`custom`, `passenger`, `bus`, `truck`) to starter-project setup and Scenario Editor.
+- [x] Add directivity preset workflow (legacy broad classes plus finer classes such as `sedan`, `suv`, `city_bus`, `coach_bus`, `delivery_truck`, and `heavy_truck`) to starter-project setup and Scenario Editor.
 
 
 - [x] Surface directional-emission preset and vehicle-type metadata clearly in Result Viewer and 3D View.
 
 
-- [x] Differentiate calc-linked 3D source-field visuals by directivity preset (passenger/bus/truck).
+- [x] Differentiate calc-linked 3D source-field visuals and receiver-interaction styling by directivity preset (passenger/bus/truck), including gain-gated receiver highlighting tied to the actual directional-emission model.
+
+
+- Directional emission now supports `response_profile = physical | enhanced`; `enhanced` increases directional contrast so 2D heatmaps show clearer anisotropy.

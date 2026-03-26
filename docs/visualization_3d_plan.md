@@ -222,4 +222,4 @@ The next coding task after the current slice is:
 That is the correct next slice because the static 3D scene, static 3D noise surface, operator legend/range controls, and orbit/pan/zoom camera now exist and should be folded into the normal result workflow before dynamic 3D playback is attempted.
 
 
-Current 3D source-field polish includes preset-specific visual profiles for calc-linked overlays so passenger, bus, and truck runs are easier to distinguish visually.
+Current 3D source-field polish includes preset-specific visual profiles and receiver-interaction styling for calc-linked overlays so passenger, bus, and truck runs are easier to distinguish visually and analytically.

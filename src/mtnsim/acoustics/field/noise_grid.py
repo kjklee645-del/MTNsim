@@ -54,6 +54,7 @@ def _resolve_directional_gain_db(
         vehicle_position,
         heading_vector,
         mode=mode,
+        response_profile=str(getattr(directivity, 'response_profile', 'physical')),
         strength_db=strength_db,
         wedge_angle_deg=float(getattr(directivity, 'wedge_angle_deg', 70.0)),
         vertical_strength_db=vertical_strength_db,
