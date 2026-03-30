@@ -519,6 +519,10 @@ class MainWindow(QMainWindow):
         self.result_viewer_view.open_manifest_requested.connect(self.open_current_run_manifest_file)
         self.result_viewer_view.open_3d_view_requested.connect(self.open_current_result_in_3d_view)
         self.result_viewer_view.export_markdown_requested.connect(self.export_current_result_markdown)
+        self.scene_3d_view.open_result_summary_requested.connect(self.open_current_result_summary_file)
+        self.scene_3d_view.export_snapshot_requested.connect(self.export_current_3d_snapshot)
+        self.scene_3d_view.export_snapshot_hires_requested.connect(self.export_current_3d_snapshot_hires)
+        self.scene_3d_view.export_markdown_requested.connect(self.export_current_3d_markdown)
         self.scene_3d_view.source_field_mode_combo.currentIndexChanged.connect(self._refresh_playback_contribution_view)
         self.scene_3d_view.link_calc_directivity_check.toggled.connect(self._refresh_playback_contribution_view)
         self.scene_3d_view.source_field_scale_spin.valueChanged.connect(self._refresh_playback_contribution_view)
@@ -615,6 +619,13 @@ class MainWindow(QMainWindow):
                     measurements_path=payload['measurements_path'] or None,
                     measurement_metadata_path=payload['measurement_metadata_path'] or None,
                     copy_external_files=payload['copy_sumo_files'],
+                    default_directivity_preset=payload['default_directivity_preset'],
+                    default_directivity_mode=payload['default_directivity_mode'],
+                    default_directivity_response_profile=payload['default_directivity_response_profile'],
+                    default_directivity_strength_db=payload['default_directivity_strength_db'],
+                    default_directivity_wedge_angle_deg=payload['default_directivity_wedge_angle_deg'],
+                    default_directivity_vertical_strength_db=payload['default_directivity_vertical_strength_db'],
+                    default_directivity_vertical_angle_deg=payload['default_directivity_vertical_angle_deg'],
                 )
             elif mode == 'attach':
                 current_state = self.session_state.project_state
@@ -646,6 +657,13 @@ class MainWindow(QMainWindow):
                     scene_path=payload['scene_path'] or None,
                     measurements_path=payload['measurements_path'] or None,
                     measurement_metadata_path=payload['measurement_metadata_path'] or None,
+                    default_directivity_preset=payload['default_directivity_preset'],
+                    default_directivity_mode=payload['default_directivity_mode'],
+                    default_directivity_response_profile=payload['default_directivity_response_profile'],
+                    default_directivity_strength_db=payload['default_directivity_strength_db'],
+                    default_directivity_wedge_angle_deg=payload['default_directivity_wedge_angle_deg'],
+                    default_directivity_vertical_strength_db=payload['default_directivity_vertical_strength_db'],
+                    default_directivity_vertical_angle_deg=payload['default_directivity_vertical_angle_deg'],
                 )
         except Exception as exc:  # pragma: no cover
             QMessageBox.critical(self, 'Project Creation Failed', str(exc))
@@ -1332,9 +1350,13 @@ class MainWindow(QMainWindow):
         preview.noise.max_area_meters = float(payload['noise.max_area_meters'])
         preview.noise.grid_size_meters = float(payload['noise.grid_size_meters'])
         preview.noise.receiver_height_meters = float(payload['noise.receiver_height_meters'])
+        preview.noise.directivity.preset = str(payload.get('noise.directivity.preset', 'custom'))
         preview.noise.directivity.mode = str(payload['noise.directivity.mode'])
+        preview.noise.directivity.response_profile = str(payload.get('noise.directivity.response_profile', 'physical'))
         preview.noise.directivity.strength_db = float(payload['noise.directivity.strength_db'])
         preview.noise.directivity.wedge_angle_deg = float(payload['noise.directivity.wedge_angle_deg'])
+        preview.noise.directivity.vertical_strength_db = float(payload['noise.directivity.vertical_strength_db'])
+        preview.noise.directivity.vertical_angle_deg = float(payload['noise.directivity.vertical_angle_deg'])
         preview.grid.margin_x_start = float(payload['grid.margin_x_start'])
         preview.grid.margin_x_end = float(payload['grid.margin_x_end'])
         preview.grid.extra_y_extent = float(payload['grid.extra_y_extent'])
@@ -1740,8 +1762,13 @@ class MainWindow(QMainWindow):
                 height_scale=source_field_settings['height_scale'],
                 opacity=source_field_settings['opacity'],
                 wedge_span_deg=source_field_settings['wedge_span_deg'],
+                vertical_angle_deg=source_field_settings['vertical_angle_deg'],
+                vertical_strength_db=source_field_settings['vertical_strength_db'],
                 highlight_receivers=bool(source_field_settings['highlight_receivers']),
                 show_receiver_links=bool(source_field_settings['show_receiver_links']),
+                directivity_preset=str(source_field_settings.get('calculation_preset', 'custom')),
+                emission_mode=str(source_field_settings.get('calculation_mode', 'isotropic')),
+                emission_strength_db=float(source_field_settings.get('calculation_strength_db', 0.0)),
             )
             self.scene_3d_view.set_frame(scene3d_frame)
         self.scene_3d_view.set_playback_context(frame.time_index, frame.sim_time_seconds, len(frame.vehicles))
@@ -1910,6 +1937,120 @@ class MainWindow(QMainWindow):
         output_path = self._write_text_export(default_path, 'Export Result Markdown', '\n'.join(lines) + '\n', 'Markdown Files (*.md)')
         if output_path is not None:
             QMessageBox.information(self, 'Result Export', 'Markdown summary saved to:\n' + str(output_path))
+
+    def export_current_3d_snapshot(self) -> None:
+        frame = self.scene_3d_view.canvas.frame_data
+        if frame is None:
+            QMessageBox.information(self, '3D Export', 'Open a 3D scene or result before exporting a snapshot.')
+            return
+        base_dir = Path(self.current_result_summary.output_dir) if self.current_result_summary is not None else Path.cwd()
+        stem = self.current_result_summary.run.scenario if self.current_result_summary is not None else 'scene3d'
+        default_path = base_dir / f'{stem}_3d_snapshot.png'
+        file_path, _ = QFileDialog.getSaveFileName(self, 'Save 3D Snapshot', str(default_path), 'PNG Files (*.png)')
+        if not file_path:
+            return
+        output_path = self._export_current_3d_snapshot_to(Path(file_path), scale_factor=1.0)
+        QMessageBox.information(self, '3D Export', '3D snapshot saved to:\n' + str(output_path))
+
+    def export_current_3d_snapshot_hires(self) -> None:
+        frame = self.scene_3d_view.canvas.frame_data
+        if frame is None:
+            QMessageBox.information(self, '3D Export', 'Open a 3D scene or result before exporting a hi-res snapshot.')
+            return
+        base_dir = Path(self.current_result_summary.output_dir) if self.current_result_summary is not None else Path.cwd()
+        stem = self.current_result_summary.run.scenario if self.current_result_summary is not None else 'scene3d'
+        default_path = base_dir / f'{stem}_3d_snapshot_2x.png'
+        file_path, _ = QFileDialog.getSaveFileName(self, 'Save Hi-Res 3D Snapshot', str(default_path), 'PNG Files (*.png)')
+        if not file_path:
+            return
+        output_path = self._export_current_3d_snapshot_to(Path(file_path), scale_factor=2.0)
+        QMessageBox.information(self, '3D Export', 'Hi-res 3D snapshot saved to:\n' + str(output_path))
+
+    def _export_current_3d_snapshot_to(self, output_path: Path, scale_factor: float = 1.0) -> Path:
+        pixmap = self.scene_3d_view.canvas.grab()
+        image = pixmap.toImage()
+        if scale_factor > 1.0:
+            image = image.scaled(max(1, int(image.width() * scale_factor)), max(1, int(image.height() * scale_factor)), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        image.save(str(output_path), 'PNG')
+        suffix = ' (hi-res)' if scale_factor > 1.0 else ''
+        self._append_log(f'[info] Exported 3D snapshot{suffix}: {output_path}')
+        self.statusBar().showMessage(f'Exported 3D snapshot{suffix}: {output_path.name}')
+        return output_path
+
+    def export_current_3d_markdown(self) -> None:
+        summary = self.current_result_summary
+        if summary is None:
+            QMessageBox.information(self, '3D Export', 'Load a result summary first.')
+            return
+        default_path = Path(summary.output_dir) / 'scene3d_report.md'
+        content = self._build_current_3d_markdown()
+        output_path = self._write_text_export(default_path, 'Export 3D Markdown', content, 'Markdown Files (*.md)')
+        if output_path is not None:
+            QMessageBox.information(self, '3D Export', '3D Markdown report saved to:\n' + str(output_path))
+
+    def _build_current_3d_markdown(self) -> str:
+        summary = self.current_result_summary
+        if summary is None:
+            raise RuntimeError('Current result summary is required for 3D markdown export.')
+        scene3d = self.scene_3d_view
+        settings = scene3d.current_source_field_settings()
+        lines = [
+            '# MTNsim 3D View Report',
+            '',
+            '## Result Context',
+            f'- Run ID: {summary.run.run_id}',
+            f'- Project: {summary.run.project}',
+            f'- Scenario: {summary.run.scenario}',
+            f'- Output Dir: {summary.output_dir}',
+            f'- Used GPU: {summary.used_gpu}',
+            '',
+            '## 3D View State',
+            f'- Surface Mode: {scene3d.view_mode_label.text()}',
+            f'- dB Range: {scene3d.db_range_label.text()}',
+            f'- Noise Cells: {scene3d.noise_cell_label.text()}',
+            f'- Playback Frame: {scene3d.playback_frame_label.text()}',
+            f'- Playback Vehicles: {scene3d.playback_vehicle_count_label.text()}',
+            f'- Selected Vehicle: {scene3d.selected_vehicle_label.text()}',
+            f'- Camera Follow: {scene3d.follow_label.text()}',
+            '',
+            '## Directional Emission',
+            f'- Directivity Preset: {scene3d.directivity_preset_label.text()}',
+            f'- Vehicle Types: {scene3d.directivity_vehicle_types_label.text()}',
+            f'- Visual Profile: {scene3d.visual_profile_label.text()}',
+            f'- Source Field: {scene3d.source_field_label.text()}',
+            f'- Field Detail: {scene3d.source_field_detail_label.text()}',
+            f'- Affected Receivers: {scene3d.affected_receivers_label.text()}',
+            '',
+            '## Source Field Controls',
+            f"- Scale: {float(settings['scale']):.2f}",
+            f"- Height Scale: {float(settings['height_scale']):.2f}",
+            f"- Opacity: {float(settings['opacity']):.2f}",
+            f"- Wedge Angle: {float(settings['wedge_span_deg']):.1f} deg",
+            f"- Vertical Angle: {float(settings['vertical_angle_deg']):.1f} deg",
+            f"- Vertical Strength: {float(settings['vertical_strength_db']):.1f} dB",
+            f"- Highlight Receivers: {bool(settings['highlight_receivers'])}",
+            f"- Receiver Links: {bool(settings['show_receiver_links'])}",
+            f"- Calc Linked: {bool(settings['calculation_linked'])}",
+            '',
+            '## Layer Visibility',
+            f'- Roads: {scene3d.roads_check.isChecked()}',
+            f'- Receivers: {scene3d.receivers_check.isChecked()}',
+            f'- Vehicles: {scene3d.vehicles_check.isChecked()}',
+            f'- Vehicle Trails: {scene3d.vehicle_trails_check.isChecked()}',
+            f'- Barriers: {scene3d.barriers_check.isChecked()}',
+            f'- Buildings: {scene3d.buildings_check.isChecked()}',
+            f'- Ground: {scene3d.ground_check.isChecked()}',
+            f'- Vegetation: {scene3d.vegetation_check.isChecked()}',
+            f'- Grid Region: {scene3d.grid_region_check.isChecked()}',
+            f'- Noise Surface: {scene3d.noise_surface_check.isChecked()}',
+            f'- Source Field: {scene3d.source_field_check.isChecked()}',
+        ]
+        if summary.propagation_features:
+            lines.extend(['', '## Propagation Features'])
+            for key, value in sorted(summary.propagation_features.items()):
+                lines.append(f'- {key}: {value}')
+        return '\n'.join(lines) + '\n'
 
     def open_compare_run_a_summary(self) -> None:
         self._open_path(self.scenario_comparison_view._run_a_summary_file, label='comparison run A summary')

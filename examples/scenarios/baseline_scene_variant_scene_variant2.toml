@@ -46,19 +46,13 @@ x = 500.0
 y = 215.0
 z = 1.5
 
-[[receivers]]
-id = "receiver_9"
-x = 125.0
-y = 30.0
-z = 1.5
-
 [scenario]
-name = "baseline"
+name = "baseline_scene_variant_scene_variant"
 description = "Base scenario for 4-lane test road"
 project = "mtnsim-demo"
 
 [traffic]
-max_vehicles = 2
+max_vehicles = 96
 vehicle_types = [ "vType1", "vType2",]
 vehicle_weights = [ 50, 50,]
 start_mode = "interval"
@@ -78,28 +72,62 @@ designated_lane = 0
 lane_change_target_positions = [ [ 500.0, 0.0,],]
 post_distance_speed_control = true
 post_distance_meters = 300.0
-post_target_speed_kmh = 100.0
+post_target_speed_kmh = 95.0
 
 [noise]
 background_noise_db = 40.0
-max_area_meters = 100.0
+max_area_meters = 400.0
 grid_size_meters = 5.0
-receiver_height_meters = 1.5
+receiver_height_meters = 0.5
 
 [grid]
 margin_x_start = 50.0
 margin_x_end = 50.0
 extra_y_extent = 230.0
-override_enabled = false
+override_enabled = true
+override_min_x = 30.0
+override_max_x = 800.0
+override_min_y = -145.0
+override_max_y = 248.0
+
+[scene]
+terrain_edges = []
+ground_surfaces = []
+vegetation_zones = []
+[[scene.buildings]]
+attenuation_db = 9.0
+footprint = [ [ 735.2840974024613, 89.43506925455284,], [ 776.6844479071583, 89.86483067847706,], [ 779.5495240666529, 48.750987789729464,], [ 734.7110821705623, 46.88868828605794,], [ 736.0003664423349, 46.60218067010845,],]
+height_meters = 20.0
+id = "building_1"
+material = "generic"
+
+[[scene.noise_barriers]]
+attenuation_db = 8.0
+height_meters = 4.0
+id = "barrier_1"
+material = "generic"
+x1 = 438.90432401751366
+x2 = 586.7173616628601
+y1 = 18.695605528989205
+y2 = 19.5600092579093
+
+[[scene.noise_barriers]]
+attenuation_db = 8.0
+height_meters = 4.0
+id = "barrier_3"
+material = "generic"
+x1 = 311.5028548973547
+x2 = 716.9515728460726
+y1 = -29.200000000000003
+y2 = -29.200000000000003
 
 [noise.directivity]
 preset = "custom"
-mode = "isotropic"
-response_profile = "enhanced"
-strength_db = 30.0
-wedge_angle_deg = 85.0
-vertical_strength_db = 2.0
-vertical_angle_deg = 65.0
+mode = "wedge"
+strength_db = 6.0
+wedge_angle_deg = 70.0
+vertical_strength_db = 0.0
+vertical_angle_deg = 55.0
 
 [noise.vehicle_coefficients.vType1]
 a = 44.4

@@ -157,6 +157,10 @@ Build next:
 - bind the selected run to the 3D view [done]
 - show run metadata and current view mode [done]
 - keep layer states and camera resets manageable [started]
+- export the current 3D canvas as a PNG snapshot [done]
+- export a hi-res 2x PNG snapshot for presentation use [done]
+- provide hover tooltip/halo inspection for rendered 3D objects [done]
+- export a 3D Markdown report with active metadata and source-field settings [done]
 
 Goal:
 - make the 3D view part of the normal operator workflow rather than a demo-only screen
@@ -216,3 +220,6 @@ The next coding task after the current slice is:
 4. keep layer states and camera resets manageable across longer 3D sessions
 
 That is the correct next slice because the static 3D scene, static 3D noise surface, operator legend/range controls, and orbit/pan/zoom camera now exist and should be folded into the normal result workflow before dynamic 3D playback is attempted.
+
+
+Current 3D source-field polish includes preset-specific visual profiles and receiver-interaction styling for calc-linked overlays so passenger, bus, and truck runs are easier to distinguish visually and analytically.

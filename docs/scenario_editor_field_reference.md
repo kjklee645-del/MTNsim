@@ -109,6 +109,17 @@ When current values pass editor validation, the editor automatically updates the
 - Schema field: `noise.directivity.wedge_angle_deg`
 - Meaning: opening angle used by `wedge` and `dual_wedge` directivity modes.
 
+### Directivity Vertical Strength
+- Schema field: `noise.directivity.vertical_strength_db`
+- Meaning: additional attenuation strength applied when the target sits outside the preferred vertical spread around the source height.
+- Typical use: reduce unrealistically tall upward radiation while keeping near-horizontal propagation less affected.
+
+### Directivity Vertical Angle
+- Schema field: `noise.directivity.vertical_angle_deg`
+- Meaning: vertical opening angle used by the first-pass vertically aware directivity rule.
+- Smaller values mean: a flatter, more laterally focused source field.
+- Larger values mean: a taller source field with less vertical attenuation.
+
 ## Grid
 
 ### Grid Margin Start
@@ -209,3 +220,9 @@ When validation fails:
 - the editor stays open
 - a warning dialog is shown
 - the status line displays the first validation error
+
+
+- `noise.directivity.preset`: directivity preset selector (`custom`, `passenger`, `bus`, `truck`). Non-custom presets auto-fill the directional fields.
+
+
+- Directional emission now supports `response_profile = physical | enhanced`; `enhanced` increases directional contrast so 2D heatmaps show clearer anisotropy.

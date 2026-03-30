@@ -157,9 +157,13 @@ class VehicleNoiseCoefficient:
 
 @dataclass(slots=True)
 class DirectivityConfig:
+    preset: str = "custom"
     mode: str = "isotropic"
+    response_profile: str = "physical"
     strength_db: float = 6.0
     wedge_angle_deg: float = 70.0
+    vertical_strength_db: float = 0.0
+    vertical_angle_deg: float = 55.0
 
 
 @dataclass(slots=True)
@@ -204,6 +208,12 @@ class ScenarioConfig:
         }
         noise_data = dict(data["noise"])
         directivity_data = noise_data.pop("directivity", {})
+        if "response_profile" not in directivity_data:
+            preset = str(directivity_data.get("preset", "custom") or "custom")
+            mode = str(directivity_data.get("mode", "isotropic") or "isotropic")
+            directivity_data["response_profile"] = (
+                "enhanced" if preset != "custom" and mode != "isotropic" else "physical"
+            )
         noise_data["vehicle_coefficients"] = coeffs
         noise_data["directivity"] = DirectivityConfig(**directivity_data)
         control_data = dict(data["controls"])

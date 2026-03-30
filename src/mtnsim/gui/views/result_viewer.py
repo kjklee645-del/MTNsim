@@ -269,6 +269,19 @@ class ResultViewerView(QWidget):
             f'Receiver count: {len(summary.receiver_stats)}',
         ]
         if summary.propagation_features:
+            directivity = summary.propagation_features.get('noise_directivity') if isinstance(summary.propagation_features, dict) else None
+            if isinstance(directivity, dict):
+                metadata_lines.append('')
+                metadata_lines.append('Directional Emission:')
+                metadata_lines.append(f"- preset: {directivity.get('preset', 'custom')}")
+                metadata_lines.append(f"- mode: {directivity.get('mode', 'isotropic')}")
+                metadata_lines.append(f"- response: {directivity.get('response_profile', 'physical')}")
+                metadata_lines.append(f"- strength: {float(directivity.get('strength_db', 0.0)):.1f} dB")
+                metadata_lines.append(f"- wedge angle: {float(directivity.get('wedge_angle_deg', 0.0)):.0f} deg")
+                metadata_lines.append(f"- vertical: {float(directivity.get('vertical_strength_db', 0.0)):.1f} dB / {float(directivity.get('vertical_angle_deg', 0.0)):.0f} deg")
+                vehicle_types = summary.propagation_features.get('noise_directivity_vehicle_types')
+                if vehicle_types:
+                    metadata_lines.append(f"- vehicle types: {', '.join(str(item) for item in vehicle_types)}")
             metadata_lines.append('')
             metadata_lines.append('Propagation Features:')
             for key, value in sorted(summary.propagation_features.items()):

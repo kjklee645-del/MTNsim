@@ -85,7 +85,7 @@ Status legend:
 | Geometry | Vegetation objects | [~] | `vegetation_zones` added as first-pass scene/runtime objects |
 | Propagation model | Common propagation properties per object type | [x] | defaults + per-object overrides added |
 | Propagation model | Material-aware corrections | [~] | geometry-coupled shielding/reflection/diffraction corrections plus path-length-aware and line-height-aware ground/vegetation corrections |
-| Emission model | Directional vehicle emission | [~] | Phase A started with `isotropic / wedge / dual_wedge` scenario settings and heading-aware emission-side attenuation in engine calculations |
+| Emission model | Directional vehicle emission | [~] | Phase 2 now includes `isotropic / wedge / dual_wedge` scenario settings, heading-aware horizontal attenuation, and a first-pass vertical spread attenuation term in engine calculations |
 
 ## 7. Calibration and Validation
 
@@ -115,7 +115,7 @@ Status legend:
 | Visualization | GUI Vehicle Playback | [x] | GUI-triggered runs now record vehicle traces and replay them with a time slider on top of the 2D scene view |
 | Visualization | GUI implementation | [~] | active track; core GUI flows exist; preview UX polish items are deferred in `docs/deferred_enhancement_backlog.md` |
 | Visualization | Scene Object Editor for barriers, buildings, terrain, ground, and vegetation | [~] | first-pass GUI view now supports list/form editing, Save As, live scene preview, Scene View-linked selection/highlight, click-to-draw creation, direct manipulation, and basic duplicate plus undo/redo history; deeper geometry editing still remains |
-| Visualization | 3D scene and noise visualization layer | [~] | `3D View` shell, scene-to-3D adapter, static 3D scene primitives, a static 3D noise surface from selected run snapshots, operator legend/range controls, color-plate versus raised-surface modes, orbit/pan/zoom camera controls, direct Result Viewer-to-3D linking with run metadata, and a deeper playback-aware slice with selected-vehicle highlighting, trails, follow, and playback-synced 3D noise updates are now implemented; further 3D polish still remains |
+| Visualization | 3D scene and noise visualization layer | [~] | `3D View` shell, scene-to-3D adapter, static 3D scene primitives, a static 3D noise surface from selected run snapshots, operator legend/range controls, color-plate versus raised-surface modes, orbit/pan/zoom camera controls, direct Result Viewer-to-3D linking with run metadata, built-in 3D snapshot/Markdown export plus hi-res PNG export, hover/tooltip inspection with halo highlighting, a first visual-polish pass for roads/barriers/buildings/vehicle glyphs plus basic labels/window hints/vegetation variation, barrier/terrain material patterning, a darker lighting pass, and a deeper playback-aware slice with selected-vehicle highlighting, trails, follow, and playback-synced 3D noise updates are now implemented; further 3D polish still remains |
 | Visualization | Volumetric/directional source-field visualization | [~] | first-pass 3D source-field overlays now support `off / sphere / wedge / dual_wedge` for the selected playback vehicle plus size, height, opacity, and wedge-span controls, receiver highlighting, receiver-link overlays, and a `Use Calc Directivity` mode that follows the run's actual directional-emission setting; richer overlay physics and additional selectable shapes still remain |
 | API | Local API layer | [~] | thin local layer exists |
 | Agent | Bounded command architecture baseline | [~] | early structure only |
@@ -131,7 +131,7 @@ Status legend:
 | 3 | Add a Scene Object Editor so users can define barriers, buildings, terrain, ground, and vegetation without manual TOML editing | [~] | first-pass scene-object editing now exists with Scene View-linked selection, click-to-draw creation, direct manipulation, and basic duplicate plus undo/redo history; vertex add/remove, duplicate-and-drag flow, snapping, and richer reshape tooling are now tracked in the deferred backlog |
 | 4 | Continue project/run/result UX polish after the new project/import flow | [~] | project entry is now usable, so the next value comes from smoother recent-project, run, and result navigation |
 | 5 | Continue deepening the 3D scene/noise visualization layer | [~] | the 3D layer now exists with static scene/noise, playback-aware vehicles/noise, result-linked metadata, camera controls, and first-pass source-field overlays; next slice is stronger 3D polish and presentation quality |
-| 6 | Deepen directional source-field modeling beyond Phase A | [~] | actual calculation now supports `isotropic`, `wedge`, and `dual_wedge`, and 3D source-field overlays can follow calculation-side directivity; deeper physical meaning and richer shapes still remain |
+| 6 | Deepen directional source-field modeling beyond Phase A | [~] | actual calculation now supports `isotropic`, `wedge`, and `dual_wedge` with a first-pass vertical spread term, and 3D source-field overlays can follow calculation-side directivity for both horizontal and vertical spread; deeper physical meaning and richer shapes still remain |
 | 7 | Keep deeper validation, calibration, scene-physics, and GPU work on the deferred backlog while GUI/product usability is the mainline focus | [~] | tracked in `docs/deferred_enhancement_backlog.md` so the current product focus stays on usability |
 
 ## 10. Maintenance Rule
@@ -141,3 +141,15 @@ Update this document when one of the following changes:
 - the recommended next order changes
 - a new major subsystem is added
 - a previously completed item is discovered to be only partial
+
+
+- [x] Add directivity preset workflow (legacy broad classes plus finer classes such as `sedan`, `suv`, `city_bus`, `coach_bus`, `delivery_truck`, and `heavy_truck`) to starter-project setup and Scenario Editor.
+
+
+- [x] Surface directional-emission preset and vehicle-type metadata clearly in Result Viewer and 3D View.
+
+
+- [x] Differentiate calc-linked 3D source-field visuals and receiver-interaction styling by directivity preset (passenger/bus/truck), including gain-gated receiver highlighting tied to the actual directional-emission model.
+
+
+- Directional emission now supports `response_profile = physical | enhanced`; `enhanced` increases directional contrast so 2D heatmaps show clearer anisotropy.

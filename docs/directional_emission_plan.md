@@ -42,7 +42,6 @@ Phase A includes:
 
 Phase A does not include:
 - full 3D acoustic physics rewrite
-- vertically anisotropic directivity
 - source-type decomposition such as tire / engine / exhaust components
 - per-vehicle-class calibrated field datasets
 - regulatory-grade directional source standards
@@ -118,11 +117,29 @@ Phase A should be considered implemented when all of the following are true:
 - dynamic playback heatmap recomputation uses the same directivity rule
 - result metadata records the chosen directivity settings
 
-## 8. After Phase A
+## 8. Phase 2 Extension
 
-Natural next steps after this first implementation are:
+Phase 2 now adds a first-pass vertical directivity term:
+- `vertical_strength_db`
+- `vertical_angle_deg`
+- actual calculation-side attenuation for targets outside the preferred vertical spread
+- calc-linked 3D source-field overlays that reuse the same vertical spread settings for overlay height and receiver highlighting, differentiate receiver-interaction style by directivity preset, and now gate receiver highlighting through the actual directional-gain calculation
+
+## 9. After Phase 2
+
+Natural next steps after this implementation are:
 - add more shapes such as ellipsoid or cone-like variants
-- add vertically aware directivity
 - split emission into tire / engine / exhaust subcomponents
 - calibrate source directivity parameters against measured data
 - align 3D source-field overlays even more closely with the actual calculation model
+
+
+## Presets
+
+Phase 2 now includes user-facing presets to make directional emission easier to adopt in project setup and scenario editing. Current presets cover both legacy broad classes and finer vehicle groups: `custom`, `passenger`, `sedan`, `suv`, `bus`, `city_bus`, `coach_bus`, `truck`, `delivery_truck`, and `heavy_truck`.
+
+
+Phase 2 metadata polish: run outputs now expose the directivity preset and target vehicle types so calc-linked 3D source fields can show the same context explicitly.
+
+
+- Directional emission now supports `response_profile = physical | enhanced`; `enhanced` increases directional contrast so 2D heatmaps show clearer anisotropy.

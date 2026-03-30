@@ -43,8 +43,11 @@ class DynamicHeatmapContext:
     propagation_provider: object | None
     use_gpu: bool
     directivity_mode: str = 'isotropic'
+    directivity_response_profile: str = 'physical'
     directivity_strength_db: float = 6.0
     directivity_wedge_angle_deg: float = 70.0
+    directivity_vertical_strength_db: float = 0.0
+    directivity_vertical_angle_deg: float = 55.0
     cache: OrderedDict[int, list[HeatmapCell]] = field(default_factory=OrderedDict)
     cache_limit: int = 72
 
@@ -111,8 +114,11 @@ class ResultController:
             propagation_provider=propagation_provider,
             use_gpu=result_summary.used_gpu,
             directivity_mode=scenario.noise.directivity.mode,
+            directivity_response_profile=scenario.noise.directivity.response_profile,
             directivity_strength_db=scenario.noise.directivity.strength_db,
             directivity_wedge_angle_deg=scenario.noise.directivity.wedge_angle_deg,
+            directivity_vertical_strength_db=scenario.noise.directivity.vertical_strength_db,
+            directivity_vertical_angle_deg=scenario.noise.directivity.vertical_angle_deg,
         )
 
     def compute_dynamic_heatmap(
@@ -249,8 +255,11 @@ class ResultController:
                 vehicle_position,
                 vehicle_headings.get(selected_vehicle.vehicle_id),
                 mode=directivity.mode,
+                response_profile=directivity.response_profile,
                 strength_db=directivity.strength_db,
                 wedge_angle_deg=directivity.wedge_angle_deg,
+                vertical_strength_db=directivity.vertical_strength_db,
+                vertical_angle_deg=directivity.vertical_angle_deg,
             )
             attenuation_db = free_field_attenuation_db(distance)
             level_db = pwl + directional_db - attenuation_db + correction_db
@@ -271,8 +280,11 @@ class ResultController:
             pass
         proxy = _Directivity()
         proxy.mode = context.directivity_mode
+        proxy.response_profile = context.directivity_response_profile
         proxy.strength_db = context.directivity_strength_db
         proxy.wedge_angle_deg = context.directivity_wedge_angle_deg
+        proxy.vertical_strength_db = context.directivity_vertical_strength_db
+        proxy.vertical_angle_deg = context.directivity_vertical_angle_deg
         return proxy
 
     def _build_vehicle_headings(self, dataset, frame_index: int | None, frame: PlaybackFrame | None) -> dict[str, tuple[float, float]]:
