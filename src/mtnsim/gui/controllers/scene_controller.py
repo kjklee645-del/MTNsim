@@ -2,9 +2,10 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-import xml.etree.ElementTree as ET
 
 from mtnsim.scene import build_scene_model, read_network_bounds
+from mtnsim.security.paths import resolve_project_path
+from mtnsim.security.xml import parse_xml_root
 from mtnsim.schemas.project import ProjectManifest
 from mtnsim.schemas.scenario import ScenarioConfig
 
@@ -137,17 +138,10 @@ class SceneController:
     def _resolve_path(self, project: ProjectManifest, raw_path: str) -> Path | None:
         if not raw_path:
             return None
-        path = Path(raw_path)
-        if path.is_absolute():
-            return path
-        if project.source_path is None:
-            return Path.cwd() / path
-        source_parent = project.source_path.parent
-        project_root = source_parent.parent if source_parent.name == 'examples' else source_parent
-        return project_root / path
+        return resolve_project_path(project, raw_path, label="project scene path", must_exist=False)
 
     def _load_network_geometry(self, network_path: Path) -> tuple[list[list[tuple[float, float]]], list[float], list[list[tuple[float, float]]]]:
-        root = ET.parse(network_path).getroot()
+        root = parse_xml_root(network_path, label="SUMO network geometry file")
         polylines: list[list[tuple[float, float]]] = []
         widths: list[float] = []
         junction_polygons: list[list[tuple[float, float]]] = []

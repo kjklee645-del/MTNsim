@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-import xml.etree.ElementTree as ET
+
+from mtnsim.security.xml import parse_xml_root
 
 
 @dataclass(slots=True)
@@ -49,7 +50,7 @@ class GridDomain:
 
 
 def read_network_bounds(network_file: str | Path) -> tuple[float, float, float, float]:
-    root = ET.parse(network_file).getroot()
+    root = parse_xml_root(network_file, label="SUMO network file")
     location = root.find("location")
     if location is None:
         raise ValueError("Network file does not contain <location>.")

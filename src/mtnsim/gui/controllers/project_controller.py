@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from pathlib import Path
 import shutil
 import tomllib
-import xml.etree.ElementTree as ET
 
 import toml
 
 from mtnsim.api.project_api import ProjectAPI
 from mtnsim.gui.state import GuiProjectState
+from mtnsim.security.xml import ET, parse_xml, parse_xml_root
 
 
 @dataclass(slots=True)
@@ -84,7 +84,7 @@ class ProjectController:
         sumo_config_path = Path(sumo_config_path).resolve()
         if not sumo_config_path.exists():
             raise FileNotFoundError(f'SUMO config not found: {sumo_config_path}')
-        root = ET.parse(sumo_config_path).getroot()
+        root = parse_xml_root(sumo_config_path, label='SUMO config file')
         input_node = self._resolve_sumo_input_container(root)
 
         warnings: list[str] = []
@@ -464,14 +464,18 @@ class ProjectController:
             source = Path(raw_path).expanduser().resolve()
             if not source.exists():
                 raise FileNotFoundError(f'Imported support file not found: {source}')
-            if copy_external_files:
+            if self._is_within_directory(source, project_root) and not copy_external_files:
+                assets[key] = str(source.relative_to(project_root))
+                continue
+            if self._is_within_directory(source, project_root):
+                assets[key] = str(source.relative_to(project_root))
+                continue
+            if copy_external_files or not self._is_within_directory(source, project_root):
                 target_dir.mkdir(parents=True, exist_ok=True)
                 destination = target_dir / source.name
                 if source != destination:
                     shutil.copy2(source, destination)
                 assets[key] = str(destination.relative_to(project_root))
-            else:
-                assets[key] = str(source)
         return assets
 
     def _resolve_attach_target_scenario_path(
@@ -616,8 +620,8 @@ class ProjectController:
             if not path.exists():
                 continue
             try:
-                root = ET.parse(path).getroot()
-            except ET.ParseError:
+                root = parse_xml_root(path, label='SUMO route/additional XML file')
+            except Exception:
                 continue
             for node in root.iter():
                 node_id = node.attrib.get('id')
@@ -634,8 +638,8 @@ class ProjectController:
 
     def _read_network_bounds(self, network_path: Path) -> tuple[float, float, float, float] | None:
         try:
-            root = ET.parse(network_path).getroot()
-        except ET.ParseError:
+            root = parse_xml_root(network_path, label='SUMO network file')
+        except Exception:
             return None
         location = root.find('location')
         if location is not None:
@@ -662,16 +666,22 @@ class ProjectController:
         return (min(xs), min(ys), max(xs), max(ys))
 
     def _materialize_sumo_assets(self, project_root: Path, inspection: SumoProjectInspection, *, copy_sumo_files: bool) -> dict[str, str]:
-        if not copy_sumo_files:
+        sources = [inspection.sumo_config_path, inspection.network_path, *inspection.route_paths, *inspection.additional_paths]
+        must_copy = copy_sumo_files or any(
+            source is not None and not self._is_within_directory(Path(source).resolve(), project_root)
+            for source in sources
+        )
+        if not must_copy:
             return {
-                'sumo_config': str(inspection.sumo_config_path),
-                'network': str(inspection.network_path),
-                'route': str(inspection.route_paths[0]),
+                'sumo_config': str(inspection.sumo_config_path.resolve().relative_to(project_root)),
+                'network': str(inspection.network_path.resolve().relative_to(project_root)),
+                'route': str(inspection.route_paths[0].resolve().relative_to(project_root)),
             }
 
         sumo_dir = project_root / 'data' / 'sumo'
+        sumo_dir.mkdir(parents=True, exist_ok=True)
         copied_map: dict[Path, Path] = {}
-        for source in [inspection.sumo_config_path, inspection.network_path, *inspection.route_paths, *inspection.additional_paths]:
+        for source in sources:
             if source is None:
                 continue
             source = Path(source).resolve()
@@ -694,7 +704,7 @@ class ProjectController:
         }
 
     def _rewrite_copied_sumo_config(self, copied_config: Path, *, network_name: str, route_names: list[str], additional_names: list[str]) -> None:
-        tree = ET.parse(copied_config)
+        tree = parse_xml(copied_config, label='Copied SUMO config file')
         root = tree.getroot()
         input_node = self._resolve_sumo_input_container(root)
         self._set_input_text(input_node, 'net-file', network_name)
@@ -711,6 +721,13 @@ class ProjectController:
             child = ET.SubElement(input_node, tag)
         child.attrib['value'] = value
         child.text = None
+
+    def _is_within_directory(self, path: Path, root: Path) -> bool:
+        try:
+            path.resolve().relative_to(root.resolve())
+        except ValueError:
+            return False
+        return True
 
     def _build_project_manifest_data(self, *, project_name: str, description: str, default_scenario: str, asset_paths: dict[str, str]) -> dict:
         return {

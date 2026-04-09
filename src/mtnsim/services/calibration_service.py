@@ -7,6 +7,7 @@ import math
 
 from mtnsim.io.measurements import read_measurement_metadata, read_measurement_samples
 from mtnsim.io.result_store import write_calibration_summary
+from mtnsim.security.paths import resolve_project_path
 from mtnsim.schemas.calibration import (
     CalibrationRecommendation,
     CalibrationSummary,
@@ -214,11 +215,12 @@ class CalibrationService:
     def resolve_default_metadata_path(self, project: ProjectManifest | None = None) -> Path | None:
         if project is None or project.paths.measurement_metadata is None:
             return None
-        if project.source_path is None:
-            return Path(project.paths.measurement_metadata)
-        project_root = project.source_path.parent.parent if project.source_path.parent.name == 'examples' else project.source_path.parent
-        path = Path(project.paths.measurement_metadata)
-        return path if path.is_absolute() else project_root / path
+        return resolve_project_path(
+            project,
+            project.paths.measurement_metadata,
+            label='project.paths.measurement_metadata',
+            expected_kind='file',
+        )
 
     def _estimate_best_offset(
         self,

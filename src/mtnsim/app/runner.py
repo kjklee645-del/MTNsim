@@ -4,6 +4,7 @@ from pathlib import Path
 
 from mtnsim.api.project_api import ProjectAPI
 from mtnsim.api.simulation_api import SimulationAPI
+from mtnsim.security.paths import resolve_campaign_path, resolve_project_path
 from mtnsim.services.benchmark_service import BenchmarkService
 from mtnsim.services.tuning_service import TuningService
 from mtnsim.services.validation_service import ValidationService
@@ -25,24 +26,24 @@ class AppRunner:
 
     def summarize_project(self, manifest_path: str | Path, scenario_path: str | Path) -> dict:
         project = self.project_api.load_manifest(manifest_path)
-        scenario = self.project_api.load_scenario(scenario_path)
+        scenario = self.project_api.load_scenario(self._resolve_project_scenario_path(project, scenario_path))
         return self.simulation_api.summarize_run(project, scenario)
 
     def run_project(self, manifest_path: str | Path, scenario_path: str | Path, use_gpu: bool = True):
         project = self.project_api.load_manifest(manifest_path)
-        scenario = self.project_api.load_scenario(scenario_path)
+        scenario = self.project_api.load_scenario(self._resolve_project_scenario_path(project, scenario_path))
         return self.simulation_api.run(project, scenario, use_gpu=use_gpu)
 
     def compare_projects(self, manifest_path: str | Path, scenario_a_path: str | Path, scenario_b_path: str | Path) -> dict:
-        self.project_api.load_manifest(manifest_path)
-        scenario_a = self.project_api.load_scenario(scenario_a_path)
-        scenario_b = self.project_api.load_scenario(scenario_b_path)
+        project = self.project_api.load_manifest(manifest_path)
+        scenario_a = self.project_api.load_scenario(self._resolve_project_scenario_path(project, scenario_a_path))
+        scenario_b = self.project_api.load_scenario(self._resolve_project_scenario_path(project, scenario_b_path))
         return self.simulation_api.compare_scenarios(scenario_a, scenario_b)
 
     def compare_project_runs(self, manifest_path: str | Path, scenario_a_path: str | Path, scenario_b_path: str | Path, use_gpu: bool = True) -> dict:
         project = self.project_api.load_manifest(manifest_path)
-        scenario_a = self.project_api.load_scenario(scenario_a_path)
-        scenario_b = self.project_api.load_scenario(scenario_b_path)
+        scenario_a = self.project_api.load_scenario(self._resolve_project_scenario_path(project, scenario_a_path))
+        scenario_b = self.project_api.load_scenario(self._resolve_project_scenario_path(project, scenario_b_path))
         artifacts_a = self.simulation_api.run(project, scenario_a, use_gpu=use_gpu)
         artifacts_b = self.simulation_api.run(project, scenario_b, use_gpu=use_gpu)
         comparison = self.simulation_api.compare_run_results(artifacts_a.result_summary, artifacts_b.result_summary)
@@ -71,12 +72,20 @@ class AppRunner:
         min_alignment_samples: int = 3,
     ) -> dict:
         project = self.project_api.load_manifest(manifest_path)
-        scenario = self.project_api.load_scenario(scenario_path)
+        scenario = self.project_api.load_scenario(self._resolve_project_scenario_path(project, scenario_path))
         artifacts = self.simulation_api.run(project, scenario, use_gpu=use_gpu)
-        target_measurement = Path(measurement_path) if measurement_path else Path(project.paths.measurements)
-        if not target_measurement.is_absolute():
-            target_measurement = Path(manifest_path).resolve().parent.parent / target_measurement
-        target_metadata = Path(measurement_metadata_path) if measurement_metadata_path else self.simulation_api.calibration_service.resolve_default_metadata_path(project)
+        target_measurement = (
+            resolve_project_path(project, measurement_path, label='calibration measurement path', expected_kind='file')
+            if measurement_path else
+            resolve_project_path(project, project.paths.measurements, label='project.paths.measurements', expected_kind='file')
+        )
+        target_metadata = (
+            resolve_project_path(project, measurement_metadata_path, label='calibration measurement metadata path', expected_kind='file')
+            if measurement_metadata_path else
+            self.simulation_api.calibration_service.resolve_default_metadata_path(project)
+        )
+        if target_measurement is None:
+            raise ValueError('A measurement file is required for calibration.')
         calibration = self.simulation_api.calibrate_run(
             artifacts.result_summary,
             target_measurement,
@@ -145,9 +154,14 @@ class AppRunner:
         if scenario_path is None:
             from mtnsim.schemas.field_campaign import FieldCampaignManifest
             campaign = FieldCampaignManifest.load(campaign_file)
-            scenario_path = Path(campaign.scenario_file) if campaign.scenario_file else Path(manifest_path).resolve().parent / 'scenarios' / f"{project.project.default_scenario}.toml"
-            if not Path(scenario_path).is_absolute() and campaign.source_path is not None:
-                scenario_path = campaign.source_path.parent / Path(scenario_path)
+            if campaign.scenario_file:
+                resolved = resolve_campaign_path(campaign, campaign.scenario_file, label='campaign.scenario_file', expected_kind='file')
+                assert resolved is not None
+                scenario_path = resolved
+            else:
+                scenario_path = self._resolve_project_scenario_path(project, Path('scenarios') / f"{project.project.default_scenario}.toml")
+        else:
+            scenario_path = self._resolve_project_scenario_path(project, scenario_path)
         summary, output_path = self.campaign_validation_service.validate_campaign(project, scenario_path, campaign_file, use_gpu=use_gpu)
         return {
             'campaign_validation_summary': summary.to_dict(),
@@ -167,3 +181,8 @@ class AppRunner:
             'campaign_comparison_summary_file': str(summary_file),
             'campaign_comparison_report_file': str(report_file),
         }
+
+    def _resolve_project_scenario_path(self, project, scenario_path: str | Path) -> Path:
+        resolved = resolve_project_path(project, scenario_path, label='project scenario path', expected_kind='file')
+        assert resolved is not None
+        return resolved
