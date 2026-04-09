@@ -38,6 +38,15 @@ class GridDomain:
                 y += self.grid_size
             x += self.grid_size
 
+    def iter_points_within_bounds(self):
+        x = self.min_x
+        while x < self.max_x:
+            y = self.min_y
+            while y < self.max_y:
+                yield x, y
+                y += self.grid_size
+            x += self.grid_size
+
 
 def read_network_bounds(network_file: str | Path) -> tuple[float, float, float, float]:
     root = ET.parse(network_file).getroot()

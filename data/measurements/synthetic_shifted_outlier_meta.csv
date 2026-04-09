@@ -1,0 +1,3 @@
+sensor_id,simulation_receiver_id,time_offset_steps,enabled,start_time_index,end_time_index
+sensor_500_25,poi_500_25,0,true,,
+sensor_500_35,poi_500_35,0,true,,

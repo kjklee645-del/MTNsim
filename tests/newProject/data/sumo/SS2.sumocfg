@@ -1,0 +1,5 @@
+<?xml version='1.0' encoding='utf-8'?>
+<configuration>
+  <net-file value="map_SS2.net.xml" />
+  <route-files value="map_SS2.rou.xml" />
+</configuration>

@@ -1,40 +1,68 @@
 # MTNsim
 
-MTNsim is a microscopic traffic noise simulation prototype that combines SUMO-based vehicle motion, receiver/grid noise calculation, scenario comparison, and early-stage shielding logic.
+MTNsim is a microscopic traffic-noise simulation workbench built around SUMO, a package-based acoustic engine, and a desktop GUI for project authoring, simulation, result analysis, comparison, validation, and 2D/3D visualization.
 
-The long-term product direction is a traffic-noise digital twin platform with 3D scene correction, calibration against measurements, and bounded AI-agent control through structured commands.
+## What MTNsim Can Do Today
 
-## Current Status
+- Create a new MTNsim project, import an existing SUMO project, or attach SUMO later.
+- Edit scenarios from the GUI, including traffic controls, receivers, grid settings, and directional-emission defaults.
+- Author scene objects from the GUI:
+  - noise barriers
+  - buildings
+  - terrain edges
+  - ground surfaces
+  - vegetation zones
+- Draw and edit a custom rectangular grid region directly in the Scene View.
+- Run SUMO-backed microscopic traffic-noise simulations.
+- Inspect receiver time-series, result summaries, and comparison results.
+- Replay vehicle motion with 2D and 3D playback-aware noise visualization.
+- Inspect campaign validation outputs from field-style package structures.
+- View 3D scene geometry, 3D noise surfaces, and first-pass source-field overlays.
+- Export the current 3D view as a PNG snapshot or a Markdown report.
 
-Implemented today in the repository:
-- project manifest and scenario schema
-- package-based application structure under `src/mtnsim`
-- SUMO adapter and scenario-driven execution pipeline
-- receiver time-series and grid snapshot outputs
-- run/result schema and scenario/result comparison services
-- first-pass propagation split for distance, shielding, reflection, and diffraction modules
-- first-pass shielding model for roadside barriers and building footprints
+## Current Technical Scope
 
-Supported example scenarios:
-- `baseline`
-- `speed_drop_80`
-- `lane_change_enforce`
-- `barrier_shielding`
-- `building_shielding`
+Implemented today:
+- deterministic project/scenario execution
+- receiver CSV outputs and final grid snapshots
+- distance, shielding, reflection, diffraction, and first-pass material-aware correction
+- terrain/ground/vegetation first-pass propagation effects
+- campaign inspection, validation, and comparison workflows
+- directional emission Phase A in actual calculation
+  - `isotropic`
+  - `wedge`
+  - `dual_wedge`
+- GUI project workflow
+  - project home
+  - new/import project
+  - attach SUMO
+  - scenario editor
+  - scene object editor
+  - scene view
+  - run monitor
+  - result viewer
+  - vehicle playback
+  - scenario comparison
+  - campaign validation
+  - 3D view
 
 ## Repository Layout
 
-- `src/mtnsim`: application packages
-- `examples`: project manifest and scenario examples
-- `schemas`: JSON schema definitions
-- `data/sumo`: example SUMO network inputs
-- `docs`: internal design and progress notes
+- `src/mtnsim`: main application packages
+- `examples`: example project manifest and scenarios
+- `schemas`: JSON schema files
+- `data/sumo`: example SUMO assets
+- `data/measurements`: example and seeded measurement data
+- `data/field`: field-campaign templates and demo packages
+- `benchmarks`: propagation and validation benchmark definitions
+- `docs`: user, design, and status documents
+- `scripts`: utility scripts
 
 ## Quick Start
 
-Environment assumptions used during validation:
-- Python: `C:\Users\user\miniconda3\envs\Trac\python.exe`
+Environment used during validation:
 - workspace: `D:\Codex\MTNsim`
+- Python: `C:\Users\user\miniconda3\envs\Trac\python.exe`
 
 Set the source path:
 
@@ -43,7 +71,13 @@ cd D:\Codex\MTNsim
 $env:PYTHONPATH='D:\Codex\MTNsim\src'
 ```
 
-Print the default project summary:
+Launch the GUI:
+
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --gui
+```
+
+Run the default CLI summary:
 
 ```powershell
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main
@@ -55,37 +89,62 @@ Run the default scenario:
 & 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --run --cpu
 ```
 
-Compare scenario configuration only:
+Run the propagation benchmark:
 
 ```powershell
-& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --scenario 'D:\Codex\MTNsim\examples\scenarios\baseline.toml' --compare-scenario 'D:\Codex\MTNsim\examples\scenarios\speed_drop_80.toml'
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --benchmark-propagation
 ```
 
-Compare actual run results:
+Run the validation suite:
 
 ```powershell
-& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --scenario 'D:\Codex\MTNsim\examples\scenarios\baseline.toml' --compare-scenario 'D:\Codex\MTNsim\examples\scenarios\building_shielding.toml' --run --cpu
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --validate-suite --cpu
 ```
 
-## Current Implementation Notes
+Inspect a demo campaign package:
 
-- When no shielding object is present, the engine can use the existing GPU path for free-field distance attenuation.
-- When shielding objects are present, the current implementation falls back to CPU so the shielding correction can be applied.
-- The current scene model supports `noise_barriers` and `buildings`. Building footprints are converted to edge segments for first-pass shielding evaluation.
-- Reflection, diffraction, calibration, GUI, and full AI-agent control are not implemented yet.
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --inspect-field-campaign --campaign-file 'D:\Codex\MTNsim\data\field\demo_seeded_campaign\campaign.json'
+```
+
+Validate a demo campaign package:
+
+```powershell
+& 'C:\Users\user\miniconda3\envs\Trac\python.exe' -m mtnsim.app.main --validate-field-campaign --campaign-file 'D:\Codex\MTNsim\data\field\demo_seeded_campaign\campaign.json' --cpu
+```
+
+## Recommended Reading Order
+
+1. `docs/new_project_quickstart.md`
+2. `docs/user_guide.md`
+3. `docs/scenario_editor_field_reference.md`
+4. `docs/current_status.md`
+5. `docs/development_checklist.md`
 
 ## Key Documents
 
-- `MTNsim_product_direction.md`
-- `MTNsim_PRD_draft.md`
-- `MTNsim_package_architecture.md`
+- `docs/new_project_quickstart.md`
+- `docs/user_guide.md`
 - `docs/current_status.md`
-- `docs/progress_review_against_plan.md`
+- `docs/development_checklist.md`
+- `docs/directional_emission_plan.md`
+- `docs/visualization_3d_plan.md`
+- `docs/deferred_enhancement_backlog.md`
+- `docs/scenario_editor_field_reference.md`
+- `docs/campaign_import_standard.md`
 
-## Recommended Next Steps
+## Current Mainline Focus
 
-1. Clarify the scene-object hierarchy further.
-2. Add material-aware propagation properties on top of the scene hierarchy.
-3. Expand propagation beyond shielding into usable reflection and diffraction logic.
-4. Add calibration workflow and benchmark validation.
-5. Deepen bounded command interfaces for future AI-agent control.
+- deepen 3D visualization quality and workflow integration
+- deepen directional source-field meaning beyond Phase A
+- continue GUI/operator polish
+
+Deferred for later milestones:
+- tire / engine / exhaust decomposition
+- deeper field-data calibration and validation hardening
+- full scene-aware GPU path
+- patent-style precomputed correction-field module
+- AI-agent control layer
+
+
+- Added example scenario `examples/scenarios/baseline_directivity_enhanced.toml` for visibly stronger directional heatmap comparison.

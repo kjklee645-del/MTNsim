@@ -52,6 +52,13 @@ height_meters = 15.0
 attenuation_db = 10.0
 material = "concrete"
 
+[scene.buildings.propagation]
+reflection_loss_db = 4.0
+diffraction_loss_db = 2.5
+absorption_coefficient = 0.22
+allows_reflection = true
+allows_diffraction = true
+
 [[receivers]]
 id = "poi_500_25"
 x = 500.0

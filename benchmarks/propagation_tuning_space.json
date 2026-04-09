@@ -1,0 +1,46 @@
+{
+  "reflection": {
+    "min_normal_alignment": [
+      0.1,
+      0.15,
+      0.2
+    ],
+    "energy_scale": [
+      2.2,
+      2.8,
+      3.4
+    ],
+    "extra_path_scale_meters": [
+      20.0,
+      25.0,
+      30.0
+    ],
+    "max_gain_db": [
+      3.5,
+      4.0,
+      4.5
+    ]
+  },
+  "diffraction": {
+    "wavelength_meters": [
+      0.5,
+      0.68,
+      1.0
+    ],
+    "height_penalty_scale": [
+      0.2,
+      0.3,
+      0.4
+    ],
+    "height_penalty_cap_db": [
+      1.2,
+      1.6,
+      2.0
+    ],
+    "min_remaining_attenuation_db": [
+      0.3,
+      0.5,
+      0.8
+    ]
+  }
+}

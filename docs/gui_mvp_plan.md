@@ -1,0 +1,439 @@
+# MTNsim GUI MVP Plan
+
+Date: 2026-03-18
+Purpose: define the first user-facing MTNsim desktop prototype so non-developer users can run simulations, compare scenarios, and inspect outputs without editing TOML files or using CLI commands.
+
+## 1. Product Goal
+
+Build a desktop GUI prototype that lets a general user:
+- open a project
+- choose a scenario
+- edit a small set of high-value scenario parameters
+- run a simulation
+- compare scenarios
+- inspect receiver-level results
+- open campaign validation outputs
+- create and edit scene objects such as barriers, buildings, ground surfaces, terrain edges, and vegetation zones without manual TOML editing
+
+The GUI MVP is not a full professional acoustic workstation. It is a usable operator shell around the existing MTNsim engine.
+
+Near-term correction request now added to the plan:
+- preserve the original SUMO map aspect ratio in 2D scene and playback views so roads, trajectories, and noise fields are not visually stretched
+- raise the GUI visual quality from a functional engineering shell toward a cleaner, more deliberate operator-facing product
+
+## 2. Recommended GUI Stack
+
+### 2.1 Primary Choice: PySide6 Desktop App
+
+Recommended stack:
+- `PySide6` for desktop UI
+- `Qt Model/View` for tables and structured lists
+- `QThread` or `QRunnable/QThreadPool` for long-running runs
+- `pyqtgraph` for fast receiver time-series plots
+- `QGraphicsView` or `Qt Charts` for simple 2D scene/result views
+- existing Python services reused directly from `src/mtnsim`
+
+Why this is the right stack now:
+- the simulation engine is already Python
+- no extra backend service is required for a first prototype
+- Windows desktop use is the near-term target
+- packaging is simpler than Electron + Python bridge for the current team state
+- it keeps the GUI close to the run/calibration/validation services already built
+
+### 2.2 Why Not Electron or Web First
+
+Possible later, but not recommended for the MVP.
+
+Reasons:
+- would introduce frontend/backend split too early
+- would add IPC and packaging overhead
+- current priority is a working tool, not cross-platform polish
+- the engine is already local-file and local-process oriented
+
+### 2.3 Technical Direction for Later AI Support
+
+Even in the GUI MVP, actions should be framed as typed operations rather than ad hoc button logic.
+
+Examples:
+- `load_project(project_path)`
+- `select_scenario(scenario_path)`
+- `update_scenario_controls(...)`
+- `run_simulation(...)`
+- `compare_scenarios(...)`
+- `open_campaign_validation(...)`
+
+This keeps the GUI compatible with a later AI command layer.
+
+## 3. MVP Screen Composition
+
+### 3.1 Main Window
+
+Layout recommendation:
+- left sidebar: project, scenario, campaign, and recent runs navigation
+- center workspace: editor or results view depending on selected mode
+- right panel: run status, selected object details, quick actions
+- top toolbar: menu-driven action groups (`Project`, `Run`, `Results`, `Validation`, `Help`) plus one quick `Run Selected` action
+- bottom panel: logs, warnings, run progress, errors
+
+### 3.2 Screen A: Project Home
+
+Purpose:
+- open a project manifest
+- list available scenarios
+- show recent runs and recent comparison outputs
+
+Must-have controls:
+- `Open Project`
+- scenario list
+- `Run Selected Scenario`
+- `Compare Scenarios`
+- `Open Outputs Folder`
+- recent run list with quick-open result/output actions
+
+### 3.2 Screen B: Project Entry Wizard
+
+Purpose:
+- create a new MTNsim project
+- import an existing SUMO project into MTNsim structure
+- validate required files before the main workspace opens
+
+Must-have controls:
+- `New Project`
+- `Import SUMO Project`
+- project folder chooser
+- SUMO `.sumocfg` file picker
+- file validation summary
+- starter scenario generation confirmation
+
+Design note:
+- this screen should generate a valid `project.toml` and at least one starter scenario so users are not forced to edit TOML manually
+
+### 3.3 Screen C: Scenario Editor (MVP Scope)
+
+Purpose:
+- edit only the parameters that matter most for demonstration and early usage
+
+Editable in MVP:
+- traffic max vehicles
+- start speed
+- post-distance target speed
+- lane-change mode
+- background noise
+- receiver list view
+- scene object summary counts
+
+Not in MVP editor yet:
+- full free-form scene geometry editing
+- detailed material parameter editing
+- raw propagation model parameter tuning
+
+Design note:
+- the editor should show a simplified form view backed by the existing scenario schema
+- advanced settings can remain read-only or hidden in the first cut
+
+### 3.4 Screen D: Run Monitor
+
+Purpose:
+- show execution progress and output links during a run
+
+Must-have elements:
+- current scenario name
+- run status: pending / running / completed / failed
+- progress indicator by step
+- live log panel
+- output paths for summary and receiver files
+- cancel button if practical
+
+### 3.5 Screen E: Result Viewer
+
+Purpose:
+- inspect the main outputs without leaving the GUI
+
+Must-have elements:
+- receiver summary table
+- receiver time-series plot selector
+- run metadata panel
+- propagation feature summary
+- open raw JSON/CSV actions
+
+Nice-to-have after MVP:
+- grid heatmap preview
+- scene overlay view
+- multiple run overlays
+
+### 3.6 Screen F: Scenario Comparison View
+
+Purpose:
+- compare two scenarios through settings and output summaries
+
+Must-have elements:
+- scenario A / scenario B picker
+- configuration diff summary
+- receiver delta table
+- key metric cards such as mean delta and largest change
+- links to full comparison artifacts
+
+### 3.7 Screen G: Campaign Validation View
+
+Purpose:
+- inspect campaign quality and validation outcomes
+
+Must-have elements:
+- open campaign manifest
+- run inspect / run validate actions
+- acceptance status badge
+- calibration recommendation list
+- receiver/group diagnostics table
+- open generated Markdown/JSON reports
+
+### 3.8 Screen H: Scene Object Editor
+
+Purpose:
+- let a user create and edit scene geometry that changes propagation without hand-editing scenario TOML
+
+Must-have elements:
+- object-type selector
+  - noise barrier
+  - building
+  - terrain edge
+  - ground surface
+  - vegetation zone
+- add / edit / remove object actions
+- simple 2D geometry editing or coordinate-based forms
+- height / attenuation / material controls where relevant
+- object list tied to the current scenario
+- save back into the selected scenario
+
+Design note:
+- the first version can be form-first and list-driven rather than a full CAD-like drawing tool
+- tight Scene View integration is more important than rich geometry authoring in the first pass
+
+
+Purpose:
+- inspect campaign quality and validation outcomes
+
+Must-have elements:
+- open campaign manifest
+- run inspect / run validate actions
+- acceptance status badge
+- calibration recommendation list
+- receiver/group diagnostics table
+- open generated Markdown/JSON reports
+
+## 4. MVP Functional Scope
+
+### 4.1 Must Have
+
+- open project manifest
+- create or import a project from a SUMO `.sumocfg` file
+- browse bundled scenarios
+- edit a limited set of scenario controls
+- run scenario from GUI
+- view receiver summary outputs
+- compare two scenarios
+- inspect one campaign package
+- run one campaign validation and view the report
+- create and edit basic scene objects for the active scenario
+
+### 4.2 Should Have
+
+- recent runs list
+- output folder shortcuts
+- validation status badges
+- parameter reset to scenario defaults
+- simple scene summary panel
+- true-aspect 2D scene/playback rendering
+- more polished visual styling, spacing, and hierarchy across the desktop shell, including a dashboard-style `Tools & Config / Integrated Viewer / Analysis & Data` composition
+
+### 4.3 Post-MVP Visual Expansion
+
+- 3D scene visualization with terrain, buildings, roads, and receivers (now started as a `3D View` workspace with static scene primitives, orbit/pan/zoom camera behavior, direct Result Viewer integration, and a deeper playback-aware slice with selected-vehicle highlighting, trails, follow behavior, and playback-synced 3D noise updates, all further scoped in `docs/visualization_3d_plan.md`)
+- 3D noise rendering instead of only 2D heatmap overlays (now started through a static or playback-synced 3D noise surface with dB legend/range controls and color-plate versus raised-surface modes)
+- volumetric source-field rendering for individual vehicles (now started in first-pass 3D form for the selected playback vehicle)
+- selectable source directivity modes such as spherical and wedge-like patterns (now started with `sphere`, `wedge`, and `dual_wedge`)
+- user-facing controls to choose and tune the source-field display model (now started through the 3D `Source Field` mode selector plus size, height, opacity, wedge-angle, receiver-highlighting, and receiver-link controls)
+
+### 4.4 Not in First MVP
+
+- full scene drawing/editing canvas
+- CAD/GIS import UI
+- full report designer
+- AI natural-language panel
+- full precomputed correction-field controls
+
+## 5. Proposed Package Structure for GUI
+
+Recommended additions under `src/mtnsim`:
+- `gui/app.py`
+- `gui/main_window.py`
+- `gui/state.py`
+- `gui/controllers/`
+- `gui/views/project_home.py`
+- `gui/views/scenario_editor.py`
+- `gui/views/run_monitor.py`
+- `gui/views/result_viewer.py`
+- `gui/views/scenario_compare.py`
+- `gui/views/campaign_validation.py`
+- `gui/widgets/`
+- `gui/models/`
+
+Responsibilities:
+- `views`: Qt widgets and layout
+- `controllers`: call existing services and translate results into view state
+- `state`: selected project, selected scenario, current run, recent outputs
+- `models`: table models and display adapters for schemas/results
+
+## 6. MVP Implementation Order
+
+### Phase 0.5: New Project / Import Project
+
+Build next:
+- `New Project` action [done]
+- `Import SUMO Project` action [done]
+- project creation/import dialog [done]
+- manifest generation [done]
+- starter scenario generation [done]
+- auto-open newly created project [done]
+
+Current limitation:
+- fully empty projects without SUMO attachment are still deferred
+- the wizard is still a first-pass form, not a multi-step polished flow
+
+Goal:
+- a user can start from their own SUMO case instead of being limited to the bundled demo project
+
+### Phase 1: GUI Skeleton
+
+Build first:
+- application bootstrap [done]
+- main window shell [done]
+- sidebar navigation [done]
+- status/log panel [done]
+- project loading and scenario list [done]
+
+Goal:
+- a user can open the app and see project/scenario structure
+
+### Phase 2: Run Flow
+
+Build next:
+- run button [done]
+- background worker for simulation execution [done]
+- progress display [done]
+- run completion status [done]
+- output file links [done]
+
+Goal:
+- a user can run an existing scenario from the GUI
+
+### Phase 3: Result Viewer
+
+Build next:
+- receiver summary table [done]
+- time-series chart for one receiver at a time [done]
+- propagation feature card [done as metadata panel]
+- recent runs panel [done as recent result list]
+
+Goal:
+- a user can inspect what the run produced without opening files manually
+
+### Phase 3.6: Vehicle Playback
+
+Build next:
+- record vehicle traces during GUI-triggered runs [done]
+- load a playback view on top of the 2D scene canvas [done]
+- add a time slider and play/pause controls [done]
+- add playback layer toggles and heatmap range/opacity controls [done]
+
+Goal:
+- a user can inspect vehicle movement without leaving the GUI
+
+### Phase 4: Scenario Comparison [done]
+
+Implemented:
+- select two scenarios
+- show config diff
+- run compare flow
+- display receiver delta summary
+- display receiver overlay chart
+
+Goal achieved:
+- a user can compare changes without touching CLI
+
+### Phase 5: Campaign Validation Panel [done]
+
+Implemented:
+- open campaign manifest
+- run inspect / validate
+- show acceptance result, threshold checks, diagnostics, and recommendations
+
+Goal achieved:
+- a user can use the existing validation pipeline from the GUI
+
+### Phase 6: Limited Scenario Editing [started]
+
+Implemented in first pass:
+- form-based edits for selected scenario controls
+- lane-change mode/strategy and post-distance controls in the editor
+- noise/grid fields and selected receiver coordinate editing in the editor
+- save-as behavior for derived scenarios
+- direct handoff into source-vs-derived comparison
+
+Remaining in this phase:
+- broader field coverage
+- stronger validation of edited values against schema
+- tighter integration with compare workflows
+
+Goal:
+- a user can create and test simple scenario variations safely
+
+## 7. UX Rules for the MVP
+
+- keep terminology consistent with existing docs: project, scenario, run, campaign, validation
+- never force users to edit raw TOML for common tasks
+- show output file locations clearly
+- prefer explicit buttons over hidden workflows
+- surface warnings early when required files are missing
+- separate editable controls from advanced read-only settings
+- keep the app usable on one laptop screen
+
+## 8. Immediate Engineering Tasks
+
+1. add GUI package skeleton under `src/mtnsim/gui`
+2. add a minimal desktop entry point
+3. implement project/scenario browser view
+4. implement run worker and run monitor
+5. implement result summary table + receiver chart
+6. add vehicle playback panel [done]
+7. add comparison panel [done]
+8. add campaign validation panel [done]
+9. add limited scenario editor only after read-only flows are stable [started]
+10. add Scene Object Editor for user-authored propagation geometry with Scene View-linked selection/highlight, click-to-draw geometry creation, direct manipulation, and basic duplicate plus undo/redo history [started]
+
+## 9. Success Criteria for the GUI MVP
+
+The GUI MVP is successful if a non-developer can do all of the following without terminal use:
+- open the MTNsim project
+- choose and run `baseline`
+- choose and run `terrain_ground_vegetation`
+- compare two scenarios and understand the receiver-level difference
+- open a demo campaign and validate it
+- find the output files for a completed run
+
+## 10. After the MVP
+
+Once the GUI MVP is stable, the likely next layers are:
+- richer scene summaries, playback overlays, and map-like views
+- more scenario editing coverage
+- result-report export
+- AI-assisted command entry on top of the same typed GUI actions
+
+### Phase 3.5: 2D Scene View
+
+Build next:
+- 2D road network rendering from SUMO net.xml [done]
+- receiver markers [done]
+- scenario geometry overlays for barriers, buildings, terrain, ground, and vegetation [done]
+
+Goal:
+- a user can understand the spatial layout of the scenario before moving to richer playback or comparison tools

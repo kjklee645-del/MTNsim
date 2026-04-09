@@ -1,0 +1,42 @@
+{
+  "campaign_id": "template_campaign",
+  "name": "Template Campaign",
+  "description": "Template folder structure for future real field campaigns.",
+  "measurement_file": "measurements.csv",
+  "sensor_metadata_file": "sensor_metadata.csv",
+  "traffic_file": "traffic.csv",
+  "scene_path": "scene",
+  "notes_file": "notes.md",
+  "time_column_preference": "timestamp",
+  "expected_unit": "dB(A)",
+  "scenario_file": "../../../examples/scenarios/baseline.toml",
+  "auto_time_sync": false,
+  "max_time_offset_steps": 5,
+  "outlier_error_threshold_db": null,
+  "min_alignment_samples": 3,
+  "validation_thresholds": {
+    "min_aligned_sample_count": null,
+    "max_overall_rmse_db": null,
+    "max_abs_overall_mean_bias_db": null,
+    "max_unmatched_sensor_count": null,
+    "min_coverage_ratio": null,
+    "max_receiver_rmse_db": null,
+    "max_receiver_abs_mean_bias_db": null,
+    "min_receiver_coverage_ratio": 1.0,
+    "max_worst_receiver_rmse_db": 1e-06,
+    "max_outlier_rejected_sample_count": 0,
+    "max_outlier_rejection_ratio": 0.0,
+    "max_abs_effective_time_offset_steps": 0,
+    "max_receiver_group_rmse_db": null,
+    "max_receiver_group_abs_mean_bias_db": null,
+    "min_receiver_group_coverage_ratio": null
+  },
+  "traffic_metadata_file": "traffic_metadata.json",
+  "scene_manifest_file": "scene/scene_manifest.json",
+  "expected_time_zone": "Asia/Seoul",
+  "coordinate_system": "EPSG:5186",
+  "receiver_groups": {
+    "near_field": [],
+    "far_field": []
+  }
+}

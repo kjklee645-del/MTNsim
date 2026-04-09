@@ -3,106 +3,340 @@
   "$id": "https://mtnsim.local/schemas/scenario.schema.json",
   "title": "MTNsim Scenario Schema",
   "type": "object",
-  "required": ["scenario", "traffic", "controls", "noise", "grid", "receivers"],
+  "required": [
+    "scenario",
+    "traffic",
+    "controls",
+    "noise",
+    "grid",
+    "receivers"
+  ],
   "properties": {
     "scenario": {
       "type": "object",
-      "required": ["name", "project"],
+      "required": [
+        "name",
+        "project"
+      ],
       "properties": {
-        "name": {"type": "string"},
-        "description": {"type": "string"},
-        "project": {"type": "string"}
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "traffic": {
       "type": "object",
-      "required": ["max_vehicles", "vehicle_types", "vehicle_weights", "start_mode", "vehicle_interval_seconds", "start_speed_kmh", "route_types"],
+      "required": [
+        "max_vehicles",
+        "vehicle_types",
+        "vehicle_weights",
+        "start_mode",
+        "vehicle_interval_seconds",
+        "start_speed_kmh",
+        "route_types"
+      ],
       "properties": {
-        "max_vehicles": {"type": "integer", "minimum": 1},
-        "vehicle_types": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-        "vehicle_weights": {"type": "array", "items": {"type": "number"}, "minItems": 1},
-        "start_mode": {"type": "string", "enum": ["random", "interval"]},
-        "vehicle_interval_seconds": {"type": "number", "minimum": 0},
-        "start_speed_kmh": {"type": "number", "minimum": 0},
-        "route_types": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+        "max_vehicles": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "vehicle_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "vehicle_weights": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1
+        },
+        "start_mode": {
+          "type": "string",
+          "enum": [
+            "random",
+            "interval"
+          ]
+        },
+        "vehicle_interval_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "start_speed_kmh": {
+          "type": "number",
+          "minimum": 0
+        },
+        "route_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
       },
       "additionalProperties": false
     },
     "controls": {
       "type": "object",
-      "required": ["lane_change_mode", "lane_change_ratio", "lane_change_strategy", "lane_change_force_change", "lane_change_check_radius_meters", "lane_change_restore_time_seconds", "target_lane_index", "designated_lane", "lane_change_target_positions", "post_distance_speed_control", "post_distance_meters", "post_target_speed_kmh"],
+      "required": [
+        "lane_change_mode",
+        "lane_change_ratio",
+        "lane_change_strategy",
+        "lane_change_force_change",
+        "lane_change_check_radius_meters",
+        "lane_change_restore_time_seconds",
+        "target_lane_index",
+        "designated_lane",
+        "lane_change_target_positions",
+        "post_distance_speed_control",
+        "post_distance_meters",
+        "post_target_speed_kmh"
+      ],
       "properties": {
-        "lane_change_mode": {"type": "string", "enum": ["disable", "enforce"]},
-        "lane_change_ratio": {"type": "number", "minimum": 0, "maximum": 1},
-        "lane_change_strategy": {"type": "string", "enum": ["fixed", "variable", "custom", "random"]},
-        "lane_change_force_change": {"type": "boolean"},
-        "lane_change_check_radius_meters": {"type": "number", "minimum": 0},
-        "lane_change_restore_time_seconds": {"type": "number", "minimum": 0},
-        "target_lane_index": {"type": "integer", "minimum": 0},
-        "designated_lane": {"type": "integer", "minimum": 0},
+        "lane_change_mode": {
+          "type": "string",
+          "enum": [
+            "disable",
+            "enforce"
+          ]
+        },
+        "lane_change_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "lane_change_strategy": {
+          "type": "string",
+          "enum": [
+            "fixed",
+            "variable",
+            "custom",
+            "random"
+          ]
+        },
+        "lane_change_force_change": {
+          "type": "boolean"
+        },
+        "lane_change_check_radius_meters": {
+          "type": "number",
+          "minimum": 0
+        },
+        "lane_change_restore_time_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "target_lane_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "designated_lane": {
+          "type": "integer",
+          "minimum": 0
+        },
         "lane_change_target_positions": {
           "type": "array",
           "items": {
             "type": "array",
             "minItems": 2,
             "maxItems": 2,
-            "items": {"type": "number"}
+            "items": {
+              "type": "number"
+            }
           }
         },
-        "lane_change_constant_speed_kmh": {"type": "number", "minimum": 0},
-        "lane_change_speed_change_mps": {"type": "number"},
-        "post_distance_speed_control": {"type": "boolean"},
-        "post_distance_meters": {"type": "number", "minimum": 0},
-        "post_target_speed_kmh": {"type": "number", "minimum": 0}
+        "lane_change_constant_speed_kmh": {
+          "type": "number",
+          "minimum": 0
+        },
+        "lane_change_speed_change_mps": {
+          "type": "number"
+        },
+        "post_distance_speed_control": {
+          "type": "boolean"
+        },
+        "post_distance_meters": {
+          "type": "number",
+          "minimum": 0
+        },
+        "post_target_speed_kmh": {
+          "type": "number",
+          "minimum": 0
+        }
       },
       "additionalProperties": false
     },
     "noise": {
       "type": "object",
-      "required": ["background_noise_db", "max_area_meters", "grid_size_meters", "receiver_height_meters", "vehicle_coefficients"],
+      "required": [
+        "background_noise_db",
+        "max_area_meters",
+        "grid_size_meters",
+        "receiver_height_meters",
+        "vehicle_coefficients"
+      ],
       "properties": {
-        "background_noise_db": {"type": "number"},
-        "max_area_meters": {"type": "number", "exclusiveMinimum": 0},
-        "grid_size_meters": {"type": "number", "exclusiveMinimum": 0},
-        "receiver_height_meters": {"type": "number", "exclusiveMinimum": 0},
+        "background_noise_db": {
+          "type": "number"
+        },
+        "max_area_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "grid_size_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "receiver_height_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
         "vehicle_coefficients": {
           "type": "object",
           "additionalProperties": {
             "type": "object",
-            "required": ["a", "b"],
+            "required": [
+              "a",
+              "b"
+            ],
             "properties": {
-              "a": {"type": "number"},
-              "b": {"type": "number"}
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
             },
             "additionalProperties": false
           }
+        },
+        "directivity": {
+          "type": "object",
+          "properties": {
+            "preset": {
+              "type": "string",
+              "enum": [
+                "custom",
+                "passenger",
+                "sedan",
+                "suv",
+                "bus",
+                "city_bus",
+                "coach_bus",
+                "truck",
+                "delivery_truck",
+                "heavy_truck"
+              ]
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "isotropic",
+                "wedge",
+                "dual_wedge"
+              ]
+            },
+            "response_profile": {
+              "type": "string",
+              "enum": [
+                "physical",
+                "enhanced"
+              ]
+            },
+            "strength_db": {
+              "type": "number",
+              "minimum": 0
+            },
+            "wedge_angle_deg": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 180
+            },
+            "vertical_strength_db": {
+              "type": "number",
+              "minimum": 0
+            },
+            "vertical_angle_deg": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 180
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
     },
     "grid": {
       "type": "object",
-      "required": ["margin_x_start", "margin_x_end", "extra_y_extent"],
+      "required": [
+        "margin_x_start",
+        "margin_x_end",
+        "extra_y_extent"
+      ],
       "properties": {
-        "margin_x_start": {"type": "number", "minimum": 0},
-        "margin_x_end": {"type": "number", "minimum": 0},
-        "extra_y_extent": {"type": "number", "minimum": 0}
+        "margin_x_start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "margin_x_end": {
+          "type": "number",
+          "minimum": 0
+        },
+        "extra_y_extent": {
+          "type": "number",
+          "minimum": 0
+        },
+        "override_enabled": {
+          "type": "boolean"
+        },
+        "override_min_x": {
+          "type": "number"
+        },
+        "override_max_x": {
+          "type": "number"
+        },
+        "override_min_y": {
+          "type": "number"
+        },
+        "override_max_y": {
+          "type": "number"
+        }
       },
       "additionalProperties": false
     },
     "scene": {
       "type": "object",
       "properties": {
-        "barriers": {"$ref": "#/$defs/noiseBarrierArray"},
-        "noise_barriers": {"$ref": "#/$defs/noiseBarrierArray"},
+        "barriers": {
+          "$ref": "#/$defs/noiseBarrierArray"
+        },
+        "noise_barriers": {
+          "$ref": "#/$defs/noiseBarrierArray"
+        },
         "buildings": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id", "footprint", "height_meters", "attenuation_db"],
+            "required": [
+              "id",
+              "footprint",
+              "height_meters",
+              "attenuation_db"
+            ],
             "properties": {
-              "id": {"type": "string"},
+              "id": {
+                "type": "string"
+              },
               "footprint": {
                 "type": "array",
                 "minItems": 3,
@@ -110,12 +344,150 @@
                   "type": "array",
                   "minItems": 2,
                   "maxItems": 2,
-                  "items": {"type": "number"}
+                  "items": {
+                    "type": "number"
+                  }
                 }
               },
-              "height_meters": {"type": "number", "exclusiveMinimum": 0},
-              "attenuation_db": {"type": "number", "minimum": 0},
-              "material": {"type": "string"}
+              "height_meters": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "attenuation_db": {
+                "type": "number",
+                "minimum": 0
+              },
+              "material": {
+                "type": "string"
+              },
+              "propagation": {
+                "$ref": "#/$defs/propagationProperties"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "terrain_edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "x1",
+              "y1",
+              "x2",
+              "y2",
+              "height_meters",
+              "attenuation_db"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "x1": {
+                "type": "number"
+              },
+              "y1": {
+                "type": "number"
+              },
+              "x2": {
+                "type": "number"
+              },
+              "y2": {
+                "type": "number"
+              },
+              "height_meters": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "attenuation_db": {
+                "type": "number",
+                "minimum": 0
+              },
+              "material": {
+                "type": "string"
+              },
+              "propagation": {
+                "$ref": "#/$defs/propagationProperties"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "ground_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "footprint"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "footprint": {
+                "type": "array",
+                "minItems": 3,
+                "items": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "items": {
+                    "type": "number"
+                  }
+                }
+              },
+              "material": {
+                "type": "string"
+              },
+              "propagation": {
+                "$ref": "#/$defs/propagationProperties"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "vegetation_zones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "footprint",
+              "height_meters",
+              "attenuation_db"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "footprint": {
+                "type": "array",
+                "minItems": 3,
+                "items": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "items": {
+                    "type": "number"
+                  }
+                }
+              },
+              "height_meters": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "attenuation_db": {
+                "type": "number",
+                "minimum": 0
+              },
+              "material": {
+                "type": "string"
+              },
+              "propagation": {
+                "$ref": "#/$defs/propagationProperties"
+              }
             },
             "additionalProperties": false
           }
@@ -128,35 +500,184 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "x", "y", "z"],
+        "required": [
+          "id",
+          "x",
+          "y",
+          "z"
+        ],
         "properties": {
-          "id": {"type": "string"},
-          "x": {"type": "number"},
-          "y": {"type": "number"},
-          "z": {"type": "number"}
+          "id": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          }
         },
         "additionalProperties": false
       }
+    },
+    "propagation_model": {
+      "type": "object",
+      "properties": {
+        "reflection": {
+          "$ref": "#/$defs/reflectionModelConfig"
+        },
+        "diffraction": {
+          "$ref": "#/$defs/diffractionModelConfig"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "$defs": {
+    "propagationProperties": {
+      "type": "object",
+      "properties": {
+        "reflection_loss_db": {
+          "type": "number",
+          "minimum": 0
+        },
+        "diffraction_loss_db": {
+          "type": "number",
+          "minimum": 0
+        },
+        "absorption_coefficient": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "allows_reflection": {
+          "type": "boolean"
+        },
+        "allows_diffraction": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "noiseBarrierArray": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "x1", "y1", "x2", "y2", "height_meters", "attenuation_db"],
+        "required": [
+          "id",
+          "x1",
+          "y1",
+          "x2",
+          "y2",
+          "height_meters",
+          "attenuation_db"
+        ],
         "properties": {
-          "id": {"type": "string"},
-          "x1": {"type": "number"},
-          "y1": {"type": "number"},
-          "x2": {"type": "number"},
-          "y2": {"type": "number"},
-          "height_meters": {"type": "number", "exclusiveMinimum": 0},
-          "attenuation_db": {"type": "number", "minimum": 0},
-          "material": {"type": "string"}
+          "id": {
+            "type": "string"
+          },
+          "x1": {
+            "type": "number"
+          },
+          "y1": {
+            "type": "number"
+          },
+          "x2": {
+            "type": "number"
+          },
+          "y2": {
+            "type": "number"
+          },
+          "height_meters": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "attenuation_db": {
+            "type": "number",
+            "minimum": 0
+          },
+          "material": {
+            "type": "string"
+          },
+          "propagation": {
+            "$ref": "#/$defs/propagationProperties"
+          }
         },
         "additionalProperties": false
       }
+    },
+    "reflectionModelConfig": {
+      "type": "object",
+      "properties": {
+        "max_extra_path_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_nearest_offset_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "min_normal_alignment": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "centrality_floor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "centrality_weight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "extra_path_scale_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "source_distance_scale_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "receiver_distance_scale_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "energy_scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_gain_db": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "diffractionModelConfig": {
+      "type": "object",
+      "properties": {
+        "wavelength_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height_penalty_scale": {
+          "type": "number",
+          "minimum": 0
+        },
+        "height_penalty_cap_db": {
+          "type": "number",
+          "minimum": 0
+        },
+        "min_remaining_attenuation_db": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

@@ -14,6 +14,43 @@ class Receiver:
 
 
 @dataclass(slots=True)
+class PropagationProperties:
+    reflection_loss_db: float | None = None
+    diffraction_loss_db: float | None = None
+    absorption_coefficient: float | None = None
+    allows_reflection: bool | None = None
+    allows_diffraction: bool | None = None
+
+
+@dataclass(slots=True)
+class ReflectionModelConfig:
+    max_extra_path_meters: float | None = None
+    max_nearest_offset_meters: float | None = None
+    min_normal_alignment: float | None = None
+    centrality_floor: float | None = None
+    centrality_weight: float | None = None
+    extra_path_scale_meters: float | None = None
+    source_distance_scale_meters: float | None = None
+    receiver_distance_scale_meters: float | None = None
+    energy_scale: float | None = None
+    max_gain_db: float | None = None
+
+
+@dataclass(slots=True)
+class DiffractionModelConfig:
+    wavelength_meters: float | None = None
+    height_penalty_scale: float | None = None
+    height_penalty_cap_db: float | None = None
+    min_remaining_attenuation_db: float | None = None
+
+
+@dataclass(slots=True)
+class PropagationModelConfig:
+    reflection: ReflectionModelConfig = field(default_factory=ReflectionModelConfig)
+    diffraction: DiffractionModelConfig = field(default_factory=DiffractionModelConfig)
+
+
+@dataclass(slots=True)
 class NoiseBarrier:
     id: str
     x1: float
@@ -23,6 +60,20 @@ class NoiseBarrier:
     height_meters: float
     attenuation_db: float
     material: str = "generic"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
+
+
+@dataclass(slots=True)
+class TerrainEdge:
+    id: str
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+    height_meters: float
+    attenuation_db: float
+    material: str = "soil"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
 
 
 @dataclass(slots=True)
@@ -32,12 +83,34 @@ class Building:
     height_meters: float
     attenuation_db: float
     material: str = "generic"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
+
+
+@dataclass(slots=True)
+class GroundSurface:
+    id: str
+    footprint: list[tuple[float, float]]
+    material: str = "grass"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
+
+
+@dataclass(slots=True)
+class VegetationZone:
+    id: str
+    footprint: list[tuple[float, float]]
+    height_meters: float
+    attenuation_db: float
+    material: str = "generic"
+    propagation: PropagationProperties = field(default_factory=PropagationProperties)
 
 
 @dataclass(slots=True)
 class SceneConfig:
     noise_barriers: list[NoiseBarrier] = field(default_factory=list)
+    terrain_edges: list[TerrainEdge] = field(default_factory=list)
     buildings: list[Building] = field(default_factory=list)
+    ground_surfaces: list[GroundSurface] = field(default_factory=list)
+    vegetation_zones: list[VegetationZone] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -83,12 +156,24 @@ class VehicleNoiseCoefficient:
 
 
 @dataclass(slots=True)
+class DirectivityConfig:
+    preset: str = "custom"
+    mode: str = "isotropic"
+    response_profile: str = "physical"
+    strength_db: float = 6.0
+    wedge_angle_deg: float = 70.0
+    vertical_strength_db: float = 0.0
+    vertical_angle_deg: float = 55.0
+
+
+@dataclass(slots=True)
 class NoiseConfig:
     background_noise_db: float
     max_area_meters: float
     grid_size_meters: float
     receiver_height_meters: float
     vehicle_coefficients: dict[str, VehicleNoiseCoefficient]
+    directivity: DirectivityConfig = field(default_factory=DirectivityConfig)
 
 
 @dataclass(slots=True)
@@ -96,6 +181,11 @@ class GridConfig:
     margin_x_start: float
     margin_x_end: float
     extra_y_extent: float
+    override_enabled: bool = False
+    override_min_x: float | None = None
+    override_max_x: float | None = None
+    override_min_y: float | None = None
+    override_max_y: float | None = None
 
 
 @dataclass(slots=True)
@@ -107,6 +197,7 @@ class ScenarioConfig:
     grid: GridConfig
     receivers: list[Receiver]
     scene: SceneConfig = field(default_factory=SceneConfig)
+    propagation_model: PropagationModelConfig = field(default_factory=PropagationModelConfig)
     source_path: Path | None = None
 
     @classmethod
@@ -116,22 +207,27 @@ class ScenarioConfig:
             for key, value in data["noise"]["vehicle_coefficients"].items()
         }
         noise_data = dict(data["noise"])
+        directivity_data = noise_data.pop("directivity", {})
+        if "response_profile" not in directivity_data:
+            preset = str(directivity_data.get("preset", "custom") or "custom")
+            mode = str(directivity_data.get("mode", "isotropic") or "isotropic")
+            directivity_data["response_profile"] = (
+                "enhanced" if preset != "custom" and mode != "isotropic" else "physical"
+            )
         noise_data["vehicle_coefficients"] = coeffs
+        noise_data["directivity"] = DirectivityConfig(**directivity_data)
         control_data = dict(data["controls"])
         control_data["lane_change_target_positions"] = [tuple(item) for item in control_data.get("lane_change_target_positions", [])]
         scene_data = data.get("scene") or {}
-        legacy_barriers = [NoiseBarrier(**item) for item in scene_data.get("barriers", [])]
-        declared_noise_barriers = [NoiseBarrier(**item) for item in scene_data.get("noise_barriers", [])]
-        buildings = [
-            Building(
-                id=item["id"],
-                footprint=[tuple(point) for point in item.get("footprint", [])],
-                height_meters=item["height_meters"],
-                attenuation_db=item["attenuation_db"],
-                material=item.get("material", "generic"),
-            )
-            for item in scene_data.get("buildings", [])
-        ]
+        propagation_model_data = data.get("propagation_model") or {}
+        reflection_data = propagation_model_data.get("reflection") or {}
+        diffraction_data = propagation_model_data.get("diffraction") or {}
+        legacy_barriers = [cls._parse_noise_barrier(item) for item in scene_data.get("barriers", [])]
+        declared_noise_barriers = [cls._parse_noise_barrier(item) for item in scene_data.get("noise_barriers", [])]
+        terrain_edges = [cls._parse_terrain_edge(item) for item in scene_data.get("terrain_edges", [])]
+        buildings = [cls._parse_building(item) for item in scene_data.get("buildings", [])]
+        ground_surfaces = [cls._parse_ground_surface(item) for item in scene_data.get("ground_surfaces", [])]
+        vegetation_zones = [cls._parse_vegetation_zone(item) for item in scene_data.get("vegetation_zones", [])]
         return cls(
             scenario=ScenarioInfo(**data["scenario"]),
             traffic=TrafficConfig(**data["traffic"]),
@@ -141,10 +237,50 @@ class ScenarioConfig:
             receivers=[Receiver(**item) for item in data["receivers"]],
             scene=SceneConfig(
                 noise_barriers=[*legacy_barriers, *declared_noise_barriers],
+                terrain_edges=terrain_edges,
                 buildings=buildings,
+                ground_surfaces=ground_surfaces,
+                vegetation_zones=vegetation_zones,
+            ),
+            propagation_model=PropagationModelConfig(
+                reflection=ReflectionModelConfig(**reflection_data),
+                diffraction=DiffractionModelConfig(**diffraction_data),
             ),
             source_path=Path(source_path) if source_path is not None else None,
         )
+
+    @staticmethod
+    def _parse_noise_barrier(data: dict) -> NoiseBarrier:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        return NoiseBarrier(propagation=propagation, **payload)
+
+    @staticmethod
+    def _parse_terrain_edge(data: dict) -> TerrainEdge:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        return TerrainEdge(propagation=propagation, **payload)
+
+    @staticmethod
+    def _parse_building(data: dict) -> Building:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        footprint = [tuple(point) for point in payload.pop("footprint", [])]
+        return Building(footprint=footprint, propagation=propagation, **payload)
+
+    @staticmethod
+    def _parse_ground_surface(data: dict) -> GroundSurface:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        footprint = [tuple(point) for point in payload.pop("footprint", [])]
+        return GroundSurface(footprint=footprint, propagation=propagation, **payload)
+
+    @staticmethod
+    def _parse_vegetation_zone(data: dict) -> VegetationZone:
+        payload = dict(data)
+        propagation = PropagationProperties(**payload.pop("propagation", {}))
+        footprint = [tuple(point) for point in payload.pop("footprint", [])]
+        return VegetationZone(footprint=footprint, propagation=propagation, **payload)
 
     @classmethod
     def load(cls, path: str | Path) -> "ScenarioConfig":
