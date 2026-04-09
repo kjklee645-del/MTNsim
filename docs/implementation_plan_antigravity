@@ -1,0 +1,75 @@
+# MTNsim 보안 및 코드 품질 중간 점검 리포트 및 개선 계획
+
+현재 검토된 코드를 바탕으로 예상되는 보안 취약점과 아키텍처 상의 잠재적인 오류, 그리고 이를 개선하기 위한 중간 점검 결과입니다. 즉각적인 코드 수정 대신 진행해야 할 작업 방향에 대해 계획으로 정리했습니다.
+
+## User Review Required
+
+> [!WARNING]
+> 현재 프로젝트 내 XML 파싱 부분과 경로 참조 부분에서 외부 파일을 통해 공격받을 수 있는 취약점이 발견되었습니다. 사용자가 로컬 환경에서 혼자 사용할 때는 치명적이지 않을 수 있지만, 다른 사람이 제공한 시나리오나 캠페인 데이터를 검증 없이 불러올 경우 시스템 파일 손상이나 정보 유출의 여지가 있습니다. 이에 대한 개선 방향에 동의하시는지 확인이 필요합니다.
+
+## 핵심 발견 사항 및 개선 제안 (Proposed Changes)
+
+다음은 취약점 점검 결과 및 해결책입니다. 각 파트별로 파일 수정 계획이 명시되어 있습니다.
+
+---
+
+### 1. XML 처리 보완 (XXE 취약점 방지)
+**이슈:** 기본 내장 라이브러리인 `xml.etree.ElementTree`는 'Billion Laughs' 공격이나 외부 엔티티(XXE) 참조 공격에 취약합니다. 악의적인 XML 구조를 가진 입력 파일(예: 사용자 제공 지도나 씬)을 로드하면 메모리 고갈이나 로컬 파일 유출이 발생할 수 있습니다.
+**해결책:** `defusedxml.ElementTree` 라이브러리로 교체하여 파싱 단계에서 악의적인 엔티티 로딩을 사전에 차단합니다.
+
+#### [MODIFY] mtnsim/scene/grid.py
+- `import xml.etree.ElementTree as ET`를 `import defusedxml.ElementTree as ET`로 변경
+
+#### [MODIFY] mtnsim/gui/controllers/scene_controller.py
+- 동일하게 `defusedxml`을 사용하도록 파서 수정
+
+#### [MODIFY] mtnsim/gui/controllers/project_controller.py
+- XML 처리 시 `defusedxml` 적용
+
+---
+
+### 2. 경로 조작(Path Traversal) 방지 및 I/O 안전성 확보
+**이슈:** `Path(...)`를 조합하여 경로를 생성할 때 `../` 등의 상대 경로 문자를 활용한 악의적인 파일 덮어쓰기나 읽기가 가능합니다(`mtnsim/app/runner.py` 및 각종 `schemas/*.py`).
+**해결책:** 프로젝트 매니페스트 또는 시나리오에서 읽어온 파일 패스가 현재 프로젝트 디렉토리 (또는 허용된 폴더) 내부에 위치하는지 (`is_relative_to`) 검사하는 안전 장치(Sanitization) 로직을 추가합니다.
+
+#### [MODIFY] mtnsim/schemas/project.py
+- 프로젝트 로드 시 `paths`가 지정된 샌드박스(프로젝트 루트) 밖을 벗어나지 못하도록 검증 추가.
+
+#### [MODIFY] mtnsim/schemas/scenario.py
+- 시나리오 데이터 로딩 시 외부 경로에 대한 읽기 예외 처리 및 검증 추가.
+
+---
+
+### 3. 입력 데이터 런타임 타입 캐스팅 및 검증(Validation) 강화
+**이슈:** 속성 파일 파싱(`tomllib.load`) 이후 `dataclasses`를 통해 데이터를 역직렬화하고 있습니다(`scenario.py` 등). 그러나 `dataclass`는 타입 캐스팅이나 범위 제어(예: 속도가 마이너스이거나 빈 문자열)를 자체적으로 강제하지 않아 런타임 도중 나눗셈 오류(ZeroDivision)나 형 변환 오류를 일으킬 수 있습니다.
+**해결책:** Pydantic 도입 또는 각 Dataclass 내 `__post_init__` 메서드를 통해 필수 제약 조건 유효성 검사(Validation)를 수행하는 로직을 추가합니다.
+
+#### [MODIFY] mtnsim/schemas/scenario.py 등 다수 스키마 파일
+- TrafficConfig 범위 검증(max_vehicles > 0 등)
+- GridConfig 경계 조건 검사 등
+
+---
+
+### 4. 외부 프로레스 호출 (Subprocess) 안전성 제어
+**이슈:** `mtnsim/traffic/sumo_adapter.py`에서 `traci.start([binary, "-c", str(sumo_config)])`를 통해 외부 프로세스를 실행합니다. 명령어 배열을 전달하므로 쉘 인젝션(Shell Injection)에서는 비교적 안전하지만, config 파일 존재 여부에 대해 프로세스를 띄우기 전에 미리 확인하고 예외를 명확히 던지는 헬퍼 기능이 필요합니다.
+**해결책:** `sumo_config`가 존재하는지 `os.path.exists()` 혹은 `Path.exists()`로 미리 철저하게 검사하고, 실행 권한이나 올바른 바이너리인지 사전에 확인하도록 `sumo_adapter.py`에 검증 로직을 추가합니다.
+
+#### [MODIFY] mtnsim/traffic/sumo_adapter.py
+- `start` 함수 내 파라미터 검증 로직 추가 및 `subprocess` 에러 핸들링 구체화.
+
+## Open Questions
+
+> [!CAUTION]
+> 1. 향후 외부(예: 웹 서버, 다운로드 등)에서 `.toml`, `.json`, `.xml` 형식의 시나리오/캠페인 데이터를 다운받아 자동 실행할 계층(API 서버 등)이 추가될 계획인지요? 그렇다면 위에서 제안한 경로 조작(Path Traversal) 검증 규칙을 더 엄격히 적용해야 합니다.
+> 2. `dataclasses` 대신 Pydantic과 같은 검증 특화 라이브러리를 의존성에 추가(Dependency addition)해도 괜찮을까요?
+
+## Verification Plan
+
+수정 계획이 승인된 후 진행될 검증 방법은 아래와 같습니다.
+
+### Automated Tests
+- 경로 조작(`../../`)이 포함된 가짜 설정 파일을 주입해 예외 차단이 발생함을 확인하는 단위 테스트 작성.
+- 악성 엔티티가 포함된 `xml` 파일 파싱 시 에러가 나면서 애플리케이션 방어가 동작하는지 테스트 작성(`defusedxml` 적용 확인).
+
+### Manual Verification
+- GUI 환경 및 명령어 런너(`app/runner.py`)를 통해 정상적인 프로젝트 시나리오를 구동하여, 기능 수정 시뮬레이션 동작에 어떠한 성능 저하나 차질이 없는지 육안 및 로컬 상호 작용을 통해 점검.
