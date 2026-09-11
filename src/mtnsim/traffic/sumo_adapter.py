@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import importlib.util
 import os
+import shutil
 import sys
+
+from mtnsim.security.exceptions import ConfigValidationError
 
 
 def _candidate_sumo_tool_paths() -> list[Path]:
@@ -57,12 +60,35 @@ class SumoAdapter:
             raise RuntimeError("traci is required for SUMO integration")
 
     def start(self, sumo_config: str | Path, binary: str = "sumo", seed: int | None = None) -> None:
+        config_path = Path(sumo_config).expanduser().resolve()
+        if not config_path.exists():
+            raise ConfigValidationError(f"SUMO config does not exist: {config_path}")
+        if not config_path.is_file():
+            raise ConfigValidationError(f"SUMO config must point to a file: {config_path}")
+
+        binary_path = self._resolve_binary(binary)
         self._require_traci()
-        command = [binary, "-c", str(sumo_config)]
+        command = [binary_path, "-c", str(config_path)]
         if seed is not None:
             command.extend(["--seed", str(seed)])
-        traci.start(command)
+        try:
+            traci.start(command)
+        except Exception as exc:
+            raise RuntimeError(f"Failed to start SUMO with config {config_path} and binary {binary_path}") from exc
         self._started = True
+
+    def _resolve_binary(self, binary: str) -> str:
+        candidate = Path(binary).expanduser()
+        if candidate.parent != Path():
+            resolved = candidate.resolve()
+            if not resolved.exists():
+                raise ConfigValidationError(f"SUMO binary does not exist: {resolved}")
+            return str(resolved)
+
+        located = shutil.which(binary)
+        if located is None:
+            raise ConfigValidationError(f"SUMO binary is not available on PATH: {binary}")
+        return located
 
     def close(self) -> None:
         if self._started and traci is not None:

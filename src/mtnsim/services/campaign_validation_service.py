@@ -6,6 +6,8 @@ from pathlib import Path
 
 from mtnsim.io.measurements import read_measurement_metadata, read_measurement_samples
 from mtnsim.io.result_store import write_field_campaign_validation_summary
+from mtnsim.security import PathSecurityError
+from mtnsim.security.paths import resolve_campaign_path, resolve_project_path
 from mtnsim.schemas.field_campaign import (
     FieldCampaignManifest,
     FieldCampaignValidationSummary,
@@ -41,7 +43,7 @@ class CampaignValidationService:
         inspection = self.field_campaign_service.inspect_campaign(campaign_file)
         campaign = FieldCampaignManifest.load(campaign_file)
         campaign_root = campaign.source_path.parent if campaign.source_path else Path.cwd()
-        scenario_path = self._resolve(campaign_root, scenario_file)
+        scenario_path = self._resolve_scenario_path(project, campaign, scenario_file)
         scenario = ScenarioConfig.load(scenario_path)
         report_file = inspection.output_dir / 'campaign_validation_report.md'
 
@@ -69,8 +71,8 @@ class CampaignValidationService:
 
         context = self.run_service.create_run_context(project, scenario)
         artifacts = self.run_service.run_simulation(context, use_gpu=use_gpu)
-        measurement_path = self._resolve(campaign_root, campaign.measurement_file)
-        metadata_path = self._resolve(campaign_root, campaign.sensor_metadata_file)
+        measurement_path = self._resolve_campaign_path(campaign, campaign.measurement_file, label='campaign.measurement_file')
+        metadata_path = self._resolve_campaign_path(campaign, campaign.sensor_metadata_file, label='campaign.sensor_metadata_file')
         calibration, calibration_path = self.calibration_service.calibrate_and_store(
             artifacts.result_summary,
             measurement_path,
@@ -434,9 +436,28 @@ class CampaignValidationService:
             checks['max_receiver_group_abs_mean_bias_db'] = {'passed': not failed, 'actual_failed_groups': failed, 'expected_max': thresholds.max_receiver_group_abs_mean_bias_db}
         return checks
 
-    def _resolve(self, root: Path, raw_path: str | Path) -> Path:
-        path = Path(raw_path)
-        return path if path.is_absolute() else root / path
+    def _resolve_campaign_path(self, campaign: FieldCampaignManifest, raw_path: str | Path, *, label: str) -> Path:
+        resolved = resolve_campaign_path(campaign, raw_path, label=label, must_exist=False)
+        assert resolved is not None
+        return resolved
+
+    def _resolve_scenario_path(
+        self,
+        project: ProjectManifest,
+        campaign: FieldCampaignManifest,
+        scenario_file: str | Path,
+    ) -> Path:
+        scenario_text = str(scenario_file).strip()
+        if campaign.scenario_file:
+            try:
+                resolved = resolve_campaign_path(campaign, scenario_text, label='campaign.scenario_file', expected_kind='file')
+            except PathSecurityError:
+                resolved = None
+            if resolved is not None:
+                return resolved
+        resolved = resolve_project_path(project, scenario_text, label='project scenario path', expected_kind='file')
+        assert resolved is not None
+        return resolved
 
     def _build_report(self, summary: FieldCampaignValidationSummary, campaign: FieldCampaignManifest, inspection_summary, result_summary_file: Path | None, calibration_summary_file: Path | None) -> str:
         lines = [

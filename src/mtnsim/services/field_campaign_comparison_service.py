@@ -3,6 +3,7 @@
 from pathlib import Path
 import json
 
+from mtnsim.security.paths import resolve_campaign_path, resolve_project_output_root, resolve_project_path
 from mtnsim.schemas.field_campaign import FieldCampaignManifest
 from mtnsim.schemas.project import ProjectManifest
 from mtnsim.services.campaign_validation_service import CampaignValidationService
@@ -38,19 +39,15 @@ class FieldCampaignComparisonService:
 
     def _resolve_scenario_path(self, project: ProjectManifest, campaign: FieldCampaignManifest) -> Path:
         if campaign.scenario_file:
-            scenario_path = Path(campaign.scenario_file)
-            if not scenario_path.is_absolute() and campaign.source_path is not None:
-                return campaign.source_path.parent / scenario_path
-            return scenario_path
-        if project.source_path is None:
-            return Path(f"scenarios/{project.project.default_scenario}.toml")
-        return project.source_path.parent / 'scenarios' / f'{project.project.default_scenario}.toml'
+            resolved = resolve_campaign_path(campaign, campaign.scenario_file, label='campaign.scenario_file', expected_kind='file')
+            assert resolved is not None
+            return resolved
+        resolved = resolve_project_path(project, Path('scenarios') / f'{project.project.default_scenario}.toml', label='default project scenario', expected_kind='file')
+        assert resolved is not None
+        return resolved
 
     def _comparison_output_dir(self, project: ProjectManifest, campaign_id_a: str, campaign_id_b: str) -> Path:
-        base = Path(project.paths.outputs)
-        if not base.is_absolute() and project.source_path is not None:
-            project_root = project.source_path.parent.parent if project.source_path.parent.name == 'examples' else project.source_path.parent
-            base = project_root / base
+        base = resolve_project_output_root(project)
         return base / 'field_campaign_comparisons' / f'{campaign_id_a}_vs_{campaign_id_b}'
 
     def _build_summary(self, summary_a: dict, summary_b: dict) -> dict:

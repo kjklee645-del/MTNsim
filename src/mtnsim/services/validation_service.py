@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 
 from mtnsim.io.result_store import write_validation_suite_summary
+from mtnsim.security.paths import resolve_project_output_root, resolve_project_path
 from mtnsim.schemas.project import ProjectManifest
 from mtnsim.schemas.scenario import ScenarioConfig
 from mtnsim.schemas.validation import ValidationCaseResult, ValidationSuiteSummary, ValidationThresholds
@@ -28,10 +29,13 @@ class ValidationService:
         case_results: list[ValidationCaseResult] = []
 
         for case in payload.get('cases', []):
-            scenario_path = self._resolve_project_relative(project, case['scenario'])
-            measurement_path = self._resolve_project_relative(project, case['measurement'])
+            scenario_path = self._resolve_project_relative(project, case['scenario'], label='validation case scenario', expected_kind='file')
+            measurement_path = self._resolve_project_relative(project, case['measurement'], label='validation case measurement', expected_kind='file')
             measurement_meta = case.get('measurement_metadata')
-            measurement_meta_path = self._resolve_project_relative(project, measurement_meta) if measurement_meta else None
+            measurement_meta_path = (
+                self._resolve_project_relative(project, measurement_meta, label='validation case measurement metadata', expected_kind='file')
+                if measurement_meta else None
+            )
 
             scenario = ScenarioConfig.load(scenario_path)
             context = self.run_service.create_run_context(project, scenario)
@@ -67,7 +71,7 @@ class ValidationService:
             passed=all(item.passed for item in case_results),
             case_results=case_results,
         )
-        output_root = self._resolve_project_relative(project, project.paths.outputs)
+        output_root = resolve_project_output_root(project)
         output_path = write_validation_suite_summary(output_root, summary)
         return summary, output_path
 
@@ -133,12 +137,14 @@ class ValidationService:
 
         return checks
 
-    def _resolve_project_relative(self, project: ProjectManifest, raw_path: str | Path) -> Path:
-        path = Path(raw_path)
-        if path.is_absolute():
-            return path
-        if project.source_path is None:
-            return path
-        source_parent = project.source_path.parent
-        project_root = source_parent.parent if source_parent.name == 'examples' else source_parent
-        return project_root / path
+    def _resolve_project_relative(
+        self,
+        project: ProjectManifest,
+        raw_path: str | Path,
+        *,
+        label: str,
+        expected_kind: str | None = None,
+    ) -> Path:
+        resolved = resolve_project_path(project, raw_path, label=label, expected_kind=expected_kind)
+        assert resolved is not None
+        return resolved

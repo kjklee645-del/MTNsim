@@ -5,6 +5,15 @@ from pathlib import Path
 from typing import Any
 import json
 
+from mtnsim.security.exceptions import ConfigValidationError
+from mtnsim.security.paths import campaign_root_from_manifest_path, validate_path_within_root
+from mtnsim.security.validators import (
+    ensure_non_empty_string,
+    ensure_non_negative_number,
+    ensure_positive_number,
+    ensure_ratio,
+)
+
 
 @dataclass(slots=True)
 class FieldCampaignValidationThresholds:
@@ -60,35 +69,103 @@ class FieldCampaignManifest:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], source_path: str | Path | None = None) -> 'FieldCampaignManifest':
-        return cls(
-            campaign_id=data['campaign_id'],
-            name=data['name'],
-            measurement_file=data['measurement_file'],
-            sensor_metadata_file=data['sensor_metadata_file'],
-            traffic_file=data.get('traffic_file'),
-            traffic_metadata_file=data.get('traffic_metadata_file'),
-            scene_path=data.get('scene_path'),
-            scene_manifest_file=data.get('scene_manifest_file'),
-            notes_file=data.get('notes_file'),
-            scenario_file=data.get('scenario_file'),
-            description=data.get('description', ''),
-            time_column_preference=data.get('time_column_preference'),
-            expected_unit=data.get('expected_unit', 'dB(A)'),
-            expected_time_zone=data.get('expected_time_zone'),
-            coordinate_system=data.get('coordinate_system'),
-            auto_time_sync=bool(data.get('auto_time_sync', False)),
-            max_time_offset_steps=int(data.get('max_time_offset_steps', 5)),
-            outlier_error_threshold_db=data.get('outlier_error_threshold_db'),
-            min_alignment_samples=int(data.get('min_alignment_samples', 3)),
-            validation_thresholds=FieldCampaignValidationThresholds(**(data.get('validation_thresholds') or {})),
-            receiver_groups={str(key): [str(item) for item in value] for key, value in (data.get('receiver_groups') or {}).items()},
-            source_path=Path(source_path) if source_path is not None else None,
-        )
+        resolved_source = Path(source_path).expanduser().resolve() if source_path is not None else None
+        try:
+            manifest = cls(
+                campaign_id=data['campaign_id'],
+                name=data['name'],
+                measurement_file=data['measurement_file'],
+                sensor_metadata_file=data['sensor_metadata_file'],
+                traffic_file=data.get('traffic_file'),
+                traffic_metadata_file=data.get('traffic_metadata_file'),
+                scene_path=data.get('scene_path'),
+                scene_manifest_file=data.get('scene_manifest_file'),
+                notes_file=data.get('notes_file'),
+                scenario_file=data.get('scenario_file'),
+                description=data.get('description', ''),
+                time_column_preference=data.get('time_column_preference'),
+                expected_unit=data.get('expected_unit', 'dB(A)'),
+                expected_time_zone=data.get('expected_time_zone'),
+                coordinate_system=data.get('coordinate_system'),
+                auto_time_sync=bool(data.get('auto_time_sync', False)),
+                max_time_offset_steps=int(data.get('max_time_offset_steps', 5)),
+                outlier_error_threshold_db=data.get('outlier_error_threshold_db'),
+                min_alignment_samples=int(data.get('min_alignment_samples', 3)),
+                validation_thresholds=FieldCampaignValidationThresholds(**(data.get('validation_thresholds') or {})),
+                receiver_groups={str(key): [str(item) for item in value] for key, value in (data.get('receiver_groups') or {}).items()},
+                source_path=resolved_source,
+            )
+        except KeyError as exc:
+            raise ConfigValidationError(f"Field campaign manifest is missing required field: {exc}") from exc
+        except (TypeError, ValueError) as exc:
+            raise ConfigValidationError(f"Field campaign manifest is invalid: {exc}") from exc
+        manifest.validate()
+        return manifest
+
+    def validate(self) -> None:
+        ensure_non_empty_string(self.campaign_id, 'campaign_id')
+        ensure_non_empty_string(self.name, 'name')
+        ensure_non_empty_string(self.measurement_file, 'measurement_file')
+        ensure_non_empty_string(self.sensor_metadata_file, 'sensor_metadata_file')
+        ensure_non_empty_string(self.expected_unit, 'expected_unit')
+        ensure_non_negative_number(self.max_time_offset_steps, 'max_time_offset_steps')
+        ensure_positive_number(self.min_alignment_samples, 'min_alignment_samples')
+        if self.outlier_error_threshold_db is not None:
+            ensure_non_negative_number(self.outlier_error_threshold_db, 'outlier_error_threshold_db')
+
+        thresholds = self.validation_thresholds
+        for field_name in (
+            'min_aligned_sample_count',
+            'max_overall_rmse_db',
+            'max_abs_overall_mean_bias_db',
+            'max_unmatched_sensor_count',
+            'max_receiver_rmse_db',
+            'max_receiver_abs_mean_bias_db',
+            'max_worst_receiver_rmse_db',
+            'max_outlier_rejected_sample_count',
+            'max_abs_effective_time_offset_steps',
+            'max_receiver_group_rmse_db',
+            'max_receiver_group_abs_mean_bias_db',
+        ):
+            value = getattr(thresholds, field_name)
+            if value is not None:
+                ensure_non_negative_number(value, f'validation_thresholds.{field_name}')
+        for field_name in ('min_coverage_ratio', 'min_receiver_coverage_ratio', 'max_outlier_rejection_ratio', 'min_receiver_group_coverage_ratio'):
+            value = getattr(thresholds, field_name)
+            if value is not None:
+                ensure_ratio(value, f'validation_thresholds.{field_name}')
+
+        for group_id, receiver_ids in self.receiver_groups.items():
+            ensure_non_empty_string(group_id, f'receiver_groups[{group_id}]')
+            for receiver_id in receiver_ids:
+                ensure_non_empty_string(receiver_id, f'receiver_groups[{group_id}] receiver id')
+
+        if self.source_path is None:
+            return
+
+        campaign_root = campaign_root_from_manifest_path(self.source_path)
+        for label, raw_path in (
+            ('measurement_file', self.measurement_file),
+            ('sensor_metadata_file', self.sensor_metadata_file),
+            ('traffic_file', self.traffic_file),
+            ('traffic_metadata_file', self.traffic_metadata_file),
+            ('scene_path', self.scene_path),
+            ('scene_manifest_file', self.scene_manifest_file),
+            ('notes_file', self.notes_file),
+            ('scenario_file', self.scenario_file),
+        ):
+            if raw_path is None:
+                continue
+            validate_path_within_root(campaign_root, raw_path, label=label)
 
     @classmethod
     def load(cls, path: str | Path) -> 'FieldCampaignManifest':
-        path = Path(path)
-        return cls.from_dict(json.loads(path.read_text(encoding='utf-8')), source_path=path)
+        path = Path(path).expanduser().resolve()
+        try:
+            payload = json.loads(path.read_text(encoding='utf-8'))
+        except json.JSONDecodeError as exc:
+            raise ConfigValidationError(f"Field campaign manifest JSON is invalid: {path}") from exc
+        return cls.from_dict(payload, source_path=path)
 
 
 @dataclass(slots=True)

@@ -6,6 +6,7 @@ from pathlib import Path
 import csv
 import json
 
+from mtnsim.security.paths import resolve_campaign_path, resolve_path_within_root
 from mtnsim.schemas.field_campaign import CampaignQualityCheck, FieldCampaignInspectionSummary, FieldCampaignManifest
 
 
@@ -22,13 +23,13 @@ class FieldCampaignService:
         manifest = FieldCampaignManifest.load(campaign_file)
         campaign_root = manifest.source_path.parent if manifest.source_path else Path.cwd()
 
-        measurement_path = self._resolve(campaign_root, manifest.measurement_file)
-        metadata_path = self._resolve(campaign_root, manifest.sensor_metadata_file)
-        traffic_path = self._resolve(campaign_root, manifest.traffic_file) if manifest.traffic_file else None
-        traffic_metadata_path = self._resolve(campaign_root, manifest.traffic_metadata_file) if manifest.traffic_metadata_file else None
-        scene_path = self._resolve(campaign_root, manifest.scene_path) if manifest.scene_path else None
-        scene_manifest_path = self._resolve(campaign_root, manifest.scene_manifest_file) if manifest.scene_manifest_file else None
-        notes_path = self._resolve(campaign_root, manifest.notes_file) if manifest.notes_file else None
+        measurement_path = self._resolve(manifest, manifest.measurement_file, label='campaign.measurement_file')
+        metadata_path = self._resolve(manifest, manifest.sensor_metadata_file, label='campaign.sensor_metadata_file')
+        traffic_path = self._resolve(manifest, manifest.traffic_file, label='campaign.traffic_file') if manifest.traffic_file else None
+        traffic_metadata_path = self._resolve(manifest, manifest.traffic_metadata_file, label='campaign.traffic_metadata_file') if manifest.traffic_metadata_file else None
+        scene_path = self._resolve(manifest, manifest.scene_path, label='campaign.scene_path') if manifest.scene_path else None
+        scene_manifest_path = self._resolve(manifest, manifest.scene_manifest_file, label='campaign.scene_manifest_file') if manifest.scene_manifest_file else None
+        notes_path = self._resolve(manifest, manifest.notes_file, label='campaign.notes_file') if manifest.notes_file else None
 
         checks: list[CampaignQualityCheck] = []
 
@@ -232,7 +233,13 @@ class FieldCampaignService:
             for value in layers.values():
                 if not value:
                     continue
-                target = self._resolve(scene_path, value)
+                target = resolve_path_within_root(
+                    scene_path,
+                    value,
+                    label='campaign scene layer file',
+                    must_exist=False,
+                    expected_kind='file',
+                )
                 if not target.exists():
                     missing_files.append(str(target))
             checks.append(CampaignQualityCheck('scene_manifest_layer_files_exist', not missing_files, 'warning', 'Scene manifest referenced files should exist inside or relative to the scene bundle.', {'missing_files': missing_files}))
@@ -244,9 +251,10 @@ class FieldCampaignService:
         exists = path.is_dir() if expected_kind == 'dir' else path.is_file()
         return [CampaignQualityCheck(check_id, exists, severity, f'{check_id} should point to an existing {expected_kind}.', {'path': str(path)})]
 
-    def _resolve(self, root: Path, raw_path: str | Path) -> Path:
-        path = Path(raw_path)
-        return path if path.is_absolute() else root / path
+    def _resolve(self, manifest: FieldCampaignManifest, raw_path: str | Path, *, label: str) -> Path:
+        resolved = resolve_campaign_path(manifest, raw_path, label=label, must_exist=False)
+        assert resolved is not None
+        return resolved
 
     def _build_markdown_report(
         self,

@@ -17,6 +17,8 @@ from mtnsim.acoustics.propagation.shielding import BarrierSegment
 from mtnsim.core.context import RunContext
 from mtnsim.io.result_store import write_receiver_histories, write_run_manifest, write_run_result_summary
 from mtnsim.scene import GridDomain, build_scene_model, read_network_bounds
+from mtnsim.security.exceptions import ConfigValidationError
+from mtnsim.security.paths import project_root_from_manifest, resolve_project_output_root, resolve_project_path
 from mtnsim.schemas.project import ProjectManifest
 from mtnsim.schemas.results import ReceiverStats, RunResultSummary
 from mtnsim.schemas.run import RunSummary
@@ -69,15 +71,22 @@ class RunService:
         progress_callback: Callable[[dict], None] | None = None,
         record_vehicle_trace: bool = False,
     ) -> SimulationArtifacts:
-        project_root = self._project_root(context.project)
-        network_path = self._resolve_path(project_root, context.project.paths.network)
-        sumo_config_path = self._resolve_path(project_root, context.project.paths.sumo_config)
-        output_root = self._resolve_path(project_root, context.project.paths.outputs)
+        network_path = resolve_project_path(
+            context.project,
+            context.project.paths.network,
+            label="project.paths.network",
+            expected_kind="file",
+        )
+        sumo_config_path = resolve_project_path(
+            context.project,
+            context.project.paths.sumo_config,
+            label="project.paths.sumo_config",
+            expected_kind="file",
+        )
+        output_root = resolve_project_output_root(context.project, must_exist=False)
 
-        if not network_path.exists():
-            raise FileNotFoundError(f"Network file not found: {network_path}")
-        if not sumo_config_path.exists():
-            raise FileNotFoundError(f"SUMO config not found: {sumo_config_path}")
+        if network_path is None or sumo_config_path is None:
+            raise ConfigValidationError("Project must configure both network and SUMO config paths before simulation can run.")
 
         output_dir = output_root / context.run_id
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -314,19 +323,8 @@ class RunService:
         payload.update(extra)
         callback(payload)
 
-    def _project_root(self, project: ProjectManifest) -> Path:
-        if project.source_path is None:
-            return Path.cwd()
-        source_parent = project.source_path.parent
-        if source_parent.name == 'examples':
-            return source_parent.parent
-        return source_parent
-
-    def _resolve_path(self, project_root: Path, raw_path: str) -> Path:
-        path = Path(raw_path)
-        if path.is_absolute():
-            return path
-        return project_root / path
+    def _project_root(self, project: ProjectManifest):
+        return project_root_from_manifest(project)
 
     def _build_grid_domain(self, context: RunContext, min_x: float, min_y: float, max_x: float, max_y: float) -> GridDomain:
         grid_config = context.scenario.grid

@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
 )
 
 from mtnsim.gui.controllers import CampaignController, CompareController, PlaybackController, ProjectController, ResultController, RunController, Scene3DController, SceneController
+from mtnsim.security.paths import resolve_project_path
 from mtnsim.gui.state import GuiRunState, GuiSessionState
 from mtnsim.gui.views import CampaignValidationView, ProjectHomeView, ProjectSetupDialog, ResultViewerView, RunMonitorView, ScenarioComparisonView, ScenarioEditorView, Scene3DView, SceneObjectEditorView, SceneView, VehiclePlaybackView
 from mtnsim.schemas.scenario import Building, GroundSurface, NoiseBarrier, Receiver, TerrainEdge, VegetationZone
@@ -727,14 +728,9 @@ class MainWindow(QMainWindow):
         return self._resolve_project_path(project, network_raw).exists() and self._resolve_project_path(project, sumo_raw).exists()
 
     def _resolve_project_path(self, project, raw_path: str) -> Path:
-        path = Path(raw_path)
-        if path.is_absolute():
-            return path
-        if project.source_path is None:
-            return Path.cwd() / path
-        source_parent = project.source_path.parent
-        project_root = source_parent.parent if source_parent.name == 'examples' else source_parent
-        return project_root / path
+        resolved = resolve_project_path(project, raw_path, label='GUI project path', must_exist=False)
+        assert resolved is not None
+        return resolved
 
     def _build_project_readiness(self) -> tuple[str, str, str]:
         project_state = self.session_state.project_state
